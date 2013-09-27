@@ -1,0 +1,45 @@
+name:           FormalGrammars
+version:        0.0.0.1
+author:         Christian Hoener zu Siederdissen, 2013
+copyright:      Christian Hoener zu Siederdissen, 2013
+homepage:       http://www.tbi.univie.ac.at/~choener/
+maintainer:     choener@tbi.univie.ac.at
+category:       Formal Languages, Bioinformatics
+license:        GPL-3
+license-file:   LICENSE
+build-type:     Simple
+stability:      experimental
+cabal-version:  >= 1.6.0
+synopsis:
+                Grammars in formal language theory
+description:
+                Grammars in formal language theory are sets of production
+                rules, non-terminal and terminal symbols. This library provides
+                basic data types and functions to manipulate such grammars. In
+                addition, QuasiQuoting functionality is provided to turn a
+                grammar into Haskell types and functions. These work
+                efficiently together with ADPfusion. In addition,
+                pretty-printing functionality allows representations in LaTeX.
+
+Extra-Source-Files:
+
+library
+  build-depends:
+    base >= 4 && < 5,
+  exposed-modules:
+    FormalLanguage
+    FormalLanguage.Grammar
+  ghc-options:
+
+-- A Simple pretty-printer for formal grammars.
+
+--executable GrammarPP
+--  build-depends:
+--    cmdargs == 0.10.*
+--  main-is:
+--    GrammarPP.hs
+
+source-repository head
+  type: git
+  location: git://github.com/choener/FormalGrammars
+
