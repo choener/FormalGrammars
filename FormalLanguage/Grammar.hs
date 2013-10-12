@@ -13,6 +13,7 @@ import           Control.Lens
 import           Data.Default
 import           Data.Set (Set)
 import qualified Data.Set as S
+import           Data.Foldable
 
 
 
@@ -82,21 +83,33 @@ size = error "size"
 --
 -- TODO make sure we use a variant that computes small grammars.
 
-cnf :: Grammar -> Grammar
-cnf = error "cnf"
+chomskyNF :: Grammar -> Grammar
+chomskyNF = error "chomsky"
+
+isChomskyNF :: Grammar -> Bool
+isChomskyNF g = allOf folded isC $ g^.productions where
+  isC :: Production -> Bool
+  isC (Production _ _ [NSym _, NSym _]) = True
+  isC (Production _ _ [TSym _]        ) = True
+  isC _                                 = False
 
 -- | Transform grammar into GNF.
 --
 -- http://dl.acm.org/citation.cfm?id=321254
 
-gnf :: Grammar -> Grammar
-gnf = error "gnf"
+greibachNF :: Grammar -> Grammar
+greibachNF = error "gnf"
+
+-- | Check if grammar is in Greibach Normal Form
+
+isGreibachNF :: Grammar -> Bool
+isGreibachNF g = allOf folded isG $ g^.productions where
+  isG :: Production -> Bool
+  isG (Production _ _ [TSym _, NSym _]) = True
+  isG _                                 = False
 
 -- | Transform a grammar into 2NF.
 
 twonf :: Grammar -> Grammar
 twonf = error "twonf"
-
-
-
 
