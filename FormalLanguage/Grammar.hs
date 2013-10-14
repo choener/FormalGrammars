@@ -5,7 +5,9 @@
 -- grammars.
 --
 -- TODO we shall have to extend the system for multi-tape grammars to allow
--- combined terminal/non-terminal systems.
+-- combined terminal/non-terminal systems. This will basically mean dealing
+-- with context-sensitive grammars, at which we can just fully generalize
+-- everything.
 
 module FormalLanguage.Grammar where
 
