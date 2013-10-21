@@ -1,3 +1,7 @@
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE GADTs #-}
 
@@ -16,8 +20,41 @@ import           Data.Default
 import           Data.Set (Set)
 import qualified Data.Set as S
 import           Data.Foldable
+import           Control.Applicative
 
 
+
+-- | A single-dimensional terminal or non-terminal symbol.
+
+data Symb where
+  T  :: String -> Symb
+  NT :: String -> Symb
+
+deriving instance Show Symb
+
+symb :: Lens' Symb String
+symb f (T  s) = T  <$> f s
+symb f (NT s) = NT <$> f s
+
+-- | A complete grammatical symbol is multi-dimensional (with 0 .. )
+-- dimensions.
+
+newtype Symbol = Symbol { getSymbs :: [Symb] }
+
+deriving instance Show Symbol
+
+symbol :: Lens' Symbol [Symb]
+symbol f (Symbol xs) = Symbol <$> f xs  -- are we sure?
+
+type instance IxValue Symbol = Symb
+
+instance At Symbol where
+  at = undefined
+
+instance Applicative f => Ixed f Symbol where
+  ix k f (Symbol xs) = undefined -- Symbol <$> ix k f xs
+
+{-
 
 -- |
 
@@ -114,4 +151,6 @@ isGreibachNF g = allOf folded isG $ g^.productions where
 
 twonf :: Grammar -> Grammar
 twonf = error "twonf"
+
+-}
 
