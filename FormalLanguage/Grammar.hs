@@ -72,13 +72,6 @@ type instance IxValue Symbol = Symb
 
 instance Applicative f => Ixed f Symbol where
   ix k f (Symbol xs) = Symbol <$> ix k f xs
-  {- -- more manual version of "ix"
-  ix k f (Symbol xs) | k<0 = pure (Symbol xs)
-                     | otherwise = go xs k
-                     where go []     _ = pure (Symbol [])
-                           go (y:ys) 0 = Lens.indexed f k y <&> (\y' -> Symbol $ y':ys)
-                           go (y:ys) l = (\(Symbol ys') -> Symbol $ y : ys') <$> (go ys $! l - 1)
-                           -}
 
 -- |
 
