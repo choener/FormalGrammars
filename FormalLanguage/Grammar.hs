@@ -23,8 +23,11 @@ import qualified Data.Set as S
 import           Data.Foldable
 import           Control.Applicative
 import qualified Control.Lens.Indexed as Lens
+import           Prelude hiding (all)
 
 
+
+-- * Basic data types for formal grammars.
 
 -- | Grammar indices are enumerable objects
 --
@@ -42,19 +45,19 @@ instance Default Enumerable where
 -- | A single-dimensional terminal or non-terminal symbol.
 
 data Symb where
-  T  :: String               -> Symb
-  NT :: String -> Enumerable -> Symb
+  T :: String               -> Symb
+  N :: String -> Enumerable -> Symb
 
 deriving instance Show Symb
 deriving instance Eq   Symb
 
 symb :: Lens' Symb String
-symb f (T  s  ) = T                <$> f s
-symb f (NT s e) = (\s' -> NT s' e) <$> f s
+symb f (T s  ) = T               <$> f s
+symb f (N s e) = (\s' -> N s' e) <$> f s
 
 enumed :: Lens' Symb Enumerable
-enumed f (T  _  ) = error "enumed doesn't exist for terminal symbols"
-enumed f (NT s e) = NT s <$> f e
+enumed f (T _  ) = error "enumed doesn't exist for terminal symbols"
+enumed f (N s e) = N s <$> f e
 
 -- | A complete grammatical symbol is multi-dimensional with 0..  dimensions.
 
@@ -72,8 +75,13 @@ type instance IxValue Symbol = Symb
 
 instance Applicative f => Ixed f Symbol where
   ix k f (Symbol xs) = Symbol <$> ix k f xs
+  {-# INLINE ix #-}
 
--- |
+-- | A production rule goes from a left-hand side (lhs) to a right-hand side
+-- (rhs). The rhs is evaluated using a function (fun).
+--
+-- TODO These production rules currently do not allow "typical"
+-- context-sensitive grammars with terminal symbols on the left-hand side.
 
 data Rule = Rule
   { _lhs :: Symbol
@@ -83,16 +91,82 @@ data Rule = Rule
 
 makeLenses ''Rule
 
--- |
+-- | A complete grammar with a set of terminal symbol (tsyms), non-terminal
+-- symbol (nsyms), production rules (rules) and a start symbol (start).
+--
+-- TODO Combined terminal and non-terminal symbols in multi-tape grammars are
+-- denoted as non-terminal symbols.
 
 data Grammar = Grammar
-  { _tsyms       :: Set Symbol
-  , _nsyms       :: Set Symbol
-  , _productions :: Set Rule
-  , _start       :: Symbol
+  { _tsyms :: Set Symbol
+  , _nsyms :: Set Symbol
+  , _rules :: Set Rule
+  , _start :: Symbol
   } deriving (Show)
 
 makeLenses ''Grammar
+
+
+
+-- * Helper functions on rules and symbols.
+
+-- | Symbol is completely in terminal form.
+
+tSymbol :: Symbol -> Bool
+tSymbol (Symbol xs) = allOf folded tSymb xs
+
+tSymb :: Symb -> Bool
+tSymb (T _  ) = True
+tSymb (N _ _) = False
+
+-- | Symbol is completely in non-terminal form.
+
+nSymbol :: Symbol -> Bool
+nSymbol (Symbol xs) = allOf folded nSymb xs
+
+-- | Generalized non-terminal symbol with at least one non-terminal Symb.
+
+nSymbolG :: Symbol -> Bool
+nSymbolG (Symbol xs) = anyOf folded nSymb xs
+
+nSymb :: Symb -> Bool
+nSymb (T _  ) = False
+nSymb (N _ _) = True
+
+
+
+-- * Different normal forms for grammars.
+
+-- | Transform a grammar into CNF.
+--
+-- TODO make sure we use a variant that computes small grammars.
+
+chomskyNF :: Grammar -> Grammar
+chomskyNF = error "chomsky"
+
+isChomskyNF :: Grammar -> Bool
+isChomskyNF g = allOf folded isC $ g^.rules where
+  isC :: Rule -> Bool
+  isC (Rule _ _ [s])   = tSymbol s
+  isC (Rule _ _ [s,t]) = nSymbol s && nSymbol t
+  isC _                = False
+
+-- | Transform grammar into GNF.
+--
+-- http://dl.acm.org/citation.cfm?id=321254
+
+greibachNF :: Grammar -> Grammar
+greibachNF = error "gnf"
+
+-- | Check if grammar is in Greibach Normal Form
+
+isGreibachNF :: Grammar -> Bool
+isGreibachNF g = allOf folded isG $ g^.rules where
+  isG :: Rule -> Bool
+  isG (Rule _ _ (t:ns)) = tSymbol t && all nSymbol ns
+  isG _                 = False
+
+
 
 {-
 
@@ -157,35 +231,6 @@ isT _ = False
 
 size :: Grammar -> Int
 size = error "size"
-
--- | Transform a grammar into CNF.
---
--- TODO make sure we use a variant that computes small grammars.
-
-chomskyNF :: Grammar -> Grammar
-chomskyNF = error "chomsky"
-
-isChomskyNF :: Grammar -> Bool
-isChomskyNF g = allOf folded isC $ g^.productions where
-  isC :: Production -> Bool
-  isC (Production _ _ [NSym _, NSym _]) = True
-  isC (Production _ _ [TSym _]        ) = True
-  isC _                                 = False
-
--- | Transform grammar into GNF.
---
--- http://dl.acm.org/citation.cfm?id=321254
-
-greibachNF :: Grammar -> Grammar
-greibachNF = error "gnf"
-
--- | Check if grammar is in Greibach Normal Form
-
-isGreibachNF :: Grammar -> Bool
-isGreibachNF g = allOf folded isG $ g^.productions where
-  isG :: Production -> Bool
-  isG (Production _ _ [TSym _, NSym _]) = True
-  isG _                                 = False
 
 -- | Transform a grammar into 2NF.
 
