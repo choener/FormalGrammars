@@ -68,7 +68,7 @@ grammar = do
   (_nsyms,_tsyms) <- ((S.fromList *** S.fromList) . partitionEithers . concat)
                   <$> some (map Left <$> nts <|> map Right <$> ts)
   _start <- startSymbol
-  _productions <- (S.fromList . concat) <$> some rule
+  _rules <- (S.fromList . concat) <$> some rule
   reserveGI "//"
   grammarNames <>= S.singleton name
   return Grammar { .. }
@@ -77,17 +77,18 @@ grammar = do
 --
 -- TODO for indexed symbols make sure we actually have one index to start with.
 
-startSymbol :: Parse NTSym
+startSymbol :: Parse Symb
 startSymbol = do
   reserveGI "S:"
   name :: String <- identGI
   -- TODO go and allow indexed NTs as start symbols, with one index given
-  return $ nsym1 name Singular
+  -- return $ nsym1 name Singular
+  return $ Symb [N name Singular]
 
 -- | The non-terminal declaration "NT: ..." returns a list of non-terms as
 -- indexed non-terminals are expanded.
 
-nts :: Parse [NTSym]
+nts :: Parse [Symb]
 nts = do
   reserveGI "NT:"
   name   <- identGI
@@ -98,11 +99,11 @@ nts = do
 
 -- | expand set of non-terminals based on type of enumerations
 
-expandNT :: String -> Enumerated -> [NTSym]
+expandNT :: String -> Enumerated -> [Symb]
 expandNT name = go where
-  go Sing          = [NSym [(name, Singular)]]
-  go (ZeroBased k) = [NSym [(name, IntBased   z [0..(k-1)])] | z <- [0..(k-1)]]
-  go (Enum es)     = [NSym [(name, Enumerated z es        )] | z <- es        ]
+  go Sing          = [Symb [N name Singular]]
+  go (ZeroBased k) = [Symb [N name (IntBased   z [0..(k-1)])] | z <- [0..(k-1)]]
+  go (Enum es)     = [Symb [N name (Enumerated z es        )] | z <- es        ]
 
 -- | Figure out if we are dealing with indexed (enumerable) non-terminals
 
@@ -111,11 +112,11 @@ enumeration =   ZeroBased <$> natural
 
 -- | Parse declared terminal symbols.
 
-ts :: Parse [NTSym]
+ts :: Parse [Symb]
 ts = do
   reserveGI "T:"
   n <- identGI
-  let z = TSym [n]
+  let z = Symb [T n]
   tsys <>= S.singleton n
   return [z]
 
@@ -127,7 +128,7 @@ ts = do
 --
 -- TODO expand NT on left-hand side with all variants based on index.
 
-rule :: Parse [Production]
+rule :: Parse [Rule]
 rule = do
   lhsN <- identGI <?> "rule: lhs non-terminal"
   nsys `uses` (M.member    lhsN) >>= guard <?> (printf "undeclared NT: %s" lhsN)
@@ -138,30 +139,30 @@ rule = do
   reserveGI "<<<"
   zs <- fmap sequence . runUnlined $ some (try ruleNts <|> try ruleTs) -- expand zs to all production rules
   whiteSpace
-  return [Production (nsym1 lhsN Singular) (EvalFun fun) z | z <- zs]  -- ret
+  return [Rule (Symb [N lhsN Singular]) (Fun fun) z | z <- zs]
 
 -- | Parse non-terminal symbols in production rules. If we have an indexed
 -- non-terminal, more than one result will be returned.
 --
 -- TODO expand with indexed version
 
-ruleNts :: ParseU [NTSym] -- (String,NtIndex)
+ruleNts :: ParseU [Symb] -- (String,NtIndex)
 ruleNts = do
   n <- identGI <?> "rule: nonterminal identifier"
 --  i <- nTindex <?> "rule:" -- option ("",1) $ braces ((,) <$> ident gi <*> option 0 integer) <?> "rule: nonterminal index"
   lift $ nsys `uses` (M.member n   ) >>= guard <?> (printf "undeclared NT: %s" n)
   lift $ tsys `uses` (S.notMember n) >>= guard <?> (printf "used terminal in NT role: %s" n)
-  return [nsym1 n Singular] -- (n,i)
+  return [Symb [N n Singular]] -- [nsym1 n Singular] -- (n,i)
 
 -- | Parse terminal symbols in production rules. Returns singleton list of
 -- terminal.
 
-ruleTs :: ParseU [NTSym]
+ruleTs :: ParseU [Symb]
 ruleTs = do
   n <- identGI <?> "rule: terminal identifier"
   lift $ tsys `uses` (S.member n   ) >>= guard <?> (printf "undeclared T: %s" n)
   lift $ nsys `uses` (M.notMember n) >>= guard <?> (printf "used non-terminal in T role: %s" n)
-  return [TSym [n]]
+  return [Symb [T n]] -- [TSym [n]]
 
 -- * Monadic Parsing Machinery
 

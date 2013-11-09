@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -44,38 +45,54 @@ instance Default Enumerable where
 
 -- | A single-dimensional terminal or non-terminal symbol.
 
-data Symb where
-  T :: String               -> Symb
-  N :: String -> Enumerable -> Symb
+data TN where
+  T :: String               -> TN
+  N :: String -> Enumerable -> TN
 
-deriving instance Show Symb
-deriving instance Eq   Symb
+deriving instance Show TN
+deriving instance Eq   TN
+deriving instance Ord  TN
 
-symb :: Lens' Symb String
+symb :: Lens' TN String
 symb f (T s  ) = T               <$> f s
 symb f (N s e) = (\s' -> N s' e) <$> f s
 
-enumed :: Lens' Symb Enumerable
-enumed f (T _  ) = error "enumed doesn't exist for terminal symbols"
-enumed f (N s e) = N s <$> f e
+_T :: Prism' TN String
+_T = prism T $ f where
+  f   (T s  ) = Right s
+  f n@(N _ _) = Left n
+
+_N :: Prism' TN (String,Enumerable)
+_N = prism (uncurry N) $ f where
+  f t@(T _  ) = Left t
+  f   (N s e) = Right (s,e)
+
+enumed = _N . _2
 
 -- | A complete grammatical symbol is multi-dimensional with 0..  dimensions.
 
-newtype Symbol = Symbol { getSymbs :: [Symb] }
+newtype Symb = Symb { getSymbs :: [TN] }
 
-deriving instance Show Symbol
-deriving instance Eq   Symbol
+deriving instance Show Symb
+deriving instance Eq   Symb
+deriving instance Ord  Symb
 
-symbol :: Lens' Symbol [Symb]
-symbol f (Symbol xs) = Symbol <$> f xs  -- are we sure?
+symbol :: Lens' Symb [TN]
+symbol f (Symb xs) = Symb <$> f xs  -- are we sure?
 
-type instance Index Symbol = Int
+type instance Index Symb = Int
 
-type instance IxValue Symbol = Symb
+type instance IxValue Symb = TN
 
-instance Applicative f => Ixed f Symbol where
-  ix k f (Symbol xs) = Symbol <$> ix k f xs
+instance Applicative f => Ixed f Symb where
+  ix k f (Symb xs) = Symb <$> ix k f xs
   {-# INLINE ix #-}
+
+-- |
+
+data Fun where
+  Fun :: String -> Fun
+  deriving (Eq,Ord,Show)
 
 -- | A production rule goes from a left-hand side (lhs) to a right-hand side
 -- (rhs). The rhs is evaluated using a function (fun).
@@ -84,10 +101,11 @@ instance Applicative f => Ixed f Symbol where
 -- context-sensitive grammars with terminal symbols on the left-hand side.
 
 data Rule = Rule
-  { _lhs :: Symbol
-  , _fun :: ()
-  , _rhs :: [Symbol]
-  } deriving (Eq,Show)
+  { _lhs :: Symb
+  , _fun :: Fun
+  , _rhs :: [Symb]
+  }
+  deriving (Eq,Ord,Show)
 
 makeLenses ''Rule
 
@@ -98,10 +116,10 @@ makeLenses ''Rule
 -- denoted as non-terminal symbols.
 
 data Grammar = Grammar
-  { _tsyms :: Set Symbol
-  , _nsyms :: Set Symbol
+  { _tsyms :: Set Symb
+  , _nsyms :: Set Symb
   , _rules :: Set Rule
-  , _start :: Symbol
+  , _start :: Symb
   } deriving (Show)
 
 makeLenses ''Grammar
@@ -110,28 +128,28 @@ makeLenses ''Grammar
 
 -- * Helper functions on rules and symbols.
 
--- | Symbol is completely in terminal form.
-
-tSymbol :: Symbol -> Bool
-tSymbol (Symbol xs) = allOf folded tSymb xs
+-- | Symb is completely in terminal form.
 
 tSymb :: Symb -> Bool
-tSymb (T _  ) = True
-tSymb (N _ _) = False
+tSymb (Symb xs) = allOf folded tTN xs
 
--- | Symbol is completely in non-terminal form.
+tTN :: TN -> Bool
+tTN (T _  ) = True
+tTN (N _ _) = False
 
-nSymbol :: Symbol -> Bool
-nSymbol (Symbol xs) = allOf folded nSymb xs
+-- | Symb is completely in non-terminal form.
+
+nSymb :: Symb -> Bool
+nSymb (Symb xs) = allOf folded nTN xs
 
 -- | Generalized non-terminal symbol with at least one non-terminal Symb.
 
-nSymbolG :: Symbol -> Bool
-nSymbolG (Symbol xs) = anyOf folded nSymb xs
+nSymbG :: Symb -> Bool
+nSymbG (Symb xs) = anyOf folded nTN xs
 
-nSymb :: Symb -> Bool
-nSymb (T _  ) = False
-nSymb (N _ _) = True
+nTN :: TN -> Bool
+nTN (T _  ) = False
+nTN (N _ _) = True
 
 
 
@@ -147,8 +165,8 @@ chomskyNF = error "chomsky"
 isChomskyNF :: Grammar -> Bool
 isChomskyNF g = allOf folded isC $ g^.rules where
   isC :: Rule -> Bool
-  isC (Rule _ _ [s])   = tSymbol s
-  isC (Rule _ _ [s,t]) = nSymbol s && nSymbol t
+  isC (Rule _ _ [s])   = tSymb s
+  isC (Rule _ _ [s,t]) = nSymb s && nSymb t
   isC _                = False
 
 -- | Transform grammar into GNF.
@@ -163,24 +181,15 @@ greibachNF = error "gnf"
 isGreibachNF :: Grammar -> Bool
 isGreibachNF g = allOf folded isG $ g^.rules where
   isG :: Rule -> Bool
-  isG (Rule _ _ (t:ns)) = tSymbol t && all nSymbol ns
+  isG (Rule _ _ (t:ns)) = tSymb t && all nSymb ns
   isG _                 = False
 
-
+epsilonFree :: Grammar -> Bool
+epsilonFree g = allOf folded eFree $ g^.rules where
+  eFree :: Rule -> Bool
+  eFree (Rule l _ r) = l == g^.start || anyOf folded (xSymbG $ g^.start) r -- TODO need nSymbG that excludes the start symbol during considerations
 
 {-
-
--- |
-
-data Production where
-  Production :: NTSym -> EvalFun -> [NTSym] -> Production
-  deriving (Eq,Ord,Show)
-
--- |
-
-data EvalFun where
-  EvalFun :: String -> EvalFun
-  deriving (Eq,Ord,Show)
 
 -- |
 
