@@ -155,7 +155,7 @@ nTN (N _ _) = True
 
 -- * Different normal forms for grammars.
 
--- | Transform a grammar into CNF.
+-- | Transform a grammar into CNF. (cf. COL-2007)
 --
 -- TODO make sure we use a variant that computes small grammars.
 
@@ -184,10 +184,20 @@ isGreibachNF g = allOf folded isG $ g^.rules where
   isG (Rule _ _ (t:ns)) = tSymb t && all nSymb ns
   isG _                 = False
 
+-- | A grammar is epsilon-free if no rule has an empty RHS, resp. any rhs-symb
+-- is completely non-empty.
+--
+-- TODO we should tape-split multi-tape grammars here and make sure that all
+-- individual tapes are epsilon-free as otherwise we can generate cases where
+-- the epsilon-aligned symbols lead to weird problems. So split into single
+-- tapes, then check.
+
 epsilonFree :: Grammar -> Bool
 epsilonFree g = allOf folded eFree $ g^.rules where
   eFree :: Rule -> Bool
-  eFree (Rule l _ r) = l == g^.start || anyOf folded (xSymbG $ g^.start) r -- TODO need nSymbG that excludes the start symbol during considerations
+  eFree (Rule l _ r) = l == g^.start || (not $ null r) || anyOf folded (epsFree $ g^.start) r
+  epsFree :: Symb -> Symb -> Bool
+  epsFree = undefined
 
 {-
 
