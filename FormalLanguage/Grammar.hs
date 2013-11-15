@@ -53,9 +53,9 @@ deriving instance Show TN
 deriving instance Eq   TN
 deriving instance Ord  TN
 
-symb :: Lens' TN String
-symb f (T s  ) = T               <$> f s
-symb f (N s e) = (\s' -> N s' e) <$> f s
+tnName :: Lens' TN String
+tnName f (T s  ) = T               <$> f s
+tnName f (N s e) = (\s' -> N s' e) <$> f s
 
 _T :: Prism' TN String
 _T = prism T $ f where
@@ -77,8 +77,8 @@ deriving instance Show Symb
 deriving instance Eq   Symb
 deriving instance Ord  Symb
 
-symbol :: Lens' Symb [TN]
-symbol f (Symb xs) = Symb <$> f xs  -- are we sure?
+symb :: Lens' Symb [TN]
+symb f (Symb xs) = Symb <$> f xs  -- are we sure?
 
 type instance Index Symb = Int
 
@@ -124,6 +124,11 @@ data Grammar = Grammar
 
 makeLenses ''Grammar
 
+-- | the dimension of the grammar
+
+gDim :: Grammar -> Int
+gDim g = length $ g^.start.symb
+
 
 
 -- * Helper functions on rules and symbols.
@@ -151,6 +156,39 @@ nTN :: TN -> Bool
 nTN (T _  ) = False
 nTN (N _ _) = True
 
+
+
+-- * Determine grammar types
+--
+-- For grammars where the number of non-terminal symbols is restricted, we
+-- allow as non-terminal also the generalized variants that have partial
+-- terminal symbols.
+--
+-- TODO maybe restrict those to epsilon-type terminals in generalized
+-- non-terminals.
+
+-- | Left-linear grammars have at most one non-terminal on the RHS. It is the
+-- first symbol.
+
+isLeftLinear :: Grammar -> Bool
+isLeftLinear g = allOf folded isll $ g^.rules where
+  isll :: Rule -> Bool
+  isll (Rule l _ []) = nSymbG l
+  isll (Rule l _ rs) = nSymbG l && (allOf folded (not . nSymbG) $ tail rs) -- at most one non-terminal
+
+-- | Right-linear grammars have at most one non-terminal on the RHS. It is the
+-- last symbol.
+
+isRightLinear :: Grammar -> Bool
+isRightLinear g = allOf folded isrl $ g^.rules where
+  isrl :: Rule -> Bool
+  isrl (Rule l _ []) = nSymbG l
+  isrl (Rule l _ rs) = nSymbG l && (allOf folded (not . nSymbG) $ init rs)
+
+-- | Linear grammars just have a single non-terminal on the right-hand side.
+
+isLinear :: Grammar -> Bool
+isLinear g = error "isLinear: write me" -- allOf folded ((<=1) . length . filter nSymbG
 
 
 -- * Different normal forms for grammars.
