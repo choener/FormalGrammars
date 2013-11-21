@@ -49,11 +49,11 @@ library
 
 -- A Simple pretty-printer for formal grammars.
 
---executable GrammarPP
---  build-depends:
---    cmdargs == 0.10.*
---  main-is:
---    GrammarPP.hs
+executable GrammarPP
+  build-depends:
+    cmdargs == 0.10.*
+  main-is:
+    GrammarPP.hs
 
 source-repository head
   type: git
