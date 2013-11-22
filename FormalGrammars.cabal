@@ -27,6 +27,7 @@ library
   build-depends:
     base >= 4 && < 5 ,
     ADPfusion             >= 0.2  ,
+    ansi-wl-pprint        >= 0.6  ,
     bytestring            >= 0.10 ,
     containers                    ,
     data-default          >= 0.5  ,
@@ -42,6 +43,7 @@ library
     FormalLanguage
     FormalLanguage.Grammar
     FormalLanguage.Grammar.PrettyPrint
+    FormalLanguage.Grammar.PrettyPrint.ANSI
     FormalLanguage.Grammar.PrettyPrint.LaTeX
     FormalLanguage.Grammar.QuickCheck
     FormalLanguage.Parser

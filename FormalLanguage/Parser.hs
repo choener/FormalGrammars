@@ -67,7 +67,7 @@ grammar = do
   name :: String <- identGI
   (_nsyms,_tsyms) <- ((S.fromList *** S.fromList) . partitionEithers . concat)
                   <$> some (map Left <$> nts <|> map Right <$> ts)
-  _start <- startSymbol
+  _start <- try (Just <$> startSymbol) <|> pure Nothing
   _rules <- (S.fromList . concat) <$> some rule
   reserveGI "//"
   grammarNames <>= S.singleton name
@@ -228,3 +228,4 @@ testParsing = parseString
                 (Directed (B.pack "testGrammar") 0 0 0 0)
                 testGrammar
 
+asG = let (Success g) = testParsing in g

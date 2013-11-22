@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -94,6 +95,9 @@ data Fun where
   Fun :: String -> Fun
   deriving (Eq,Ord,Show)
 
+funName :: Lens' Fun String
+funName f (Fun s) = Fun <$> f s
+
 -- | A production rule goes from a left-hand side (lhs) to a right-hand side
 -- (rhs). The rhs is evaluated using a function (fun).
 --
@@ -119,15 +123,18 @@ data Grammar = Grammar
   { _tsyms :: Set Symb
   , _nsyms :: Set Symb
   , _rules :: Set Rule
-  , _start :: Symb
+  , _start :: Maybe Symb
   } deriving (Show)
 
 makeLenses ''Grammar
 
--- | the dimension of the grammar
+-- | the dimension of the grammar. Grammars with no symbols have dimension 0.
 
 gDim :: Grammar -> Int
-gDim g = length $ g^.start.symb
+gDim g
+  | Just (x,_) <- S.minView (g^.nsyms) = length $ x^.symb
+  | Just (x,_) <- S.minView (g^.tsyms) = length $ x^.symb
+  | otherwise                          = 0
 
 
 
@@ -233,7 +240,7 @@ isGreibachNF g = allOf folded isG $ g^.rules where
 epsilonFree :: Grammar -> Bool
 epsilonFree g = allOf folded eFree $ g^.rules where
   eFree :: Rule -> Bool
-  eFree (Rule l _ r) = l == g^.start || (not $ null r) || anyOf folded (epsFree $ g^.start) r
+  eFree (Rule l _ r) = undefined -- l == g^.start || (not $ null r) || anyOf folded (epsFree $ g^.start) r
   epsFree :: Symb -> Symb -> Bool
   epsFree = undefined
 
