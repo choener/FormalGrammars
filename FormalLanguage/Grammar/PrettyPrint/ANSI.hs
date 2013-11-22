@@ -10,7 +10,7 @@ import FormalLanguage.Parser
 
 
 
--- |
+-- | Prettyprint a grammar ANSI-style.
 --
 -- TODO Later on, it would be really nice to better align the LHS, fun, and RHS
 -- of the rules
@@ -23,23 +23,36 @@ grammarDoc g = text "Grammar: " <$> indent 2 (ns <$> ts <$> ss <$> rs) <$> line 
   rs = ind "rules:" 2 . vcat . map ruleDoc $ g^..rules.folded
   ind s k d = text s <$> indent k d
 
+-- | Prettify the start symbol, or give warning.
+
 startDoc :: Maybe Symb -> Doc
 startDoc Nothing = red $ text "no start symbol is set!"
 startDoc (Just s) = symbolDoc s
 
+-- | Render a rule.
+
 ruleDoc :: Rule -> Doc
-ruleDoc r = fill 16 (l <+> f) <+> text "->" <+> rs where
+ruleDoc r = fill 10 l <+> text "->" <+> fill 10 f <+> rs where
   l = symbolDoc $ r^.lhs
   f = text $ r^.fun.funName
   rs = hcat $ punctuate space $ map symbolDoc $ r^.rhs
 
+-- | A symbol is rendered either as a ``symbol'' or a list of symbols for
+-- multi-tape grammars.
+
 symbolDoc :: Symb -> Doc
-symbolDoc s = list $ map tnDoc $ s^.symb
+symbolDoc s
+  | [z] <- s^.symb = tnDoc z
+  | otherwise      = list $ map tnDoc $ s^.symb
+
+-- | Prettyprint a (non-)terminal symbol.
 
 tnDoc :: TN -> Doc
 tnDoc (T s  ) = green $ text s
 tnDoc (N s e)
   | Singular <- e = red $ text s
+
+-- Print the test grammar from the parser.
 
 test = putDoc $ grammarDoc asG
 
