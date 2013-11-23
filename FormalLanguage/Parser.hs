@@ -46,6 +46,7 @@ data Enumerated
 data GrammarState = GrammarState
   { _nsys         :: M.Map String Enumerated
   , _tsys         :: S.Set String
+  , _esys         :: S.Set String
   , _grammarNames :: S.Set String
   }
   deriving (Show)
@@ -54,6 +55,7 @@ instance Default GrammarState where
   def = GrammarState
           { _nsys = def
           , _tsys = def
+          , _esys = def
           , _grammarNames = def
           }
 
@@ -67,6 +69,7 @@ grammar = do
   name :: String <- identGI
   (_nsyms,_tsyms) <- ((S.fromList *** S.fromList) . partitionEithers . concat)
                   <$> some (map Left <$> nts <|> map Right <$> ts)
+  _epsis <- S.fromList <$> many epsP
   _start <- try (Just <$> startSymbol) <|> pure Nothing
   _rules <- (S.fromList . concat) <$> some rule
   reserveGI "//"
@@ -90,7 +93,7 @@ startSymbol = do
 
 nts :: Parse [Symb]
 nts = do
-  reserveGI "NT:"
+  reserveGI "N:"
   name   <- identGI
   enumed <- option Sing $ braces enumeration
   let zs = expandNT name enumed
@@ -120,6 +123,15 @@ ts = do
   tsys <>= S.singleton n
   return [z]
 
+-- | Parse epsilon symbols
+
+epsP :: Parse TN
+epsP = do
+  reserveGI "E:"
+  e <- identGI
+  esys <>= S.singleton e
+  return $ E e
+
 -- | Parse a single rule. Some rules come attached with an index. In that case,
 -- each rule is inflated according to its modulus (or more general the set of
 -- indices indicated.
@@ -127,6 +139,8 @@ ts = do
 -- TODO add @fun@ to each PR
 --
 -- TODO expand NT on left-hand side with all variants based on index.
+--
+-- TODO allow multidimensional rules ...
 
 rule :: Parse [Rule]
 rule = do
@@ -214,11 +228,13 @@ identGI = ident grammarIdentifiers
 
 testGrammar = unlines
   [ "Grammar: Align"
-  , "NT: X"
-  , "T:  a"
-  , "S:  X"
+  , "N: X"
+  , "T: a"
+  , "E: epsilon"
+  , "S: X"
   , "X -> step  <<< X a"
   , "X -> stand <<< X"
+--  , "X -> eps   <<< epsilon"
   , "//"
   ]
 

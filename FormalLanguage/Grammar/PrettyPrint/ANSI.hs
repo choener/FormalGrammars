@@ -1,9 +1,15 @@
 {-# LANGUAGE PatternGuards #-}
 
-module FormalLanguage.Grammar.PrettyPrint.ANSI where
+module FormalLanguage.Grammar.PrettyPrint.ANSI
+  ( grammarDoc
+  , rulesDoc
+  , printDoc
+  ) where
 
-import Text.PrettyPrint.ANSI.Leijen
-import Control.Lens
+import           Control.Lens
+import qualified Data.Set as S
+import           Text.PrettyPrint.ANSI.Leijen
+import           System.IO (stdout)
 
 import FormalLanguage.Grammar
 import FormalLanguage.Parser
@@ -22,6 +28,11 @@ grammarDoc g = text "Grammar: " <$> indent 2 (ns <$> ts <$> ss <$> rs) <$> line 
   ss = ind "start symbol:" 2 . startDoc $ g^.start
   rs = ind "rules:" 2 . vcat . map ruleDoc $ g^..rules.folded
   ind s k d = text s <$> indent k d
+
+-- | Print just a set of rules (for the GrammarProducts Proofs).
+
+rulesDoc :: S.Set Rule -> Doc
+rulesDoc rs = text "rules:" <$> (indent 2 . vcat . map ruleDoc $ rs^..folded) <$> line
 
 -- | Prettify the start symbol, or give warning.
 
@@ -42,17 +53,23 @@ ruleDoc r = fill 10 l <+> text "->" <+> fill 10 f <+> rs where
 
 symbolDoc :: Symb -> Doc
 symbolDoc s
-  | [z] <- s^.symb = tnDoc z
+  | [z] <- s^.symb = symbolDoc $ Symb [z,z,z] -- tnDoc z
   | otherwise      = list $ map tnDoc $ s^.symb
 
 -- | Prettyprint a (non-)terminal symbol.
 
 tnDoc :: TN -> Doc
+tnDoc (E "" ) = blue  $ text "ε"
+tnDoc (E s  ) = blue  $ text s
 tnDoc (T s  ) = green $ text s
 tnDoc (N s e)
   | Singular <- e = red $ text s
 
+-- |
+
+printDoc :: Doc -> IO ()
+printDoc = displayIO stdout . renderPretty 0.4 160
+
 -- Print the test grammar from the parser.
 
-test = putDoc $ grammarDoc asG
-
+test = printDoc $ grammarDoc asG

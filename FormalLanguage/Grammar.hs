@@ -47,8 +47,12 @@ instance Default Enumerable where
 -- | A single-dimensional terminal or non-terminal symbol.
 
 data TN where
+  -- | A terminal symbol (excluding epsilon)
   T :: String               -> TN
+  -- | A non-terminal symbol (again, excluding non-terminal epsilons)
   N :: String -> Enumerable -> TN
+  -- | Epsilon characters, may be named differently
+  E :: String               -> TN
 
 deriving instance Show TN
 deriving instance Eq   TN
@@ -60,15 +64,26 @@ tnName f (N s e) = (\s' -> N s' e) <$> f s
 
 _T :: Prism' TN String
 _T = prism T $ f where
-  f   (T s  ) = Right s
-  f n@(N _ _) = Left n
+  f (T s) = Right s
+  f z     = Left  z
 
 _N :: Prism' TN (String,Enumerable)
 _N = prism (uncurry N) $ f where
-  f t@(T _  ) = Left t
-  f   (N s e) = Right (s,e)
+  f (N s e) = Right (s,e)
+  f z       = Left  z
+
+_E :: Prism' TN String
+_E = prism E $ f where
+  f (E s) = Right s
+  f z     = Left  z
 
 enumed = _N . _2
+
+-- | The epsilon symbol (also accepted as part of a non-terminal).
+--
+-- TODO Still not sure if we should have data TN = E | ... for epsilon.
+
+eps = E ""
 
 -- | A complete grammatical symbol is multi-dimensional with 0..  dimensions.
 
@@ -122,6 +137,7 @@ makeLenses ''Rule
 data Grammar = Grammar
   { _tsyms :: Set Symb
   , _nsyms :: Set Symb
+  , _epsis :: Set TN
   , _rules :: Set Rule
   , _start :: Maybe Symb
   } deriving (Show)
@@ -147,6 +163,7 @@ tSymb (Symb xs) = allOf folded tTN xs
 
 tTN :: TN -> Bool
 tTN (T _  ) = True
+tTN (E _  ) = True
 tTN (N _ _) = False
 
 -- | Symb is completely in non-terminal form.
@@ -160,8 +177,9 @@ nSymbG :: Symb -> Bool
 nSymbG (Symb xs) = anyOf folded nTN xs
 
 nTN :: TN -> Bool
-nTN (T _  ) = False
 nTN (N _ _) = True
+nTN (E _  ) = True
+nTN (T _  ) = False
 
 
 
