@@ -212,7 +212,7 @@ type ParseU a = (Monad m
 -- | grammar identifiers
 
 grammarIdentifiers = set styleReserved rs emptyIdents where
-  rs = H.fromList ["Grammar:", "NT:", "T:"]
+  rs = H.fromList ["Grammar:", "N:", "T:", "E:"]
 
 -- | partial binding of 'reserve' to idents
 
@@ -231,6 +231,7 @@ testGrammar = unlines
   , "N: X"
   , "T: a"
   , "E: epsilon"
+  , "E: ε"
   , "S: X"
   , "X -> step  <<< X a"
   , "X -> stand <<< X"

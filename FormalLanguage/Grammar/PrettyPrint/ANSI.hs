@@ -22,11 +22,12 @@ import FormalLanguage.Parser
 -- of the rules
 
 grammarDoc :: Grammar -> Doc
-grammarDoc g = text "Grammar: " <$> indent 2 (ns <$> ts <$> ss <$> rs) <$> line where
-  ns = ind "non terminals:" 2 . vcat . map (\z -> symbolDoc z <+> (text . show $ z)) $ g^..nsyms.folded
+grammarDoc g = text "Grammar: " <$> indent 2 (ns <$> ts <$> es <$> ss <$> rs) <$> line where
+  ns = ind "non terminals:" 2 . vcat $ zipWith (\k z -> (fill 5 $ int k) <+> (symbolDoc z <+> (text . show $ z))) [1..] (g^..nsyms.folded)
   ts = ind "terminals:" 2 . vcat . map (\z -> symbolDoc z <+> (text . show $ z)) $ g^..tsyms.folded
+  es = ind "epsilons:" 2 . vcat . map (\z -> tnDoc z <+> (text . show $ z)) $ g^..epsis.folded
   ss = ind "start symbol:" 2 . startDoc $ g^.start
-  rs = ind "rules:" 2 . vcat . map ruleDoc $ g^..rules.folded
+  rs = ind "rules:" 2 . vcat $ zipWith (\k r -> (fill 5 $ int k) <+> (ruleDoc r)) [1..] (g^..rules.folded)
   ind s k d = text s <$> indent k d
 
 -- | Print just a set of rules (for the GrammarProducts Proofs).
@@ -53,7 +54,7 @@ ruleDoc r = fill 10 l <+> text "->" <+> fill 10 f <+> rs where
 
 symbolDoc :: Symb -> Doc
 symbolDoc s
-  | [z] <- s^.symb = symbolDoc $ Symb [z,z,z] -- tnDoc z
+  | [z] <- s^.symb = tnDoc z
   | otherwise      = list $ map tnDoc $ s^.symb
 
 -- | Prettyprint a (non-)terminal symbol.
@@ -68,7 +69,7 @@ tnDoc (N s e)
 -- |
 
 printDoc :: Doc -> IO ()
-printDoc = displayIO stdout . renderPretty 0.4 160
+printDoc = displayIO stdout . renderPretty 0.8 160
 
 -- Print the test grammar from the parser.
 
