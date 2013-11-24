@@ -106,12 +106,14 @@ instance Applicative f => Ixed f Symb where
 
 -- |
 
+{-
 data Fun where
-  Fun :: String -> Fun
+  Fun :: [String] -> Fun
   deriving (Eq,Ord,Show)
 
-funName :: Lens' Fun String
+funName :: Lens' Fun [String]
 funName f (Fun s) = Fun <$> f s
+-}
 
 -- | A production rule goes from a left-hand side (lhs) to a right-hand side
 -- (rhs). The rhs is evaluated using a function (fun).
@@ -121,7 +123,7 @@ funName f (Fun s) = Fun <$> f s
 
 data Rule = Rule
   { _lhs :: Symb
-  , _fun :: Fun
+  , _fun :: [String] -- Fun
   , _rhs :: [Symb]
   }
   deriving (Eq,Ord,Show)

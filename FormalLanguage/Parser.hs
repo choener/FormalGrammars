@@ -153,7 +153,7 @@ rule = do
   reserveGI "<<<"
   zs <- fmap sequence . runUnlined $ some (try ruleNts <|> try ruleTs) -- expand zs to all production rules
   whiteSpace
-  return [Rule (Symb [N lhsN Singular]) (Fun fun) z | z <- zs]
+  return [Rule (Symb [N lhsN Singular]) [fun] z | z <- zs]
 
 -- | Parse non-terminal symbols in production rules. If we have an indexed
 -- non-terminal, more than one result will be returned.

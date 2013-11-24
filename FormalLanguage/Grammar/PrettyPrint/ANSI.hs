@@ -46,7 +46,10 @@ startDoc (Just s) = symbolDoc s
 ruleDoc :: Rule -> Doc
 ruleDoc r = fill 10 l <+> text "->" <+> fill 10 f <+> rs where
   l = symbolDoc $ r^.lhs
-  f = text $ r^.fun.funName
+  f = case r^.fun of
+        []  -> text "MISSING!"
+        [z] -> text z
+        xs  -> list . map text $ xs
   rs = hcat $ punctuate space $ map symbolDoc $ r^.rhs
 
 -- | A symbol is rendered either as a ``symbol'' or a list of symbols for
@@ -69,7 +72,7 @@ tnDoc (N s e)
 -- |
 
 printDoc :: Doc -> IO ()
-printDoc = displayIO stdout . renderPretty 0.8 160
+printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)
 
 -- Print the test grammar from the parser.
 

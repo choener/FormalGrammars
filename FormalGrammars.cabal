@@ -35,6 +35,7 @@ library
     lens                  >= 3.9  ,
     mtl                           ,
     parsers               >= 0.9  ,
+    template-haskell              ,
     text                          ,
     transformers          >= 0.3  ,
     trifecta              >= 1.2  ,
@@ -46,6 +47,7 @@ library
     FormalLanguage.Grammar.PrettyPrint.ANSI
     FormalLanguage.Grammar.PrettyPrint.LaTeX
     FormalLanguage.Grammar.QuickCheck
+--    FormalLanguage.Grammar.Tests
     FormalLanguage.Parser
   ghc-options:
 
