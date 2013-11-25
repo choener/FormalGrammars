@@ -1,6 +1,8 @@
 
 -- | This QuasiQuoter turns the description of formal grammars into
 -- ADPfusion-based code.
+--
+-- TODO use Quote.quoteFile to be able to read files as well
 
 module FormalLanguage.Grammar.QQ where
 
@@ -15,14 +17,19 @@ import Text.Trifecta (parseString)
 import Text.Trifecta.Result (Result (..))
 
 import FormalLanguage.Grammar
+import FormalLanguage.Grammar.TH
 import FormalLanguage.Grammar.PrettyPrint.ANSI
 import FormalLanguage.Parser
 
 
 
+-- |
+
 formalLanguage = QuasiQuoter
   { quoteDec = parseFormalLanguage
   }
+
+-- |
 
 parseFormalLanguage :: String -> Q [Dec]
 parseFormalLanguage s = do
@@ -33,10 +40,16 @@ parseFormalLanguage s = do
     (Failure f) -> do
       runIO . printDoc $ f
       error "aborting parseFormalLanguage"
-    (Success p) -> do
-      runIO . printDoc . grammarDoc $ p
+    (Success g) -> do
+      runIO . printDoc . grammarDoc $ g
+      runIO $ print "TESTING BELOW"
+      gSig <- genSignature g
+      runIO $ print "TESTING ABOVE"
       -- TODO build signature and grammar using TH
-      return []
+      return [gSig]
+
+-- |
 
 trim ('\n':xs) = trim xs
 trim xs = xs
+
