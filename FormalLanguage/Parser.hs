@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 {- LANGUAGE OverloadedStrings #-}
@@ -141,19 +142,54 @@ epsP = do
 -- TODO expand NT on left-hand side with all variants based on index.
 --
 -- TODO allow multidimensional rules ...
+--
+-- TODO handle epsilons on both sides correctly (but do not allow
+-- ``only-epsilon'' NTs)
+--
+-- BAUSTELLE: the first step lhsN tells us if we have an indexed system {i}, on
+-- the rhs we then have stuff a la {i+1}. This needs to be done correctly ...
 
 rule :: Parse [Rule]
 rule = do
-  lhsN <- identGI <?> "rule: lhs non-terminal"
-  nsys `uses` (M.member    lhsN) >>= guard <?> (printf "undeclared NT: %s" lhsN)
-  tsys `uses` (S.notMember lhsN) >>= guard <?> (printf "terminal on LHS: %s" lhsN)
+  lhsN :: [String] <- (:[]) <$> identGI <|> (:[]) <$> between (symbol "[") (symbol "]") identGI <?> "rule: lhs non-terminal"
+  nsys `uses` (\z -> and [M.member    y z | y <- lhsN]) >>= guard <?> (printf "undeclared NT: %s" $ show lhsN)
+  tsys `uses` (\z -> and [S.notMember y z | y <- lhsN]) >>= guard <?> (printf "terminal on LHS: %s" $ show lhsN)
   --i <- nTindex
   reserveGI "->"
   fun :: String <- identGI
   reserveGI "<<<"
   zs <- fmap sequence . runUnlined $ some (try ruleNts <|> try ruleTs) -- expand zs to all production rules
   whiteSpace
-  return [Rule (Symb [N lhsN Singular]) [fun] z | z <- zs]
+  let lhs = map (\z -> N z Singular) lhsN -- TODO tag epsilons as epsilons
+  return [Rule (Symb lhs) [fun] z | z <- zs]
+
+-- | Parses a single "pre-non-terminal" of dimension 1 or more. Needs at least
+-- one non-terminal symbol, may contain epsilon symbols.
+--
+-- TODO need enumeration stuff
+
+preNonTerminal :: P m => m [String]
+preNonTerminal = do
+  ns <- (:[]) <$> identGI <|> list identGI
+        <?> "require non-terminal"
+  nsys `uses` (\z -> or  [M.member    y z | y <- ns]) >>= guard
+    <?> "at least one non-terminal symbol required"
+  tsys `uses` (\z -> and [S.notMember y z | y <- ns]) >>= guard
+    <?> "no terminal symbols allowed"
+  return ns
+
+-- | Terminal symbols of single or multiple dimensions, without any
+-- enumeration.
+--
+-- TODO do we want to have enumeration?
+
+terminal :: P m => m [String]
+terminal = do
+  ts <- (:[]) <$> identGI <|> list identGI
+  -- BAUSTELLE:   nsys `uses` (\z -> or [S.member 
+  return ts
+
+list xs = between (symbol "[") (symbol "]") (xs `sepBy1` (symbol ","))
 
 -- | Parse non-terminal symbols in production rules. If we have an indexed
 -- non-terminal, more than one result will be returned.
@@ -209,6 +245,8 @@ type ParseU a = (Monad m
                 , TokenParsing m
                 ) => Unlined (GrammarParser m) a
 
+type P m = ( Monad m, MonadPlus m, Alternative m, Parsing m, TokenParsing m, MonadState GrammarState m)
+
 -- | grammar identifiers
 
 grammarIdentifiers = set styleReserved rs emptyIdents where
@@ -235,6 +273,7 @@ testGrammar = unlines
   , "S: X"
   , "X -> step  <<< X a"
   , "X -> stand <<< X"
+  , "[X] -> oned <<< [X]"
 --  , "X -> eps   <<< epsilon"
   , "//"
   ]

@@ -17,6 +17,10 @@ import FormalLanguage.Grammar
 -- function to check this is currently missing and needs to be added!
 --
 -- TODO need varnames for all NTs and Ts
+--
+-- TODO allow only one type of NTs (as in one type ctor)
+--
+-- TODO need monad vartype also (for opt)
 
 genSignature :: Grammar -> Q Dec
 genSignature g = do
@@ -29,6 +33,12 @@ genSignature g = do
   runIO $ print s
   return s
 
+-- | Generate the grammar.
+
+genGrammar :: Grammar -> Q Dec
+genGrammar = do
+  return undefined
+
 -- | Generate a non-terminal name. Can be used for the type ctor as well as for
 -- the functions and grammar.
 
@@ -38,10 +48,13 @@ genNname s = ("n_"++) . concat . intersperse "_" $ s^..symb.folded.tnName
 -- | Terminal names are composites either of @t@ or of @(Z:.t1:.t2:. ...)@. The
 -- correct version is created here. We can not use this for the type ctor.
 
-genTname :: Symb -> String
-genTname s
-  | [z] <- s^.symb = "ta"
-  | zs  <- s^.symb = error "multi-dim terminal"
+genTType :: Symb -> Type
+genTType s
+  | [z] <- s^.symb = VarT . mkName $ "t"++ z^.tnName
+  | zs  <- s^.symb = foldl
+                       (\l r -> AppT (AppT (ConT . mkName $ ":.") l) r)
+                       (ConT . mkName $ "Z")
+                       (map (VarT . mkName . ("t"++)) $ (zs^..folded.tnName))
 
 -- | 
 --
@@ -57,7 +70,7 @@ genFname :: Rule -> Q (Name,Strict,Type)
 genFname r = do
   let name   = ("f_"++) . concat . intersperse "_" $ r^.fun
   let rtrn = VarT . mkName . genNname $ r^.lhs
-  let args   = map (AppT ArrowT . (VarT . mkName . genArg)) $ r^.rhs
+  let args   = map (AppT ArrowT . genArg) $ r^.rhs
   runIO $ print name
   runIO $ print rtrn
   runIO $ print args
@@ -68,8 +81,9 @@ genFname r = do
 --
 -- TODO make sure to handle multi-dim terms using Z:.
 
-genArg :: Symb -> String
+genArg :: Symb -> Type
 genArg s
-  | tSymb s = genTname s
-  | nSymb s = "n"
+  | tSymb s = genTType s
+  | nSymb s = VarT . mkName . genNname $ s
   | otherwise = error $ "incompatible symbol: " ++ show s
+

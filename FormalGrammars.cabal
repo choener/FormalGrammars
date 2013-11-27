@@ -35,6 +35,7 @@ library
     lens                  >= 3.9  ,
     mtl                           ,
     parsers               >= 0.9  ,
+    repa                  >= 3.2  ,
     template-haskell              ,
     text                          ,
     transformers          >= 0.3  ,
