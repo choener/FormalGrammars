@@ -16,12 +16,13 @@ import           Control.Applicative
 import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.Identity
-import           Control.Monad.State.Class
+import           Control.Monad.State.Class (MonadState (..))
 import           Control.Monad.Trans.Class
-import           Control.Monad.Trans.State.Strict
+import           Control.Monad.Trans.State.Strict hiding (get)
 import           Data.Default
 import           Data.Either
-import           Data.List (partition)
+import           Data.List (partition,sort,nub)
+import           Data.Maybe (catMaybes,isJust)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.HashSet as H
 import qualified Data.Map as M
@@ -34,7 +35,11 @@ import           Text.Trifecta
 import           Text.Trifecta.Delta
 import           Text.Trifecta.Result
 
+import Debug.Trace
+
 import FormalLanguage.Grammar
+
+
 
 data Enumerated
   = Sing
@@ -151,45 +156,82 @@ epsP = do
 
 rule :: Parse [Rule]
 rule = do
-  lhsN :: [String] <- (:[]) <$> identGI <|> (:[]) <$> between (symbol "[") (symbol "]") identGI <?> "rule: lhs non-terminal"
-  nsys `uses` (\z -> and [M.member    y z | y <- lhsN]) >>= guard <?> (printf "undeclared NT: %s" $ show lhsN)
-  tsys `uses` (\z -> and [S.notMember y z | y <- lhsN]) >>= guard <?> (printf "terminal on LHS: %s" $ show lhsN)
-  --i <- nTindex
+  lhs <- lhsPreNonTerminal
   reserveGI "->"
   fun :: String <- identGI
   reserveGI "<<<"
-  zs <- fmap sequence . runUnlined $ some (try ruleNts <|> try ruleTs) -- expand zs to all production rules
+  -- zs <- fmap sequence . runUnlined $ some (try ruleNts <|> try ruleTs) -- expand zs to all production rules
+  rhs <- runUnlined $ some (try rhsPreNonTerminal <|> try rhsPreTerminal)
   whiteSpace
-  let lhs = map (\z -> N z Singular) lhsN -- TODO tag epsilons as epsilons
-  return [Rule (Symb lhs) [fun] z | z <- zs]
+  -- let lhs = map (\(z,_) -> N z Singular) lhsN -- TODO tag epsilons as epsilons
+  s <- get
+  let r = generateRules s lhs rhs
+  error $ show (lhs,rhs,r)
+  return undefined -- [Rule (Symb lhs) [fun] z | z <- zs]
 
--- | Parses a single "pre-non-terminal" of dimension 1 or more. Needs at least
--- one non-terminal symbol, may contain epsilon symbols.
+-- | Actually create a rule given both lhs and rhs. This means we need to
+-- expand rules according to what we allow.
 --
--- TODO need enumeration stuff
+-- TODO what about X -> Y{i} ? This should expand to X -> Y{0} | Y{1}
+--
+-- TODO X{i} -> Y{i} => X{0} -> Y{0} ; X{1} -> Y{1}
+--
+-- TODO X{i}->Y{j} => X{0}->Y{0}|Y{1} ; X{1}->Y{0}|Y{1}
 
-preNonTerminal :: P m => m [String]
-preNonTerminal = do
-  ns <- (:[]) <$> identGI <|> list identGI
-        <?> "require non-terminal"
-  nsys `uses` (\z -> or  [M.member    y z | y <- ns]) >>= guard
+generateRules :: GrammarState -> [(String,Maybe String)] -> [PreSymb] -> ()
+generateRules s lhs rhs = error $ show (is) where
+  is :: M.Map String String -- this gives us all indices (as a map from the index name to the corresponding non-terminal
+  is = M.fromList $ [ (i,n) | (n,Just i) <- lhs ]
+
+-- | Parse the lhs symbol together with all indices (for each individual
+-- non-terminal).
+--
+-- TODO confirm that indexed non-terminals are actually indexable
+
+lhsPreNonTerminal :: P m => m [(String,Maybe String)]
+lhsPreNonTerminal = do
+  let iigi = (,) <$> identGI <*> option Nothing (try $ Just <$> braces identGI) -- indexed ident GI
+  ns <- (:[]) <$> iigi <|> list iigi <?> "requires non-terminal here"
+  nsys `uses` (\z -> or  [M.member    y z | (y,_) <- ns]) >>= guard
     <?> "at least one non-terminal symbol required"
-  tsys `uses` (\z -> and [S.notMember y z | y <- ns]) >>= guard
+  esys `uses` (\z -> and [S.notMember y z | (y,Just _) <- ns]) >>= guard
+    <?> "indexed epsilon encountered"
+  tsys `uses` (\z -> and [S.notMember y z | (y,_) <- ns]) >>= guard
     <?> "no terminal symbols allowed"
+  let xs = ns^..folded._2.traverse
+  guard (sort xs == sort (nub xs)) <?> "repeated index on lhs"
   return ns
 
--- | Terminal symbols of single or multiple dimensions, without any
--- enumeration.
+data PreSymb
+  = PreN [(String, Maybe String)]
+  | PreT [String]
+  deriving (Show)
+
+-- |
 --
--- TODO do we want to have enumeration?
+-- TODO all error handling is currently missing
 
-terminal :: P m => m [String]
-terminal = do
-  ts <- (:[]) <$> identGI <|> list identGI
-  -- BAUSTELLE:   nsys `uses` (\z -> or [S.member 
-  return ts
+--rhsPreNonTerminal :: U m => m PreSymb -- [(String,Maybe String)]
+rhsPreNonTerminal = do
+  let iigi = (,) <$> identGI <*> option Nothing (try $ Just <$ string "{" <*> manyTill anyChar (try $ string "}"))
+  ns <- (:[]) <$> iigi <|> list iigi <?> "requires non-terminal here"
+  -- TODO correctness checking
+  return $ PreN ns
 
-list xs = between (symbol "[") (symbol "]") (xs `sepBy1` (symbol ","))
+-- |
+--
+-- TODO need to handle ``either terminal or epsilon''
+
+--rhsPreTerminal :: U m => m PreSymb -- [String]
+rhsPreTerminal = do
+  ts <- (:[]) <$> identGI <|> list identGI <?> "rule: terminal identifier"
+  lift $ tsys `uses` (\z -> or [S.member y z | y <- ts]) >>= guard <?> (printf "undeclared T: %s" $ show ts)
+  -- lift $ nsys `uses` (M.notMember n) >>= guard <?> (printf "used non-terminal in T role: %s" n)
+  return $ PreT ts
+
+-- | Parses a list of a la @[a,b,c]@
+
+list = brackets . commaSep
 
 -- | Parse non-terminal symbols in production rules. If we have an indexed
 -- non-terminal, more than one result will be returned.
@@ -245,7 +287,13 @@ type ParseU a = (Monad m
                 , TokenParsing m
                 ) => Unlined (GrammarParser m) a
 
-type P m = ( Monad m, MonadPlus m, Alternative m, Parsing m, TokenParsing m, MonadState GrammarState m)
+type P m = ( Monad m
+           , MonadPlus m
+           , Alternative m
+           , Parsing m
+           , TokenParsing m
+           , MonadState GrammarState m
+           )
 
 -- | grammar identifiers
 
@@ -271,9 +319,10 @@ testGrammar = unlines
   , "E: epsilon"
   , "E: ε"
   , "S: X"
-  , "X -> step  <<< X a"
-  , "X -> stand <<< X"
-  , "[X] -> oned <<< [X]"
+  , "[X{i}] -> many <<< [X{i}]"
+--  , "X -> step  <<< X a"
+--  , "X -> stand <<< X"
+--  , "[X] -> oned <<< [X]"
 --  , "X -> eps   <<< epsilon"
   , "//"
   ]
