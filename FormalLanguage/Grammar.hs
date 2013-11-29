@@ -37,14 +37,17 @@ import           Prelude hiding (all)
 
 data Enumerable
   = Singular
-  | IntBased Integer [Integer]
-  | Enumerated String [String]
+  | IntBased Integer Integer -- current index, maximum index
+--  | Enumerated String [String]
   deriving (Eq,Ord,Show)
 
 instance Default Enumerable where
   def = Singular
 
 -- | A single-dimensional terminal or non-terminal symbol.
+--
+-- TODO write Eq,Ord by hand. Fail with error if Enumerable is not equal (this
+-- should actually be caught in the combination operations).
 
 data TN where
   -- | A terminal symbol (excluding epsilon)

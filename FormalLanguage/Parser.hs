@@ -111,8 +111,8 @@ nts = do
 expandNT :: String -> Enumerated -> [Symb]
 expandNT name = go where
   go Sing          = [Symb [N name Singular]]
-  go (ZeroBased k) = [Symb [N name (IntBased   z [0..(k-1)])] | z <- [0..(k-1)]]
-  go (Enum es)     = [Symb [N name (Enumerated z es        )] | z <- es        ]
+  go (ZeroBased k) = [Symb [N name (IntBased   z (k-1))] | z <- [0..(k-1)]]
+  --go (Enum es)     = [Symb [N name (Enumerated z es        )] | z <- es        ]
 
 -- | Figure out if we are dealing with indexed (enumerable) non-terminals
 
