@@ -44,7 +44,7 @@ import FormalLanguage.Grammar
 data Enumerated
   = Sing
   | ZeroBased Integer
-  | Enum      [String]
+--  | Enum      [String]
   deriving (Show)
 
 -- | The 
@@ -73,8 +73,12 @@ grammar :: Parse Grammar
 grammar = do
   reserveGI "Grammar:"
   name :: String <- identGI
+  _nsyms <- S.fromList . concat <$> many nts
+  _tsyms <- S.fromList . concat <$> many ts
+  {-
   (_nsyms,_tsyms) <- ((S.fromList *** S.fromList) . partitionEithers . concat)
                   <$> some (map Left <$> nts <|> map Right <$> ts)
+  -}
   _epsis <- S.fromList <$> many epsP
   _start <- try (Just <$> startSymbol) <|> pure Nothing
   _rules <- (S.fromList . concat) <$> some rule
@@ -117,7 +121,7 @@ expandNT name = go where
 -- | Figure out if we are dealing with indexed (enumerable) non-terminals
 
 enumeration =   ZeroBased <$> natural
-            <|> Enum      <$> sepBy1 identGI (string ",")
+--            <|> Enum      <$> sepBy1 identGI (string ",")
 
 -- | Parse declared terminal symbols.
 
@@ -178,17 +182,17 @@ rule = do
 --
 -- TODO X{i}->Y{j} => X{0}->Y{0}|Y{1} ; X{1}->Y{0}|Y{1}
 
-generateRules :: GrammarState -> [(String,Maybe String)] -> [PreSymb] -> ()
+generateRules :: GrammarState -> PreSymb {- [(String,Maybe String)] -} -> [PreSymb] -> ()
 generateRules s lhs rhs = error $ show (is) where
   is :: M.Map String String -- this gives us all indices (as a map from the index name to the corresponding non-terminal
-  is = M.fromList $ [ (i,n) | (n,Just i) <- lhs ]
+  is = M.fromList . error $ show $ (lhs : rhs) ^.. folded._PreN.folded._Indexed
 
 -- | Parse the lhs symbol together with all indices (for each individual
 -- non-terminal).
 --
 -- TODO confirm that indexed non-terminals are actually indexable
 
-lhsPreNonTerminal :: P m => m [(String,Maybe String)]
+lhsPreNonTerminal :: P m => m PreSymb -- [(String,Maybe String)]
 lhsPreNonTerminal = do
   let iigi = (,) <$> identGI <*> option Nothing (try $ Just <$> braces identGI) -- indexed ident GI
   ns <- (:[]) <$> iigi <|> list iigi <?> "requires non-terminal here"
@@ -200,12 +204,27 @@ lhsPreNonTerminal = do
     <?> "no terminal symbols allowed"
   let xs = ns^..folded._2.traverse
   guard (sort xs == sort (nub xs)) <?> "repeated index on lhs"
-  return ns
+  return $ PreN ns
 
 data PreSymb
   = PreN [(String, Maybe String)]
   | PreT [String]
   deriving (Show)
+
+_PreN :: Prism' PreSymb [(String,Maybe String)]
+_PreN = prism PreN $ f where
+  f (PreN xs) = Right xs
+  f (PreT xs) = Left $ PreT xs
+
+_PreT :: Prism' PreSymb [(String)]
+_PreT = prism PreT $ f where
+  f (PreT xs) = Right xs
+  f (PreN xs) = Left $ PreN xs
+
+_Indexed :: Prism' (String, Maybe String) (String, String)
+_Indexed = prism (\(s,x) -> (s,Just x)) $ f where
+  f (s,Just x)  = Right (s,x)
+  f (s,Nothing) = Left (s,Nothing)
 
 -- |
 --

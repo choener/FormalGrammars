@@ -41,6 +41,15 @@ data Enumerable
 --  | Enumerated String [String]
   deriving (Eq,Ord,Show)
 
+_IntBased :: Prism' Enumerable (Integer,Integer)
+_IntBased = prism (uncurry IntBased) $ f where
+  f Singular       = Left  Singular
+  f (IntBased c m) = Right (c,m)
+
+ibCurrent = _IntBased . _1
+
+ibModulus = _IntBased . _2
+
 instance Default Enumerable where
   def = Singular
 
@@ -64,6 +73,7 @@ deriving instance Ord  TN
 tnName :: Lens' TN String
 tnName f (T s  ) = T               <$> f s
 tnName f (N s e) = (\s' -> N s' e) <$> f s
+tnName f (E s  ) = E               <$> f s
 
 _T :: Prism' TN String
 _T = prism T $ f where
