@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -34,6 +36,7 @@ import           Text.Printf
 import           Text.Trifecta
 import           Text.Trifecta.Delta
 import           Text.Trifecta.Result
+import           Data.Tuple (swap)
 
 import Debug.Trace
 
@@ -75,10 +78,6 @@ grammar = do
   name :: String <- identGI
   _nsyms <- S.fromList . concat <$> many nts
   _tsyms <- S.fromList . concat <$> many ts
-  {-
-  (_nsyms,_tsyms) <- ((S.fromList *** S.fromList) . partitionEithers . concat)
-                  <$> some (map Left <$> nts <|> map Right <$> ts)
-  -}
   _epsis <- S.fromList <$> many epsP
   _start <- try (Just <$> startSymbol) <|> pure Nothing
   _rules <- (S.fromList . concat) <$> some rule
@@ -115,7 +114,7 @@ nts = do
 expandNT :: String -> Enumerated -> [Symb]
 expandNT name = go where
   go Sing          = [Symb [N name Singular]]
-  go (ZeroBased k) = [Symb [N name (IntBased   z (k-1))] | z <- [0..(k-1)]]
+  go (ZeroBased k) = [Symb [N name (IntBased   z k)] | z <- [0..(k-1)]]
   --go (Enum es)     = [Symb [N name (Enumerated z es        )] | z <- es        ]
 
 -- | Figure out if we are dealing with indexed (enumerable) non-terminals
@@ -147,133 +146,101 @@ epsP = do
 -- indices indicated.
 --
 -- TODO add @fun@ to each PR
---
--- TODO expand NT on left-hand side with all variants based on index.
---
--- TODO allow multidimensional rules ...
---
--- TODO handle epsilons on both sides correctly (but do not allow
--- ``only-epsilon'' NTs)
---
--- BAUSTELLE: the first step lhsN tells us if we have an indexed system {i}, on
--- the rhs we then have stuff a la {i+1}. This needs to be done correctly ...
 
-rule :: Parse [Rule]
+rule :: P m => m [Rule] -- Parse [Rule]
 rule = do
-  lhs <- lhsPreNonTerminal
+  lhs <- parsePreNN
   reserveGI "->"
   fun :: String <- identGI
   reserveGI "<<<"
-  -- zs <- fmap sequence . runUnlined $ some (try ruleNts <|> try ruleTs) -- expand zs to all production rules
-  rhs <- runUnlined $ some (try rhsPreNonTerminal <|> try rhsPreTerminal)
+  rhs <- runUnlined $ some (try (lift $ parsePreNN) <|> (lift $ parsePreTT))
   whiteSpace
-  -- let lhs = map (\(z,_) -> N z Singular) lhsN -- TODO tag epsilons as epsilons
   s <- get
-  let r = generateRules s lhs rhs
-  error $ show (lhs,rhs,r)
-  return undefined -- [Rule (Symb lhs) [fun] z | z <- zs]
+  error $ show $ generateRules s lhs rhs
+  return [] --  $ generateRules s lhs rhs
 
 -- | Actually create a rule given both lhs and rhs. This means we need to
 -- expand rules according to what we allow.
 --
--- TODO what about X -> Y{i} ? This should expand to X -> Y{0} | Y{1}
---
--- TODO X{i} -> Y{i} => X{0} -> Y{0} ; X{1} -> Y{1}
---
--- TODO X{i}->Y{j} => X{0}->Y{0}|Y{1} ; X{1}->Y{0}|Y{1}
+-- TODO need to handle epsilons correctly
 
-generateRules :: GrammarState -> PreSymb {- [(String,Maybe String)] -} -> [PreSymb] -> ()
+generateRules :: GrammarState -> PreSymb -> [PreSymb] -> ()
 generateRules s lhs rhs = error $ show (is) where
-  is :: M.Map String String -- this gives us all indices (as a map from the index name to the corresponding non-terminal
-  is = M.fromList . error $ show $ (lhs : rhs) ^.. folded._PreN.folded._Indexed
+  -- gives (index,NT) list; from (NT,(index,integer)) list
+  is = id $ (lhs : rhs) ^.. folded.folded._OnlyIndexedPreN
+  {-
+  js = sequence $ map (expandIndex $ s^.nsys) is
+  expandIndex ns (i,n) =
+    let expand Sing          = error "expanded index on singular"
+        expand (ZeroBased z) = [0 .. (z-1)]
+    in  map (i,) . expand $ ns M.! n
+  buildRule xs = (buildSymb xs lhs, map (buildSymb xs) rhs)
+  buildSymb xs (PreT ss) = (PreT ss)
+  buildSymb xs (PreN ss) = undefined
+  -}
 
--- | Parse the lhs symbol together with all indices (for each individual
--- non-terminal).
---
--- TODO confirm that indexed non-terminals are actually indexable
+data IndexedPreN
+  = NotIndexed
+  | IndexedPreN String Integer
+  deriving (Show,Eq,Ord)
 
-lhsPreNonTerminal :: P m => m PreSymb -- [(String,Maybe String)]
-lhsPreNonTerminal = do
-  let iigi = (,) <$> identGI <*> option Nothing (try $ Just <$> braces identGI) -- indexed ident GI
-  ns <- (:[]) <$> iigi <|> list iigi <?> "requires non-terminal here"
-  nsys `uses` (\z -> or  [M.member    y z | (y,_) <- ns]) >>= guard
-    <?> "at least one non-terminal symbol required"
-  esys `uses` (\z -> and [S.notMember y z | (y,Just _) <- ns]) >>= guard
-    <?> "indexed epsilon encountered"
-  tsys `uses` (\z -> and [S.notMember y z | (y,_) <- ns]) >>= guard
-    <?> "no terminal symbols allowed"
-  let xs = ns^..folded._2.traverse
-  guard (sort xs == sort (nub xs)) <?> "repeated index on lhs"
-  return $ PreN ns
+_IndexedPreN :: Prism' IndexedPreN (String,Integer)
+_IndexedPreN = prism (uncurry IndexedPreN) $ \case (IndexedPreN s i) -> Right (s,i)
+                                                   other             -> Left  other
 
-data PreSymb
-  = PreN [(String, Maybe String)]
-  | PreT [String]
-  deriving (Show)
+data PreTNE
+  = PreN String IndexedPreN
+  | PreT String
+  | PreE String
+  deriving (Show,Eq,Ord)
 
-_PreN :: Prism' PreSymb [(String,Maybe String)]
-_PreN = prism PreN $ f where
-  f (PreN xs) = Right xs
-  f (PreT xs) = Left $ PreT xs
+_PreN :: Prism' PreTNE (String,IndexedPreN)
+_PreN = prism (uncurry PreN) $ \case (PreN s i) -> Right (s,i)
+                                     other      -> Left  other
 
-_PreT :: Prism' PreSymb [(String)]
-_PreT = prism PreT $ f where
-  f (PreT xs) = Right xs
-  f (PreN xs) = Left $ PreN xs
+_OnlyIndexedPreN :: Prism' PreTNE (String,IndexedPreN)
+_OnlyIndexedPreN = prism (uncurry PreN) $ \case (PreN s (IndexedPreN t i)) -> Right (s, IndexedPreN t i)
+                                                other                      -> Left  other
 
-_Indexed :: Prism' (String, Maybe String) (String, String)
-_Indexed = prism (\(s,x) -> (s,Just x)) $ f where
-  f (s,Just x)  = Right (s,x)
-  f (s,Nothing) = Left (s,Nothing)
+_PreT :: Prism' PreTNE String
+_PreT = prism PreT $ \case (PreT s) -> Right s
+                           other    -> Left  other
 
--- |
---
--- TODO all error handling is currently missing
+_PreE :: Prism' PreTNE String
+_PreE = prism PreE $ \case (PreE s) -> Right s
+                           other    -> Left  other
 
---rhsPreNonTerminal :: U m => m PreSymb -- [(String,Maybe String)]
-rhsPreNonTerminal = do
-  let iigi = (,) <$> identGI <*> option Nothing (try $ Just <$ string "{" <*> manyTill anyChar (try $ string "}"))
-  ns <- (:[]) <$> iigi <|> list iigi <?> "requires non-terminal here"
-  -- TODO correctness checking
-  return $ PreN ns
+type PreSymb = [PreTNE]
 
--- |
---
--- TODO need to handle ``either terminal or epsilon''
+parsePreN :: P m => m PreTNE
+parsePreN = use nsys >>= \ks -> (PreN <$> (choice . map symbol . M.keys $ ks) <*> parseIndexedPreN)
 
---rhsPreTerminal :: U m => m PreSymb -- [String]
-rhsPreTerminal = do
-  ts <- (:[]) <$> identGI <|> list identGI <?> "rule: terminal identifier"
-  lift $ tsys `uses` (\z -> or [S.member y z | y <- ts]) >>= guard <?> (printf "undeclared T: %s" $ show ts)
-  -- lift $ nsys `uses` (M.notMember n) >>= guard <?> (printf "used non-terminal in T role: %s" n)
-  return $ PreT ts
+parsePreT :: P m => m PreTNE
+parsePreT = PreT <$> (use tsys >>= choice . map symbol . S.elems)
+
+parsePreE :: P m => m PreTNE
+parsePreE = PreE <$> (use esys >>= choice . map symbol . S.elems)
+
+parseIndexedPreN :: P m => m IndexedPreN
+parseIndexedPreN = option NotIndexed (try . braces $ IndexedPreN <$> identGI <*> option 0 integer)
+
+parsePreNN :: P m => m [PreTNE]
+parsePreNN = do
+  ns <- (:[]) <$> parsePreN <|> list (try parsePreN <|> parsePreE)
+  guard (notNullOf (folded._PreN) ns) <?> "no non-terminal encountered"
+  return ns
+
+parsePreTT :: P m => m [PreTNE]
+parsePreTT = do
+  ts <- (:[]) <$> parsePreT <|> list (try parsePreT <|> parsePreE)
+  guard (notNullOf (folded._PreT) ts) <?> "no terminal encountered"
+  return ts
 
 -- | Parses a list of a la @[a,b,c]@
 
 list = brackets . commaSep
 
--- | Parse non-terminal symbols in production rules. If we have an indexed
--- non-terminal, more than one result will be returned.
---
--- TODO expand with indexed version
 
-ruleNts :: ParseU [Symb] -- (String,NtIndex)
-ruleNts = do
-  n <- identGI <?> "rule: nonterminal identifier"
---  i <- nTindex <?> "rule:" -- option ("",1) $ braces ((,) <$> ident gi <*> option 0 integer) <?> "rule: nonterminal index"
-  lift $ nsys `uses` (M.member n   ) >>= guard <?> (printf "undeclared NT: %s" n)
-  lift $ tsys `uses` (S.notMember n) >>= guard <?> (printf "used terminal in NT role: %s" n)
-  return [Symb [N n Singular]] -- [nsym1 n Singular] -- (n,i)
-
--- | Parse terminal symbols in production rules. Returns singleton list of
--- terminal.
-
-ruleTs :: ParseU [Symb]
-ruleTs = do
-  n <- identGI <?> "rule: terminal identifier"
-  lift $ tsys `uses` (S.member n   ) >>= guard <?> (printf "undeclared T: %s" n)
-  lift $ nsys `uses` (M.notMember n) >>= guard <?> (printf "used non-terminal in T role: %s" n)
-  return [Symb [T n]] -- [TSym [n]]
 
 -- * Monadic Parsing Machinery
 
@@ -333,12 +300,13 @@ identGI = ident grammarIdentifiers
 
 testGrammar = unlines
   [ "Grammar: Align"
-  , "N: X"
+  , "N: X{2}"
+  , "N: Y{3}"
   , "T: a"
   , "E: epsilon"
   , "E: ε"
   , "S: X"
-  , "[X{i}] -> many <<< [X{i}]"
+  , "[X{i},Y{j}] -> many <<< [X{i},Y{j}]"
 --  , "X -> step  <<< X a"
 --  , "X -> stand <<< X"
 --  , "[X] -> oned <<< [X]"
