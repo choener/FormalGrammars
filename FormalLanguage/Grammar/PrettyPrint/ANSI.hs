@@ -68,6 +68,7 @@ tnDoc (E s  ) = blue  $ text s
 tnDoc (T s  ) = green $ text s
 tnDoc (N s e)
   | Singular <- e = red $ text s
+  | IntBased k z <- e = (red $ text s) <+> (magenta $ text $ show k)
 
 -- |
 

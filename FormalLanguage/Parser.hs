@@ -12,7 +12,11 @@
 
 -- | We define a simple domain-specific language for context-free languages.
 
-module FormalLanguage.Parser where
+module FormalLanguage.Parser
+  ( grammar
+  , asG
+  , testParsing
+  ) where
 
 import           Control.Applicative
 import           Control.Arrow
@@ -149,40 +153,46 @@ epsP = do
 
 rule :: P m => m [Rule] -- Parse [Rule]
 rule = do
-  lhs <- parsePreNN
+  lhs <- runUnlined $ parsePreNN
   reserveGI "->"
   fun :: String <- identGI
   reserveGI "<<<"
-  rhs <- runUnlined $ some (try (lift $ parsePreNN) <|> (lift $ parsePreTT))
+  -- rhs <- runUnlined $ some (try (lift $ parsePreNN) <|> (lift $ parsePreTT))
+  rhs <- runUnlined $ some (try parsePreNN <|> parsePreTT)
   whiteSpace
   s <- get
-  error $ show $ generateRules s lhs rhs
-  return [] --  $ generateRules s lhs rhs
+  return $ generateRules s lhs fun rhs
 
 -- | Actually create a rule given both lhs and rhs. This means we need to
 -- expand rules according to what we allow.
 --
 -- TODO need to handle epsilons correctly
 
-generateRules :: GrammarState -> PreSymb -> [PreSymb] -> ()
-generateRules s lhs rhs = error $ show (is) where
+generateRules :: GrammarState -> PreSymb -> String -> [PreSymb] -> [Rule]
+generateRules gs lhs fun rhs = map buildRules js where
   -- gives (index,NT) list; from (NT,(index,integer)) list
-  is = id $ (lhs : rhs) ^.. folded.folded._OnlyIndexedPreN
-  {-
-  js = sequence $ map (expandIndex $ s^.nsys) is
+  is = nub . map swap . over (mapped._2) indexName $ (lhs : rhs) ^.. folded.folded._OnlyIndexedPreN
+  js = sequence $ map (expandIndex $ gs^.nsys) is
   expandIndex ns (i,n) =
     let expand Sing          = error "expanded index on singular"
         expand (ZeroBased z) = [0 .. (z-1)]
     in  map (i,) . expand $ ns M.! n
-  buildRule xs = (buildSymb xs lhs, map (buildSymb xs) rhs)
-  buildSymb xs (PreT ss) = (PreT ss)
-  buildSymb xs (PreN ss) = undefined
-  -}
+  buildTNE _  (PreE s) = E s
+  buildTNE _  (PreT s) = T s
+  buildTNE _  (PreN s NotIndexed) = N s Singular
+  buildTNE zs (PreN s (IndexedPreN t k)) =
+    let Just z = lookup t zs
+        ZeroBased m = (gs^.nsys) M.! s
+        l :: Integer = (z+k) `mod` m
+    in  N s (IntBased l m)
+  buildRules j = Rule (Symb $ map (buildTNE j) lhs) [fun] (map (Symb . map (buildTNE j)) rhs)
 
 data IndexedPreN
   = NotIndexed
   | IndexedPreN String Integer
   deriving (Show,Eq,Ord)
+
+indexName (IndexedPreN s i) = s
 
 _IndexedPreN :: Prism' IndexedPreN (String,Integer)
 _IndexedPreN = prism (uncurry IndexedPreN) $ \case (IndexedPreN s i) -> Right (s,i)
@@ -212,25 +222,25 @@ _PreE = prism PreE $ \case (PreE s) -> Right s
 
 type PreSymb = [PreTNE]
 
-parsePreN :: P m => m PreTNE
-parsePreN = use nsys >>= \ks -> (PreN <$> (choice . map symbol . M.keys $ ks) <*> parseIndexedPreN)
+--parsePreN :: P m => m PreTNE
+parsePreN = lift (use nsys) >>= \ks -> (PreN <$> (choice . map string . M.keys $ ks) <*> parseIndexedPreN)
 
-parsePreT :: P m => m PreTNE
-parsePreT = PreT <$> (use tsys >>= choice . map symbol . S.elems)
+--parsePreT :: P m => m PreTNE
+parsePreT = PreT <$> (lift (use tsys) >>= choice . map string . S.elems)
 
-parsePreE :: P m => m PreTNE
-parsePreE = PreE <$> (use esys >>= choice . map symbol . S.elems)
+--parsePreE :: P m => m PreTNE
+parsePreE = PreE <$> (lift (use esys) >>= choice . map string . S.elems)
 
-parseIndexedPreN :: P m => m IndexedPreN
+--parseIndexedPreN :: P m => m IndexedPreN
 parseIndexedPreN = option NotIndexed (try . braces $ IndexedPreN <$> identGI <*> option 0 integer)
 
-parsePreNN :: P m => m [PreTNE]
+-- parsePreNN :: P m => m [PreTNE]
 parsePreNN = do
   ns <- (:[]) <$> parsePreN <|> list (try parsePreN <|> parsePreE)
   guard (notNullOf (folded._PreN) ns) <?> "no non-terminal encountered"
   return ns
 
-parsePreTT :: P m => m [PreTNE]
+--parsePreTT :: P m => m [PreTNE]
 parsePreTT = do
   ts <- (:[]) <$> parsePreT <|> list (try parsePreT <|> parsePreE)
   guard (notNullOf (folded._PreT) ts) <?> "no terminal encountered"
@@ -301,12 +311,13 @@ identGI = ident grammarIdentifiers
 testGrammar = unlines
   [ "Grammar: Align"
   , "N: X{2}"
-  , "N: Y{3}"
+  , "N: Y{2}"
   , "T: a"
   , "E: epsilon"
   , "E: ε"
   , "S: X"
-  , "[X{i},Y{j}] -> many <<< [X{i},Y{j}]"
+  , "[X{i},Y{j}] -> many <<< [X{j+1},Y{i-1}]"
+  , "[X{i},Y{i}] -> eeee <<< [a,a]"
 --  , "X -> step  <<< X a"
 --  , "X -> stand <<< X"
 --  , "[X] -> oned <<< [X]"
