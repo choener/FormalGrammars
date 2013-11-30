@@ -40,7 +40,7 @@ renderNtT (Symb xs) = ll <> (mci $ map go xs) <> rr
     go (N s e)
       | Singular        <- e = render s
       | IntBased   k zs <- e = render s !: (raw . pack $ show k)
-      | Enumerated k zs <- e = render s !: (raw . pack $ k)
+--      | Enumerated k zs <- e = render s !: (raw . pack $ k)
     ll = raw "\\begingroup \\left ( \\begin{smallmatrix}"
     rr = raw "\\end{smallmatrix} \\right ) \\endgroup" where
     render x
