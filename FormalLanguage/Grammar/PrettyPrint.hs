@@ -1,6 +1,6 @@
 
 module FormalLanguage.Grammar.PrettyPrint
-  ( renderGrammarLaTeX
+  ( renderLaTeX
   ) where
 
 import FormalLanguage.Grammar.PrettyPrint.LaTeX as LaTeX
