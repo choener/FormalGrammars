@@ -3,7 +3,10 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module FormalLanguage.Grammar.PrettyPrint.LaTeX where
+module FormalLanguage.Grammar.PrettyPrint.LaTeX
+  ( renderFile
+  , renderLaTeX
+  ) where
 
 import Text.LaTeX.Base
 import Text.LaTeX.Base.Syntax
@@ -18,8 +21,8 @@ import FormalLanguage.Grammar
 
 
 
-renderGrammarLaTeX :: Int -> Grammar -> LaTeX
-renderGrammarLaTeX = renderGrammar
+renderLaTeX :: Int -> Grammar -> LaTeX
+renderLaTeX = renderGrammar
 
 -- | Transform a grammar to some LaTeX code.
 

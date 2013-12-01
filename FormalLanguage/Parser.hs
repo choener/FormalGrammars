@@ -16,6 +16,8 @@ module FormalLanguage.Parser
   ( grammar
   , asG
   , testParsing
+  , parseGrammar
+  , Result (..)
   ) where
 
 import           Control.Applicative
@@ -302,6 +304,13 @@ reserveGI = reserve grammarIdentifiers
 
 identGI = ident grammarIdentifiers
 
+
+
+parseGrammar :: String -> String -> Result Grammar
+parseGrammar fname cnts = parseString
+  ((evalStateT . runGrammarP) grammar def)
+  (Directed (B.pack fname) 0 0 0 0)
+  cnts
 
 
 --
