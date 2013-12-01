@@ -81,14 +81,14 @@ makeLenses ''GrammarState
 grammar :: Parse Grammar
 grammar = do
   reserveGI "Grammar:"
-  name :: String <- identGI
+  _name :: String <- identGI
   _nsyms <- S.fromList . concat <$> many nts
   _tsyms <- S.fromList . concat <$> many ts
   _epsis <- S.fromList <$> many epsP
   _start <- try (Just <$> startSymbol) <|> pure Nothing
   _rules <- (S.fromList . concat) <$> some rule
   reserveGI "//"
-  grammarNames <>= S.singleton name
+  grammarNames <>= S.singleton _name
   return Grammar { .. }
 
 -- | Start symbol. Only a single symbol may be given
@@ -238,13 +238,13 @@ parseIndexedPreN = option NotIndexed (try . braces $ IndexedPreN <$> identGI <*>
 
 -- parsePreNN :: P m => m [PreTNE]
 parsePreNN = do
-  ns <- (:[]) <$> parsePreN <|> list (try parsePreN <|> parsePreE)
+  ns <- (:[]) <$> parsePreN <* whiteSpace <|> list (try parsePreN <|> parsePreE)
   guard (notNullOf (folded._PreN) ns) <?> "no non-terminal encountered"
   return ns
 
 --parsePreTT :: P m => m [PreTNE]
 parsePreTT = do
-  ts <- (:[]) <$> parsePreT <|> list (try parsePreT <|> parsePreE)
+  ts <- (:[]) <$> parsePreT <* whiteSpace <|> list (try parsePreT <|> parsePreE)
   guard (notNullOf (folded._PreT) ts) <?> "no terminal encountered"
   return ts
 
@@ -321,13 +321,14 @@ testGrammar = unlines
   [ "Grammar: Align"
   , "N: X{2}"
   , "N: Y{2}"
+  , "N: Z"
   , "T: a"
   , "E: epsilon"
   , "E: ε"
   , "S: X"
   , "[X{i},Y{j}] -> many <<< [X{j+1},Y{i-1}]"
   , "[X{i},Y{i}] -> eeee <<< [a,a]"
---  , "X -> step  <<< X a"
+  , "Z -> step  <<< Z a Z a Z"
 --  , "X -> stand <<< X"
 --  , "[X] -> oned <<< [X]"
 --  , "X -> eps   <<< epsilon"

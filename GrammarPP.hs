@@ -7,10 +7,13 @@
 module Main where
 
 import System.Console.CmdArgs
+import System.IO (openFile, hClose, IOMode (..))
+import           Text.PrettyPrint.ANSI.Leijen (hPutDoc)
 
 import FormalLanguage.Parser
 import FormalLanguage.Grammar
 import FormalLanguage.Grammar.PrettyPrint.ANSI (printDoc, grammarDoc)
+import FormalLanguage.Grammar.PrettyPrint.Haskell (grammarHaskell)
 import FormalLanguage.Grammar.PrettyPrint.LaTeX (renderFile, renderLaTeX)
 
 
@@ -23,6 +26,10 @@ data Options
   | Ansi
     { inFile :: String
     }
+  | Haskell
+    { inFile :: String
+    , outFile :: String
+    }
   deriving (Show,Data,Typeable)
 
 optionLatex = LaTeX
@@ -34,6 +41,11 @@ optionAnsi = Ansi
   { inFile = ""
   }
 
+optionHaskell = Haskell
+  { inFile = ""
+  , outFile = ""
+  }
+
 main = do
   o <- cmdArgs $ modes [optionLatex,optionAnsi]
   print o
@@ -41,10 +53,15 @@ main = do
           "" -> getContents >>= return . parseGrammar "stdin"
           fn -> readFile fn >>= return . parseGrammar fn
   case pr of
-    (Failure f) -> printDoc f
-    (Success s) -> case o of
-      (LaTeX{..}) -> case outFile of
+    Failure f -> printDoc f
+    Success s -> case o of
+      LaTeX{..} -> case outFile of
         "" -> error "need to set output file name"
         fn -> renderFile fn $ renderLaTeX 2 s
-      (Ansi {..}) -> printDoc $ grammarDoc s
+      Ansi {..} -> printDoc $ grammarDoc s
+      Haskell{..} -> case outFile of
+        "" -> printDoc $ grammarHaskell s
+        fn -> do h <- openFile fn WriteMode
+                 hPutDoc h $ grammarHaskell s
+                 hClose h
 

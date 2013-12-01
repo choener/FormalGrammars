@@ -155,6 +155,7 @@ data Grammar = Grammar
   , _epsis :: Set TN
   , _rules :: Set Rule
   , _start :: Maybe Symb
+  , _name  :: String
   } deriving (Show)
 
 makeLenses ''Grammar
