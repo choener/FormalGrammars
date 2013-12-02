@@ -15,6 +15,10 @@
 -- combined terminal/non-terminal systems. This will basically mean dealing
 -- with context-sensitive grammars, at which we can just fully generalize
 -- everything.
+--
+-- TODO we need a general system to generate fresh variable names of varying
+-- dimension. This is very much desired for certain operations (especially on
+-- products).
 
 module FormalLanguage.Grammar where
 
@@ -148,6 +152,12 @@ makeLenses ''Rule
 --
 -- TODO Combined terminal and non-terminal symbols in multi-tape grammars are
 -- denoted as non-terminal symbols.
+--
+-- TODO rename epsis -> esyms
+--
+-- TODO tsyms, esyms are not symbols but should just be 1-dim things ...
+--
+-- TODO nsyms should maybe be 1-dim, then have another thing for the multidim things
 
 data Grammar = Grammar
   { _tsyms :: Set Symb

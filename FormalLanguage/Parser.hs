@@ -11,6 +11,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | We define a simple domain-specific language for context-free languages.
+--
+-- TODO we still need to make sure to handle NTs correctly. It should be that
+-- we write @[X,Y]@ in multidim cases and then we check in rules if @[X,Y]@ is
+-- available ... of course for @[X,eps]@ we then need to check if @eps@ is an
+-- epsilon symbol.
 
 module FormalLanguage.Parser
   ( grammar
