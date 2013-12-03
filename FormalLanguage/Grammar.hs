@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -185,12 +186,15 @@ gDim g
 -- | Symb is completely in terminal form.
 
 tSymb :: Symb -> Bool
-tSymb (Symb xs) = allOf folded tTN xs
+tSymb (Symb xs) = allOf folded tTN xs && anyOf folded (\case (T _) -> True ; _ -> False) xs
 
 tTN :: TN -> Bool
 tTN (T _  ) = True
 tTN (E _  ) = True
 tTN (N _ _) = False
+
+eSymb :: Symb -> Bool
+eSymb (Symb xs) = allOf folded (\case (E _) -> True ; _ -> False) xs
 
 -- | Symb is completely in non-terminal form.
 
@@ -200,7 +204,7 @@ nSymb (Symb xs) = allOf folded nTN xs
 -- | Generalized non-terminal symbol with at least one non-terminal Symb.
 
 nSymbG :: Symb -> Bool
-nSymbG (Symb xs) = anyOf folded nTN xs
+nSymbG (Symb xs) = allOf folded nTN xs && anyOf folded (\case (N _ _) -> True ; _ -> False) xs
 
 nTN :: TN -> Bool
 nTN (N _ _) = True
