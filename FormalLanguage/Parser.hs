@@ -18,10 +18,7 @@
 -- epsilon symbol.
 
 module FormalLanguage.Parser
-  ( grammar
-  , asG
-  , testParsing
-  , parseGrammar
+  ( module FormalLanguage.Parser
   , Result (..)
   ) where
 
@@ -165,7 +162,7 @@ rule = do
   fun :: String <- identGI
   reserveGI "<<<"
   -- rhs <- runUnlined $ some (try (lift $ parsePreNN) <|> (lift $ parsePreTT))
-  rhs <- runUnlined $ some (try parsePreNN <|> parsePreTT)
+  rhs <- runUnlined $ some (try parsePreNN <|> try parsePreTT <|> parsePreEE)
   whiteSpace
   s <- get
   return $ generateRules s lhs fun rhs
@@ -243,19 +240,24 @@ parseIndexedPreN = option NotIndexed (try . braces $ IndexedPreN <$> identGI <*>
 
 -- parsePreNN :: P m => m [PreTNE]
 parsePreNN = do
-  ns <- (:[]) <$> parsePreN <* whiteSpace <|> list (try parsePreN <|> parsePreE)
+  ns <- (:[]) <$> parsePreN <* whiteSpace <|> listP (try parsePreN <|> parsePreE)
   guard (notNullOf (folded._PreN) ns) <?> "no non-terminal encountered"
   return ns
 
 --parsePreTT :: P m => m [PreTNE]
 parsePreTT = do
-  ts <- (:[]) <$> parsePreT <* whiteSpace <|> list (try parsePreT <|> parsePreE)
+  ts <- (:[]) <$> parsePreT <* whiteSpace <|> listP (try parsePreT <|> parsePreE)
   guard (notNullOf (folded._PreT) ts) <?> "no terminal encountered"
   return ts
 
+parsePreEE = do
+  es <- (:[]) <$> parsePreE <* whiteSpace <|> listP parsePreE
+  guard (allOf (folded._PreT) (const True) es) <?> ""
+  return es
+
 -- | Parses a list of a la @[a,b,c]@
 
-list = brackets . commaSep
+listP = brackets . commaSep
 
 
 
