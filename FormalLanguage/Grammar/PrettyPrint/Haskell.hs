@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 
 -- | A PrettyPrinter that generates "almost useable" Haskell modules. The
 -- signature and grammar are created but the algebras are (obviously) missing.
@@ -28,7 +29,9 @@ signatureD :: Grammar -> Doc
 signatureD g = hdr <$> indent 2 fns where
   hdr = text $ printf "data Sig%s {-Monad-} m {-NT-} nt {-T-} %s = Sig%s" (g^.name) {- ns -} ts (g^.name)
   ns = concat . intersperse " " . nub . sort . map ntS . filter isSymbN $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
-  ts = concat . intersperse " " . map (view tnName)  $ g^..tsyms.folded.symb.folded
+  ts = concat . intersperse " " . nub . sort
+     . map (view tnName) . filter (\case (T _) -> True ; z -> False)
+     $ g^..tsyms.folded.symb.folded
 --  es = concat . intersperse " " . map (addEps . view tnName) $ g^..epsis.folded
 --  fns = encloseSep lbrace rbrace comma . map (text . concat) . (++[["h"]]) . nub . sort $ g^..rules.folded.fun
   fns = encloseSep lbrace rbrace comma . (++[h]) . map ruleSigDoc . nubBy ((==) `on` _fun) . sort $ g^..rules.folded
@@ -47,13 +50,17 @@ ruleSigDoc (Rule lhs fun rhs) =
   where
     rs = map tOrNt rhs
     tOrNt r
+      {-
       | isSymbE r = case (r^.symb) of
                       [x] -> text $ addEps $ x^.tnName
                       xs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . addEps . view tnName) xs
+      -}
       | isSymbN r = text "nt"
       | isSymbT r = case (r^.symb) of
                       [x] -> text $ x^.tnName
-                      xs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . addEps . view tnName) xs
+                      xs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map sigT xs
+      where sigT (T s) = text s
+            sigT E     = text "()" -- important, EMIT NOTHING emits @()@
 
 ntS :: Symb -> String
 ntS (Symb []) = error "zero-dim symbol"
@@ -72,8 +79,10 @@ grammarD :: Grammar -> Doc
 grammarD g = text ("grammar" ++ g^.name) <+>
              text ("Sig" ++ g^.name ++ "{..}") <+>
              text "{-NT-}" <+> hsep (map (text . ntS) . nub . sort $ g^..rules.folded.lhs) <+>
-             text "{-T-}" <+> hsep (map (text . view tnName) . nub . sort $ g^..tsyms.folded.symb.folded) <+>
-             text "{-E-}" <+> hsep (map (text . addEps . view tnName) . nub . sort $ g^..epsis.folded) <+>
+             text "{-T-}" <+> hsep (map (text . view tnName) . nub . sort
+                      . filter (\case (T _) -> True ; z -> False)
+                      $ g^..tsyms.folded.symb.folded) <+>
+--             text "{-E-}" <+> hsep (map (text . addEps . view tnName) . nub . sort $ g^..epsis.folded) <+>
              text "="<$>
              indent 2 (tupled xs)
   where
@@ -91,15 +100,17 @@ genApp x =   (text $ concat $ x^.fun)
          <+> (encloseSep empty empty (text " % ") $ map genSymb $ x^.rhs)
 
 genSymb x
+  {-
   | isSymbE  x = case (x^.symb) of
                    [z] -> text $ theName z
                    zs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . theName) zs
+                   -}
   | isSymbN x = text $ ntS x
   | isSymbT  x = case (x^.symb) of
                    [z] -> text $ theName z
                    zs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . theName) zs
   where
-    theName (E   ) = "eps"
+    theName (E   ) = "None"
     theName (T s ) = s
 
 test = printDoc $ grammarHaskell asG where
