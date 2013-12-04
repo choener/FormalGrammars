@@ -26,10 +26,10 @@ grammarHaskell g = signatureD g <$> grammarD g
 
 signatureD :: Grammar -> Doc
 signatureD g = hdr <$> indent 2 fns where
-  hdr = text $ printf "data Sig%s {-Monad-} m {-NT-} nt {-T-} %s {-E-} %s = Sig%s" (g^.name) {- ns -} ts es (g^.name)
-  ns = concat . intersperse " " . nub . sort . map ntS . filter nSymb $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
+  hdr = text $ printf "data Sig%s {-Monad-} m {-NT-} nt {-T-} %s = Sig%s" (g^.name) {- ns -} ts (g^.name)
+  ns = concat . intersperse " " . nub . sort . map ntS . filter isSymbN $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
   ts = concat . intersperse " " . map (view tnName)  $ g^..tsyms.folded.symb.folded
-  es = concat . intersperse " " . map (addEps . view tnName) $ g^..epsis.folded
+--  es = concat . intersperse " " . map (addEps . view tnName) $ g^..epsis.folded
 --  fns = encloseSep lbrace rbrace comma . map (text . concat) . (++[["h"]]) . nub . sort $ g^..rules.folded.fun
   fns = encloseSep lbrace rbrace comma . (++[h]) . map ruleSigDoc . nubBy ((==) `on` _fun) . sort $ g^..rules.folded
   h = text "h :: M.Stream m nt -> nt"
@@ -47,13 +47,13 @@ ruleSigDoc (Rule lhs fun rhs) =
   where
     rs = map tOrNt rhs
     tOrNt r
-      | eSymb r = case (r^.symb) of
-                    [x] -> text $ addEps $ x^.tnName
-                    xs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . addEps . view tnName) xs
-      | nSymb r = text "nt"
-      | tSymb r = case (r^.symb) of
-                    [x] -> text $ x^.tnName
-                    xs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . addEps . view tnName) xs
+      | isSymbE r = case (r^.symb) of
+                      [x] -> text $ addEps $ x^.tnName
+                      xs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . addEps . view tnName) xs
+      | isSymbN r = text "nt"
+      | isSymbT r = case (r^.symb) of
+                      [x] -> text $ x^.tnName
+                      xs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . addEps . view tnName) xs
 
 ntS :: Symb -> String
 ntS (Symb []) = error "zero-dim symbol"
@@ -91,16 +91,15 @@ genApp x =   (text $ concat $ x^.fun)
          <+> (encloseSep empty empty (text " % ") $ map genSymb $ x^.rhs)
 
 genSymb x
-  | eSymb  x = case (x^.symb) of
-                 [z] -> text $ theName z
-                 zs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . theName) zs
-  | nSymbG x = text $ ntS x
-  | tSymb  x = case (x^.symb) of
-                 [z] -> text $ theName z
-                 zs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . theName) zs
+  | isSymbE  x = case (x^.symb) of
+                   [z] -> text $ theName z
+                   zs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . theName) zs
+  | isSymbN x = text $ ntS x
+  | isSymbT  x = case (x^.symb) of
+                   [z] -> text $ theName z
+                   zs  -> encloseSep (text "(Z:.") rparen (text ":.") $ map (text . theName) zs
   where
-    theName (E "") = "eps"
-    theName (E s ) = s
+    theName (E   ) = "eps"
     theName (T s ) = s
 
 test = printDoc $ grammarHaskell asG where

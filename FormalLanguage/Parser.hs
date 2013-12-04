@@ -147,7 +147,7 @@ epsP = do
   reserveGI "E:"
   e <- identGI
   esys <>= S.singleton e
-  return $ E e
+  return E
 
 -- | Parse a single rule. Some rules come attached with an index. In that case,
 -- each rule is inflated according to its modulus (or more general the set of
@@ -181,7 +181,7 @@ generateRules gs lhs fun rhs = map buildRules js where
     let expand Sing          = error "expanded index on singular"
         expand (ZeroBased z) = [0 .. (z-1)]
     in  map (i,) . expand $ ns M.! n
-  buildTNE _  (PreE s) = E s
+  buildTNE _  (PreE s) = E
   buildTNE _  (PreT s) = T s
   buildTNE _  (PreN s NotIndexed) = N s Singular
   buildTNE zs (PreN s (IndexedPreN t k)) =
@@ -330,12 +330,13 @@ testGrammar = unlines
   , "N: Y{2}"
   , "N: Z"
   , "T: a"
-  , "E: epsilon"
+  , "T: e"
   , "E: ε"
   , "S: X"
   , "[X{i},Y{j}] -> many <<< [X{j+1},Y{i-1}]"
-  , "[X{i},Y{i}] -> eeee <<< [a,a]"
+  , "[X{i},Y{i}] -> eeee <<< [e,e]"
   , "Z -> step  <<< Z a Z a Z"
+  , "Z -> done  <<< ε" -- this shouldn't actually be done, as @E@ symbols are to denote that nothing happens (so this is actually rather undefined)
 --  , "X -> stand <<< X"
 --  , "[X] -> oned <<< [X]"
 --  , "X -> eps   <<< epsilon"

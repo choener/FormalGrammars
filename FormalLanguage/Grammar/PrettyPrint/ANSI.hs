@@ -63,8 +63,7 @@ symbolDoc s
 -- | Prettyprint a (non-)terminal symbol.
 
 tnDoc :: TN -> Doc
-tnDoc (E "" ) = blue  $ text "ε"
-tnDoc (E s  ) = blue  $ text s
+tnDoc (E    ) = blue  $ text "ε"
 tnDoc (T s  ) = green $ text s
 tnDoc (N s e)
   | Singular <- e = red $ text s

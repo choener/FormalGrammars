@@ -20,6 +20,9 @@
 -- TODO we need a general system to generate fresh variable names of varying
 -- dimension. This is very much desired for certain operations (especially on
 -- products).
+--
+-- BIGTODO @E _@ are actually the "None" thing in ADPfusion; while normal
+-- epsilons are just terminals.
 
 module FormalLanguage.Grammar where
 
@@ -58,7 +61,8 @@ ibModulus = _IntBased . _2
 instance Default Enumerable where
   def = Singular
 
--- | A single-dimensional terminal or non-terminal symbol.
+-- | A single-dimensional terminal or non-terminal symbol. @E@ is a special
+-- symbol denoting that nothing should be done.
 --
 -- TODO write Eq,Ord by hand. Fail with error if Enumerable is not equal (this
 -- should actually be caught in the combination operations).
@@ -69,7 +73,7 @@ data TN where
   -- | A non-terminal symbol (again, excluding non-terminal epsilons)
   N :: String -> Enumerable -> TN
   -- | Epsilon characters, may be named differently
-  E :: String               -> TN
+  E ::                         TN
 
 deriving instance Show TN
 deriving instance Eq   TN
@@ -78,7 +82,7 @@ deriving instance Ord  TN
 tnName :: Lens' TN String
 tnName f (T s  ) = T               <$> f s
 tnName f (N s e) = (\s' -> N s' e) <$> f s
-tnName f (E s  ) = E               <$> f s
+tnName f (E    ) = (const E)       <$> f "ε"
 
 _T :: Prism' TN String
 _T = prism T $ f where
@@ -90,18 +94,12 @@ _N = prism (uncurry N) $ f where
   f (N s e) = Right (s,e)
   f z       = Left  z
 
-_E :: Prism' TN String
-_E = prism E $ f where
-  f (E s) = Right s
-  f z     = Left  z
+_E :: Prism' TN ()
+_E = prism (const E) $ f where
+  f E = Right ()
+  f z = Left  z
 
 enumed = _N . _2
-
--- | The epsilon symbol (also accepted as part of a non-terminal).
---
--- TODO Still not sure if we should have data TN = E | ... for epsilon.
-
-eps = E ""
 
 -- | A complete grammatical symbol is multi-dimensional with 0..  dimensions.
 
@@ -121,17 +119,6 @@ type instance IxValue Symb = TN
 instance Applicative f => Ixed f Symb where
   ix k f (Symb xs) = Symb <$> ix k f xs
   {-# INLINE ix #-}
-
--- |
-
-{-
-data Fun where
-  Fun :: [String] -> Fun
-  deriving (Eq,Ord,Show)
-
-funName :: Lens' Fun [String]
-funName f (Fun s) = Fun <$> f s
--}
 
 -- | A production rule goes from a left-hand side (lhs) to a right-hand side
 -- (rhs). The rhs is evaluated using a function (fun).
@@ -185,30 +172,32 @@ gDim g
 
 -- | Symb is completely in terminal form.
 
-tSymb :: Symb -> Bool
-tSymb (Symb xs) = allOf folded tTN xs && anyOf folded (\case (T _) -> True ; _ -> False) xs
+isSymbT :: Symb -> Bool
+isSymbT (Symb xs) = allOf folded tTN xs && anyOf folded (\case (T _) -> True ; _ -> False) xs
 
 tTN :: TN -> Bool
 tTN (T _  ) = True
-tTN (E _  ) = True
+tTN (E    ) = True
 tTN (N _ _) = False
 
-eSymb :: Symb -> Bool
-eSymb (Symb xs) = allOf folded (\case (E _) -> True ; _ -> False) xs
+isSymbE :: Symb -> Bool
+isSymbE (Symb xs) = allOf folded (\case E -> True ; _ -> False) xs
 
 -- | Symb is completely in non-terminal form.
 
-nSymb :: Symb -> Bool
-nSymb (Symb xs) = allOf folded nTN xs
+isSymbN :: Symb -> Bool
+isSymbN (Symb xs) = allOf folded nTN xs && anyOf folded (\case (N _ _) -> True ; _ -> False) xs
 
+{-
 -- | Generalized non-terminal symbol with at least one non-terminal Symb.
 
 nSymbG :: Symb -> Bool
 nSymbG (Symb xs) = allOf folded nTN xs && anyOf folded (\case (N _ _) -> True ; _ -> False) xs
+-}
 
 nTN :: TN -> Bool
 nTN (N _ _) = True
-nTN (E _  ) = True
+nTN (E    ) = True
 nTN (T _  ) = False
 
 
@@ -228,8 +217,8 @@ nTN (T _  ) = False
 isLeftLinear :: Grammar -> Bool
 isLeftLinear g = allOf folded isll $ g^.rules where
   isll :: Rule -> Bool
-  isll (Rule l _ []) = nSymbG l
-  isll (Rule l _ rs) = nSymbG l && (allOf folded (not . nSymbG) $ tail rs) -- at most one non-terminal
+  isll (Rule l _ []) = isSymbN l
+  isll (Rule l _ rs) = isSymbN l && (allOf folded (not . isSymbN) $ tail rs) -- at most one non-terminal
 
 -- | Right-linear grammars have at most one non-terminal on the RHS. It is the
 -- last symbol.
@@ -237,8 +226,8 @@ isLeftLinear g = allOf folded isll $ g^.rules where
 isRightLinear :: Grammar -> Bool
 isRightLinear g = allOf folded isrl $ g^.rules where
   isrl :: Rule -> Bool
-  isrl (Rule l _ []) = nSymbG l
-  isrl (Rule l _ rs) = nSymbG l && (allOf folded (not . nSymbG) $ init rs)
+  isrl (Rule l _ []) = isSymbN l
+  isrl (Rule l _ rs) = isSymbN l && (allOf folded (not . isSymbN) $ init rs)
 
 -- | Linear grammars just have a single non-terminal on the right-hand side.
 
@@ -258,8 +247,8 @@ chomskyNF = error "chomsky"
 isChomskyNF :: Grammar -> Bool
 isChomskyNF g = allOf folded isC $ g^.rules where
   isC :: Rule -> Bool
-  isC (Rule _ _ [s])   = tSymb s
-  isC (Rule _ _ [s,t]) = nSymb s && nSymb t
+  isC (Rule _ _ [s])   = isSymbT s
+  isC (Rule _ _ [s,t]) = isSymbN s && isSymbN t
   isC _                = False
 
 -- | Transform grammar into GNF.
@@ -274,7 +263,7 @@ greibachNF = error "gnf"
 isGreibachNF :: Grammar -> Bool
 isGreibachNF g = allOf folded isG $ g^.rules where
   isG :: Rule -> Bool
-  isG (Rule _ _ (t:ns)) = tSymb t && all nSymb ns
+  isG (Rule _ _ (t:ns)) = isSymbT t && all isSymbN ns
   isG _                 = False
 
 -- | A grammar is epsilon-free if no rule has an empty RHS, resp. any rhs-symb
