@@ -336,7 +336,7 @@ testGrammar = unlines
   , "[X{i},Y{j}] -> many <<< [X{j+1},Y{i-1}]"
   , "[X{i},Y{i}] -> eeee <<< [e,e]"
   , "Z -> step  <<< Z a Z a Z"
-  , "Z -> done  <<< ε" -- this shouldn't actually be done, as @E@ symbols are to denote that nothing happens (so this is actually rather undefined)
+--  , "Z -> done  <<< ε" -- this shouldn't actually be done, as @E@ symbols are to denote that nothing happens (so this is actually rather undefined)
 --  , "X -> stand <<< X"
 --  , "[X] -> oned <<< [X]"
 --  , "X -> eps   <<< epsilon"
