@@ -29,6 +29,29 @@ description:
                 Alternatives are ansi- or LaTeX-based pretty-printing for users
                 that want to implement their CFG in another language than
                 Haskell.
+                .
+                .
+                .
+                Formal background can be found in two papers:
+                .
+                .
+                Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler
+                .
+                Product Grammars for Alignment and Folding
+                .
+                submitted
+                .
+                .
+                .
+                Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler
+                .
+                How to Multiply Dynamic Programming Algorithms
+                .
+                Brazilian Symposium on Bioinformatics (BSB 2013)
+                .
+                Lecture Notes in Bioinformatics 8213, Springer, Heidelberg
+
+
 
 Extra-Source-Files:
   changelog
