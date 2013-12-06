@@ -1,13 +1,13 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | The basic data types for formal languages up to and including context-free
 -- grammars.
@@ -24,16 +24,16 @@
 -- BIGTODO @E _@ are actually the "None" thing in ADPfusion; while normal
 -- epsilons are just terminals.
 
-module FormalLanguage.Grammar where
+module FormalLanguage.CFG.Grammar where
 
+import           Control.Applicative
 import           Control.Lens
 import           Data.Default
-import           Data.Set (Set)
-import qualified Data.Set as S
 import           Data.Foldable
-import           Control.Applicative
-import qualified Control.Lens.Indexed as Lens
+import           Data.Set (Set)
 import           Prelude hiding (all)
+import qualified Control.Lens.Indexed as Lens
+import qualified Data.Set as S
 
 
 

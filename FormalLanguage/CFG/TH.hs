@@ -1,11 +1,11 @@
 
-module FormalLanguage.Grammar.TH where
+module FormalLanguage.CFG.TH where
 
-import Language.Haskell.TH
 import Control.Lens hiding (Strict)
 import Data.List (intersperse,nub)
+import Language.Haskell.TH
 
-import FormalLanguage.Grammar
+import FormalLanguage.CFG.Grammar
 
 
 
@@ -83,7 +83,7 @@ genFname r = do
 
 genArg :: Symb -> Type
 genArg s
-  | tSymb s = genTType s
-  | nSymb s = VarT . mkName . genNname $ s
+  | isSymbT s = genTType s
+  | isSymbN s = VarT . mkName . genNname $ s
   | otherwise = error $ "incompatible symbol: " ++ show s
 

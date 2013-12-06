@@ -4,7 +4,7 @@
 --
 -- TODO use Quote.quoteFile to be able to read files as well
 
-module FormalLanguage.Grammar.QQ where
+module FormalLanguage.CFG.QQ where
 
 import Control.Monad
 import Control.Monad.Trans.State.Strict (evalStateT)
@@ -16,10 +16,10 @@ import Text.Trifecta.Delta (Delta (Directed))
 import Text.Trifecta (parseString)
 import Text.Trifecta.Result (Result (..))
 
-import FormalLanguage.Grammar
-import FormalLanguage.Grammar.TH
-import FormalLanguage.Grammar.PrettyPrint.ANSI
-import FormalLanguage.Parser
+import FormalLanguage.CFG.Grammar
+import FormalLanguage.CFG.PrettyPrint.ANSI
+import FormalLanguage.CFG.TH
+import FormalLanguage.CFG.Parser
 
 
 

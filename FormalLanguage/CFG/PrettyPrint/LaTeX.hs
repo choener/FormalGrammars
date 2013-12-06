@@ -1,23 +1,23 @@
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE ParallelListComp #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ParallelListComp #-}
+{-# LANGUAGE PatternGuards #-}
 
-module FormalLanguage.Grammar.PrettyPrint.LaTeX
+module FormalLanguage.CFG.PrettyPrint.LaTeX
   ( renderFile
   , renderLaTeX
   ) where
 
-import Text.LaTeX.Base
-import Text.LaTeX.Base.Syntax
-import Text.LaTeX.Base.Class
-import Text.LaTeX.Packages.AMSMath hiding (align)
-import Data.Text (pack)
-import Data.Set (toList)
-import Data.List (intersperse)
 import Control.Lens hiding ((&), to)
+import Data.List (intersperse)
+import Data.Set (toList)
+import Data.Text (pack)
+import Text.LaTeX.Base
+import Text.LaTeX.Base.Class
+import Text.LaTeX.Base.Syntax
+import Text.LaTeX.Packages.AMSMath hiding (align)
 
-import FormalLanguage.Grammar
+import FormalLanguage.CFG.Grammar
 
 
 

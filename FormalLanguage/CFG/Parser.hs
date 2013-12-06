@@ -1,14 +1,13 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{- LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | We define a simple domain-specific language for context-free languages.
 --
@@ -17,8 +16,8 @@
 -- available ... of course for @[X,eps]@ we then need to check if @eps@ is an
 -- epsilon symbol.
 
-module FormalLanguage.Parser
-  ( module FormalLanguage.Parser
+module FormalLanguage.CFG.Parser
+  ( module FormalLanguage.CFG.Parser
   , Result (..)
   ) where
 
@@ -33,6 +32,7 @@ import           Data.Default
 import           Data.Either
 import           Data.List (partition,sort,nub)
 import           Data.Maybe (catMaybes,isJust)
+import           Data.Tuple (swap)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.HashSet as H
 import qualified Data.Map as M
@@ -44,11 +44,8 @@ import           Text.Printf
 import           Text.Trifecta
 import           Text.Trifecta.Delta
 import           Text.Trifecta.Result
-import           Data.Tuple (swap)
 
-import Debug.Trace
-
-import FormalLanguage.Grammar
+import FormalLanguage.CFG.Grammar
 
 
 

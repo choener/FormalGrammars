@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 
-module FormalLanguage.Grammar.PrettyPrint.ANSI
+module FormalLanguage.CFG.PrettyPrint.ANSI
   ( grammarDoc
   , rulesDoc
   , printDoc
@@ -8,11 +8,11 @@ module FormalLanguage.Grammar.PrettyPrint.ANSI
 
 import           Control.Lens
 import qualified Data.Set as S
-import           Text.PrettyPrint.ANSI.Leijen
 import           System.IO (stdout)
+import           Text.PrettyPrint.ANSI.Leijen
 
-import FormalLanguage.Grammar
-import FormalLanguage.Parser
+import FormalLanguage.CFG.Grammar
+import FormalLanguage.CFG.Parser
 
 
 

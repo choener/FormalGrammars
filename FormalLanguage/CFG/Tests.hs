@@ -3,7 +3,7 @@
 
 -- | A simple module for testing the QQ / TH stuff.
 
-module FormalLanguage.Grammar.Tests where
+module FormalLanguage.CFG.Tests where
 
 import Data.Array.Repa.Index
 

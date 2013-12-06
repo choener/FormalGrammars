@@ -1,5 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | This small utility allows us to turn a formal language description into
 -- either a LaTeX source file or a Haskell module.
@@ -8,13 +8,13 @@ module Main where
 
 import System.Console.CmdArgs
 import System.IO (openFile, hClose, IOMode (..))
-import           Text.PrettyPrint.ANSI.Leijen (hPutDoc)
+import Text.PrettyPrint.ANSI.Leijen (hPutDoc)
 
-import FormalLanguage.Parser
-import FormalLanguage.Grammar
-import FormalLanguage.Grammar.PrettyPrint.ANSI (printDoc, grammarDoc)
-import FormalLanguage.Grammar.PrettyPrint.Haskell (grammarHaskell)
-import FormalLanguage.Grammar.PrettyPrint.LaTeX (renderFile, renderLaTeX)
+import FormalLanguage.CFG.Grammar
+import FormalLanguage.CFG.Parser
+import FormalLanguage.CFG.PrettyPrint.ANSI (printDoc, grammarDoc)
+import FormalLanguage.CFG.PrettyPrint.Haskell (grammarHaskell)
+import FormalLanguage.CFG.PrettyPrint.LaTeX (renderFile, renderLaTeX)
 
 
 

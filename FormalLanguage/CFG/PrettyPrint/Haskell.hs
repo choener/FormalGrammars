@@ -3,20 +3,20 @@
 -- | A PrettyPrinter that generates "almost useable" Haskell modules. The
 -- signature and grammar are created but the algebras are (obviously) missing.
 
-module FormalLanguage.Grammar.PrettyPrint.Haskell
+module FormalLanguage.CFG.PrettyPrint.Haskell
   ( grammarHaskell
   ) where
 
 import           Control.Lens
+import           Data.Function (on)
+import           Data.List (nub,sort,intersperse,nubBy,groupBy)
 import qualified Data.Set as S
-import           Text.PrettyPrint.ANSI.Leijen
 import           System.IO (stdout)
-import Text.Printf
-import Data.List (nub,sort,intersperse,nubBy,groupBy)
-import Data.Function (on)
+import           Text.PrettyPrint.ANSI.Leijen
+import           Text.Printf
 
-import FormalLanguage.Grammar
-import FormalLanguage.Parser
+import FormalLanguage.CFG.Grammar
+import FormalLanguage.CFG.Parser
 
 
 
