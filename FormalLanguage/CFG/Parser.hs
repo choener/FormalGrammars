@@ -181,6 +181,9 @@ generateRules gs lhs fun rhs = map buildRules js where
   buildTNE _  (PreE s) = E
   buildTNE _  (PreT s) = T s
   buildTNE _  (PreN s NotIndexed) = N s Singular
+  buildTNE zs (PreN s (FixedInPreN   k)) =
+    let ZeroBased m = (gs^.nsys) M.! s
+    in  N s (IntBased k m)
   buildTNE zs (PreN s (IndexedPreN t k)) =
     let Just z = lookup t zs
         ZeroBased m = (gs^.nsys) M.! s
@@ -190,6 +193,7 @@ generateRules gs lhs fun rhs = map buildRules js where
 
 data IndexedPreN
   = NotIndexed
+  | FixedInPreN Integer
   | IndexedPreN String Integer
   deriving (Show,Eq,Ord)
 
@@ -233,7 +237,9 @@ parsePreT = PreT <$> (lift (use tsys) >>= choice . map string . S.elems)
 parsePreE = PreE <$> (lift (use esys) >>= choice . map string . S.elems)
 
 --parseIndexedPreN :: P m => m IndexedPreN
-parseIndexedPreN = option NotIndexed (try . braces $ IndexedPreN <$> identGI <*> option 0 integer)
+parseIndexedPreN = option NotIndexed (   (try . braces $ IndexedPreN <$> identGI <*> option 0 integer)
+                                     <|> (braces $ FixedInPreN <$> integer)
+                                     )
 
 -- parsePreNN :: P m => m [PreTNE]
 parsePreNN = do
@@ -332,6 +338,8 @@ testGrammar = unlines
   , "S: X"
   , "[X{i},Y{j}] -> many <<< [X{j+1},Y{i-1}]"
   , "[X{i},Y{i}] -> eeee <<< [e,e]"
+  , "[X{1},Y{0}] -> blar <<< [X{0},Y{1}]"
+  , "[X{1},Y{0}] -> blub <<< [X{0},Y{i}]"
   , "Z -> step  <<< Z a Z a Z"
 --  , "Z -> done  <<< ε" -- this shouldn't actually be done, as @E@ symbols are to denote that nothing happens (so this is actually rather undefined)
 --  , "X -> stand <<< X"
