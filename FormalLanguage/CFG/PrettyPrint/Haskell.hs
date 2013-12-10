@@ -9,11 +9,12 @@ module FormalLanguage.CFG.PrettyPrint.Haskell
 
 import           Control.Lens
 import           Data.Function (on)
-import           Data.List (nub,sort,intersperse,nubBy,groupBy)
+import           Data.List (nub,sort,intersperse,nubBy,groupBy,foldl')
 import qualified Data.Set as S
 import           System.IO (stdout)
 import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
+import           Control.Arrow hiding ((<+>))
 
 import FormalLanguage.CFG.Grammar
 import FormalLanguage.CFG.Parser
@@ -143,11 +144,21 @@ productFun (Rule l f rs) = text (concat f) <> text " = \\" <> vars <> text " -> 
     vars  = hsep $ zipWith mkVars rs vs
     callF = text (concat $ "_F" : f) <+> (hcat . punctuate space . map text $ take (length rs) vs)
     callG = let ns = map snd . filter (isSymbN . fst) $ zip rs vs
-            in  text ""
+            in  text . genS $ zip rs vs
     vs = let az = ['a'..'z'] ; bs = [[]] ++ [ a:b | b<-bs, a<-az ] in drop 1 bs
     mkVars r v
       | isSymbT r = text v
       | isSymbN r = parens (text v <> comma <> text (v++"N"))
+    genS zs = let go (ns,as) (r,v)
+                    | isSymbT r = (ns, as ++ [v])
+                    | isSymbN r = (ns++ [v++"N", ">>= Data.Vector.Fusion.Stream.Monadic.concatMap (\\", v, "->"], as ++ [v])
+                  postAddBrackets = (++ (replicate (length . filter isSymbN . map fst $ zs) ')'))
+              in  postAddBrackets
+                  . concat
+                  . intersperse " "
+                  . uncurry (++)
+                  . foldl' go ([],["Data.Vector.Fusion.Stream.Monadic.singleton $", (concat $ "_S" : f)])
+                  $ zs
 
 test = printDoc $ grammarHaskell asG where
   printDoc :: Doc -> IO ()

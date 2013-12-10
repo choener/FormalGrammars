@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 
 module FormalLanguage.CFG.TH where
 
