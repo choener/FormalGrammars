@@ -5,9 +5,10 @@
 
 module FormalLanguage.CFG.Tests where
 
+import Data.Vector.Fusion.Stream.Monadic
 import Data.Array.Repa.Index
 
-import FormalLanguage.Grammar.QQ
+import FormalLanguage.CFG.QQ
 
 -- for testing purposes
 

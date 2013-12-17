@@ -73,7 +73,8 @@ library
     text                              ,
     transformers          >= 0.3      ,
     trifecta              >= 1.2      ,
-    unordered-containers  >= 0.2
+    unordered-containers  >= 0.2      ,
+    vector                >= 0.10
   exposed-modules:
     FormalLanguage
     FormalLanguage.CFG
