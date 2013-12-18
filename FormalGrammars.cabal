@@ -2,7 +2,7 @@ name:           FormalGrammars
 version:        0.0.0.1
 author:         Christian Hoener zu Siederdissen, 2013
 copyright:      Christian Hoener zu Siederdissen, 2013
-homepage:       http://www.tbi.univie.ac.at/~choener/
+homepage:       http://www.tbi.univie.ac.at/~choener/gramprod/
 maintainer:     choener@tbi.univie.ac.at
 category:       Formal Languages, Bioinformatics
 license:        GPL-3
@@ -13,9 +13,10 @@ cabal-version:  >= 1.6.0
 synopsis:
                 (Context-free) grammars in formal language theory
 description:
-                Context-free grammars in formal language theory are sets of production
-                rules, non-terminal and terminal symbols. This library provides
-                basic data types and functions to manipulate such grammars.
+                Context-free grammars in formal language theory are sets of
+                production rules, non-terminal and terminal symbols. This
+                library provides basic data types and functions to manipulate
+                such grammars.
                 .
                 Grammars can be defined in a small domain-specific language
                 that is very close to typical CFG notation.
@@ -33,23 +34,18 @@ description:
                 .
                 .
                 Formal background can be found in two papers:
-                .
-                .
+                @
                 Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler
-                .
                 Product Grammars for Alignment and Folding
-                .
                 submitted
-                .
-                .
-                .
+                @
+                and
+                @
                 Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler
-                .
                 How to Multiply Dynamic Programming Algorithms
-                .
                 Brazilian Symposium on Bioinformatics (BSB 2013)
-                .
                 Lecture Notes in Bioinformatics 8213, Springer, Heidelberg
+                @
 
 
 
