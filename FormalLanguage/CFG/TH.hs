@@ -1,4 +1,11 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PatternGuards #-}
+
+-- |
+--
+-- TODO we should check if it is possible to go a bit ``lower'' to the more raw
+-- stuff, instead of trying to rebuild the top-level ADPfusion syntax. Thats
+-- mostly for the RHS of rules.
 
 module FormalLanguage.CFG.TH where
 
@@ -6,13 +13,16 @@ import Control.Lens hiding (Strict)
 import Data.List (intersperse,nub,nubBy,groupBy)
 import Language.Haskell.TH
 import Data.Vector.Fusion.Stream.Monadic (Stream)
-import Control.Arrow
+import Control.Arrow ()
 import Control.Applicative
 import Control.Monad
 import qualified Data.Set as S
 import Data.Function (on)
 import Control.Monad.Trans.Class
 import Data.Maybe
+import Data.Array.Repa.Index
+import ADP.Fusion ( (%), (|||), (...) )
+import qualified ADP.Fusion.Multi as ADP
 
 import FormalLanguage.CFG.Grammar
 
@@ -42,6 +52,8 @@ genSignature g = do
   return s
 
 -- | Generate the grammar.
+--
+-- TODO need to give signature as well
 
 genGrammar :: Grammar -> Q Dec
 genGrammar g = do
@@ -49,15 +61,36 @@ genGrammar g = do
   ts <- mapM (\t -> newName           t  >>= \z -> return (t,z)) $ g^..tsyms.folded.symb.folded.tnName
   runIO $ print ts
   let bd = normalB $ tupE $ map (genPair ns ts) $ groupBy ((==) `on` _lhs) $ S.toList $ g^.rules
-  f <- funD (mkName "grammar") [clause (map varP $ map snd ns ++ map snd ts) bd [{-decQs-}]]
+  -- TODO a Signature{..} to function generation; maybe we should call it SigGrammarName{..}
+  -- TODO better way to capture all signature variables? (or maybe just hand them over), needed for GenPair
+  let as = (recP (mkName "Signature") [return (mkName "h", VarP $ mkName "h")]) : (map varP $ map snd ns ++ map snd ts)
+  f <- funD (mkName "grammar") [clause as bd [{-decQs-}]]
   return f
 
--- |
+-- | Generate a pair (nonterminal, function)
 
 genPair :: [(Symb,Name)] -> [(String,Name)] -> [Rule] -> ExpQ
 genPair ns ts rs = do
   let l = fromJust $ lookup (head rs ^. lhs) ns
-  tupE [varE l, tupE []]
+  ix <- newName "ix"
+  let rhs = lamE [varP ix]
+          $ appE ( uInfixE (foldl1 (\acc z -> uInfixE acc (varE '(|||)) z) . map (genRHSrule ns ts) $ rs)
+                           (varE '(...))
+                           (varE $ mkName "h") )
+                 (varE ix)
+  tupE [varE l, rhs]
+
+errorS :: Show a => a -> b
+errorS = error . show
+
+genRHSrule ns ts (Rule _ f rs) = appE (varE 'errorS). foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genS $ rs
+  where
+  genS s
+    | isSymbT s = genT $ s^.symb -- error $ "T " ++ show s
+    | isSymbN s = varE . fromJust . lookup s $ ns
+    | otherwise = error $ "can not build TH expression for: " ++ show s
+  genT [z] = varE . fromJust . lookup (z^.tnName) $ ts
+  genT zs  = foldl (\acc z -> uInfixE acc (varE '(ADP.:!)) z) (varE 'T) . map (genT . (:[])) $ zs
 
 -- |
 
@@ -76,8 +109,8 @@ genTType :: Symb -> Type
 genTType s
   | [z] <- s^.symb = VarT . mkName $ "t"++ z^.tnName
   | zs  <- s^.symb = foldl
-                       (\l r -> AppT (AppT (ConT . mkName $ ":.") l) r)
-                       (ConT . mkName $ "Z")
+                       (\l r -> AppT (AppT (ConT '(:.)) l) r)
+                       (ConT 'Z)
                        (map (VarT . mkName . ("t"++)) $ (zs^..folded.tnName))
 
 -- | 
