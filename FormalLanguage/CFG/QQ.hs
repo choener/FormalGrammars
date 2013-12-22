@@ -43,11 +43,14 @@ parseFormalLanguage s = do
     (Success g) -> do
       runIO . printDoc . grammarDoc $ g
       runIO $ print "TESTING BELOW"
+      {-
       gSig <- genSignature g
       gGra <- genGrammar   g
+      -}
+      zs <- newGen g
       runIO $ print "TESTING ABOVE"
       -- TODO build signature and grammar using TH
-      return [gSig,gGra]
+      return zs -- [gSig,gGra]
 
 -- |
 

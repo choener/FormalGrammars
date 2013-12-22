@@ -9,11 +9,14 @@ import Data.Vector.Fusion.Stream.Monadic
 import Data.Array.Repa.Index
 
 import FormalLanguage.CFG.QQ
+import FormalLanguage.CFG.Grammar
 
 -- for testing purposes
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
+import Control.Lens
+import qualified Data.Set as S
 
 
 [formalLanguage|

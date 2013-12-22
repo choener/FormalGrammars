@@ -34,6 +34,7 @@ import           Data.Set (Set)
 import           Prelude hiding (all)
 import qualified Control.Lens.Indexed as Lens
 import qualified Data.Set as S
+import           Data.List (sort,nub)
 
 
 
@@ -281,62 +282,14 @@ epsilonFree g = allOf folded eFree $ g^.rules where
   epsFree :: Symb -> Symb -> Bool
   epsFree = undefined
 
-{-
+-- | Collect all non-terminal symbols from the rules
 
--- |
+collectSymbN :: Grammar -> [Symb]
+collectSymbN g = nub . sort . filter isSymbN $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
 
-data NTSym where
-  TSym :: [String]               -> NTSym
-  NSym :: [(String, Enumerable)] -> NTSym
-  deriving (Eq,Ord,Show)
+-- | Collect all terminal symbols from the rules (for cfg's it's not really
+-- needed to include the lhs).
 
--- | Grammar indices are enumerable objects
---
--- TODO should we always assume operations "modulo"?
-
-data Enumerable
-  = Singular
-  | IntBased Integer [Integer]
-  | Enumerated String [String]
-  deriving (Eq,Ord,Show)
-
-instance Default Enumerable where
-  def = Singular
-
--- |
-
-data Grammar = Grammar
-  { _tsyms       :: Set NTSym
-  , _nsyms       :: Set NTSym
-  , _productions :: Set Production
-  , _start       :: NTSym
-  } deriving (Show)
-
-makeLenses ''Grammar
-
--- | Construct regular grammar.
-
-regular :: Set NTSym -> Set NTSym -> Set Production -> NTSym -> Grammar
-regular = error "regular: not implemented"
-
-nsym1 :: String -> Enumerable -> NTSym
-nsym1 s e = NSym [(s,e)]
-
-isN (NSym _) = True
-isN _ = False
-
-isT (TSym _) = True
-isT _ = False
-
--- | The size of a grammar.
-
-size :: Grammar -> Int
-size = error "size"
-
--- | Transform a grammar into 2NF.
-
-twonf :: Grammar -> Grammar
-twonf = error "twonf"
-
--}
+collectSymbT :: Grammar -> [Symb]
+collectSymbT g = nub . sort . filter isSymbT $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
 
