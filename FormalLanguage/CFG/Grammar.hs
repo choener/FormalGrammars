@@ -68,12 +68,17 @@ instance Default Enumerable where
 -- TODO write Eq,Ord by hand. Fail with error if Enumerable is not equal (this
 -- should actually be caught in the combination operations).
 
+-- | 'T' – A terminal symbol (excluding epsilon)
+--
+-- 'N' – A non-terminal symbol (again, excluding non-terminal epsilons)
+--
+-- 'E' – Epsilon characters, may be named differently
 data TN where
-  -- | A terminal symbol (excluding epsilon)
+
   T :: String               -> TN
-  -- | A non-terminal symbol (again, excluding non-terminal epsilons)
+
   N :: String -> Enumerable -> TN
-  -- | Epsilon characters, may be named differently
+
   E ::                         TN
 
 deriving instance Show TN
@@ -292,4 +297,3 @@ collectSymbN g = nub . sort . filter isSymbN $ (g^..rules.folded.lhs) ++ (g^..ru
 
 collectSymbT :: Grammar -> [Symb]
 collectSymbT g = nub . sort . filter isSymbT $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
-
