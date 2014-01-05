@@ -292,4 +292,3 @@ collectSymbN g = nub . sort . filter isSymbN $ (g^..rules.folded.lhs) ++ (g^..ru
 
 collectSymbT :: Grammar -> [Symb]
 collectSymbT g = nub . sort . filter isSymbT $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
-
