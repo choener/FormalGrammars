@@ -23,6 +23,8 @@ import FormalLanguage.CFG.Parser
 
 
 
+formalLangFile = quoteFile formalLanguage
+
 -- |
 
 formalLanguage = QuasiQuoter

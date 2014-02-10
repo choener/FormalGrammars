@@ -85,6 +85,7 @@ library
     FormalLanguage.CFG.PrettyPrint.Haskell
     FormalLanguage.CFG.PrettyPrint.LaTeX
     FormalLanguage.CFG.QuickCheck
+    FormalLanguage.CFG.QQ
     FormalLanguage.CFG.TH
   ghc-options:
 
