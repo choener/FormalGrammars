@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -35,6 +36,8 @@ import           Prelude hiding (all)
 import qualified Control.Lens.Indexed as Lens
 import qualified Data.Set as S
 import           Data.List (sort,nub)
+import           Data.Typeable
+import           Data.Data
 
 
 
@@ -48,7 +51,7 @@ data Enumerable
   = Singular
   | IntBased Integer Integer -- current index, maximum index
 --  | Enumerated String [String]
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Typeable,Data)
 
 _IntBased :: Prism' Enumerable (Integer,Integer)
 _IntBased = prism (uncurry IntBased) $ f where
@@ -81,9 +84,11 @@ data TN where
 
   E ::                         TN
 
-deriving instance Show TN
-deriving instance Eq   TN
-deriving instance Ord  TN
+deriving instance Show     TN
+deriving instance Eq       TN
+deriving instance Ord      TN
+deriving instance Typeable TN
+deriving instance Data     TN
 
 tnName :: Lens' TN String
 tnName f (T s  ) = T               <$> f s
@@ -111,9 +116,11 @@ enumed = _N . _2
 
 newtype Symb = Symb { getSymbs :: [TN] }
 
-deriving instance Show Symb
-deriving instance Eq   Symb
-deriving instance Ord  Symb
+deriving instance Show     Symb
+deriving instance Eq       Symb
+deriving instance Ord      Symb
+deriving instance Typeable Symb
+deriving instance Data     Symb
 
 symb :: Lens' Symb [TN]
 symb f (Symb xs) = Symb <$> f xs  -- are we sure?
@@ -137,7 +144,7 @@ data Rule = Rule
   , _fun :: [String] -- Fun
   , _rhs :: [Symb]
   }
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Typeable,Data)
 
 makeLenses ''Rule
 
@@ -160,7 +167,7 @@ data Grammar = Grammar
   , _rules :: Set Rule
   , _start :: Maybe Symb
   , _name  :: String
-  } deriving (Show)
+  } deriving (Show,Data,Typeable)
 
 makeLenses ''Grammar
 
