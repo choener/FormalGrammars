@@ -122,7 +122,7 @@ type instance Index Symb = Int
 
 type instance IxValue Symb = TN
 
-instance Applicative f => Ixed f Symb where
+instance Ixed Symb where
   ix k f (Symb xs) = Symb <$> ix k f xs
   {-# INLINE ix #-}
 

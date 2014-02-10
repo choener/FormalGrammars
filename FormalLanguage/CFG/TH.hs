@@ -17,7 +17,7 @@ module FormalLanguage.CFG.TH where
 import           Data.Char (toUpper,toLower)
 import           Control.Applicative
 import           Control.Arrow ((&&&))
-import           Control.Lens hiding (Strict)
+import           Control.Lens hiding (Strict, (...))
 import           Control.Monad
 import           Control.Monad.Trans.Class
 import           Data.Array.Repa.Index
@@ -203,7 +203,7 @@ genT tt s@(Symb [z]) = do
   return $ (s, TheT [n] (VarE n) (VarT n))
 genT tt s@(Symb zs) = do
   let ns = map (view ttName . (tt M.!) . view tnName) zs
-  k <- foldl (\acc z -> uInfixE acc (varE '(ADP.:!)) z) (varE 'T) . map varE $ ns
+  k <- foldl (\acc z -> uInfixE acc (varE '(ADP.:>)) z) (varE 'ADP.M) . map varE $ ns
   let t = foldl (\l r -> AppT (AppT (ConT '(:.)) l) r) (ConT 'Z) (map VarT ns)
   return $ (s, TheT ns k t)
 

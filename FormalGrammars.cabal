@@ -1,7 +1,7 @@
 name:           FormalGrammars
-version:        0.0.0.2
-author:         Christian Hoener zu Siederdissen, 2013
-copyright:      Christian Hoener zu Siederdissen, 2013
+version:        0.0.0.3
+author:         Christian Hoener zu Siederdissen, 2013-2014
+copyright:      Christian Hoener zu Siederdissen, 2013-2014
 homepage:       http://www.tbi.univie.ac.at/~choener/gramprod/
 maintainer:     choener@tbi.univie.ac.at
 category:       Formal Languages, Bioinformatics
@@ -49,6 +49,7 @@ description:
                 Brazilian Symposium on Bioinformatics (BSB 2013)
                 Lecture Notes in Bioinformatics 8213, Springer, Heidelberg
                 @
+                .
 
 
 
@@ -58,13 +59,13 @@ Extra-Source-Files:
 library
   build-depends:
     base >= 4 && < 5 ,
-    ADPfusion             >= 0.2.0.3  ,
+    ADPfusion             >= 0.3      ,
     ansi-wl-pprint        >= 0.6      ,
     bytestring            >= 0.10     ,
     containers                        ,
     data-default          >= 0.5      ,
     HaTeX                             ,
-    lens                  >= 3.9      ,
+    lens                  >= 4.0      ,
     mtl                               ,
     parsers               >= 0.9      ,
     repa                  >= 3.2      ,
