@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -277,9 +278,10 @@ newtype GrammarParser m a = GrammarP { runGrammarP :: StateT GrammarState m a }
             , MonadState GrammarState
             , TokenParsing
             , CharParsing
-            , Parsing
             , MonadTrans
             )
+
+deriving instance (Parsing m, MonadPlus m) => Parsing (GrammarParser m) -- Nominal role, ghc 7.8
 
 -- | Functions that parse using the 'GrammarParser'
 

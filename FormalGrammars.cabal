@@ -56,6 +56,10 @@ description:
 Extra-Source-Files:
   changelog
 
+flag examples
+  description: build the examples
+  default: False
+
 library
   build-depends:
     base >= 4 && < 5 ,
@@ -68,6 +72,7 @@ library
     lens                  >= 4.0      ,
     mtl                               ,
     parsers               >= 0.9      ,
+    PrimitiveArray        >= 0.5.4    ,
     repa                  >= 3.2      ,
     template-haskell                  ,
     text                              ,
@@ -96,6 +101,25 @@ executable GrammarPP
     cmdargs == 0.10.*
   main-is:
     GrammarPP.hs
+
+executable NussinovFG
+  if flag(examples)
+    buildable: True
+  else
+    buildable: False
+  main-is:
+    FormalLanguage/CFG/Examples/Nussinov.hs
+  ghc-options:
+    -Odph
+    -fcpr-off
+    -funbox-strict-fields
+    -funfolding-use-threshold1000
+    -funfolding-keeness-factor1000
+    -fllvm
+    -optlo-O3 -optlo-std-compile-opts
+    -fllvm-tbaa
+
+  
 
 source-repository head
   type: git
