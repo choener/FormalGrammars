@@ -57,6 +57,19 @@ score = SigGlobal
   }
 {-# INLINE score #-}
 
+-- | 
+--
+-- NOTE The alignment needs to be reversed to print out.
+
+pretty :: Monad m => SigGlobal m [String] (SM.Stream m [String]) Char ()
+pretty = SigGlobal
+  { done  = \       (Z:.():.()) -> [""   ,""   ]
+  , align = \ [x,y] (Z:.a :.b ) -> [a  :x,b  :y]
+  , indel = \ [x,y] (Z:.():.b ) -> ['-':x,b  :y]
+  , delin = \ [x,y] (Z:.a :.()) -> [a  :x,'-':y]
+  , h     = return . id
+  }
+
 forward :: VU.Vector Char -> VU.Vector Char -> ST s (Unboxed (Z:.PointL:.PointL) Int)
 forward as bs = do
   let aL = VU.length as
@@ -76,14 +89,14 @@ fillTable (MTbl _ t,f) = do
     (f $ ix) >>= PA.writeM t ix
 {-# INLINE fillTable #-}
 
-runGlobal :: Int -> String -> String -> (Int,[String])
+runGlobal :: Int -> String -> String -> (Int,[[String]])
 runGlobal k as bs = (t PA.! (Z:.pointL 0 aL:.pointL 0 bL), take k b) where
   aa = VU.fromList as
   bb = VU.fromList bs
   aL = VU.length aa
   bL = VU.length bb
   t = runST $ forward aa bb
-  b = [] -- backtrack i t
+  b = backtrack aa bb t
 {-# NOINLINE runGlobal #-}
 
 main = do
@@ -94,28 +107,17 @@ main = do
         putStrLn a
         putStrLn b
         let (k,ys) = runGlobal 1 a b
-        printf "%5d\n" k
+        forM_ ys $ \[y1,y2] -> printf "%s %5d\n%s\n" y1 k y2
         eats xs
   eats ls
 
-
-{-
-pretty :: Monad m => SigNussinov m String (SM.Stream m String) Char ()
-pretty = SigNussinov
-  { unp = \ x c     -> x ++ "."
-  , jux = \ x c y d -> x ++ "(" ++ y ++ ")"
-  , nil = \ ()      -> ""
-  , h   = return . id
-  }
-{-# INLINE pretty #-}
-
-backtrack :: VU.Vector Char -> PA.Unboxed (Z:.Subword) Int -> [String]
-backtrack inp t' = unId . SM.toList . unId . g $ subword 0 n where
-  n = VU.length inp
-  c = chr inp
-  t = btTblS EmptyOk t' g
-  (_,g) = gNussinov (bpmax <** pretty) t c Empty
+backtrack :: VU.Vector Char -> VU.Vector Char -> PA.Unboxed (Z:.PointL:.PointL) Int -> [[String]]
+backtrack as bs t' = unId . SM.toList . unId . g $ Z:.pointL 0 aL:.pointL 0 bL where
+  aL = VU.length as
+  bL = VU.length bs
+  aa = chr as
+  bb = chr bs
+  t = btTblD (Z:.EmptyOk:.EmptyOk) t' g
+  (_,g) = gGlobal (score <** pretty) t aa bb Empty Empty
 {-# NOINLINE backtrack #-}
-
--}
 
