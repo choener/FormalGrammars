@@ -42,6 +42,7 @@ X -> nil <<< e
 //
 |]
 
+
 makeAlgebraProductH ['h] ''SigNussinov
 
 

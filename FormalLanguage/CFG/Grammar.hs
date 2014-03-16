@@ -90,6 +90,10 @@ deriving instance Ord      TN
 deriving instance Typeable TN
 deriving instance Data     TN
 
+isT = \case {T _   -> True; _ -> False}
+isN = \case {N _ _ -> True; _ -> False}
+isE = \case {E     -> True; _ -> False}
+
 tnName :: Lens' TN String
 tnName f (T s  ) = T               <$> f s
 tnName f (N s e) = (\s' -> N s' e) <$> f s
@@ -124,6 +128,9 @@ deriving instance Data     Symb
 
 symb :: Lens' Symb [TN]
 symb f (Symb xs) = Symb <$> f xs  -- are we sure?
+
+sDim :: Symb -> Int
+sDim = length . getSymbs
 
 type instance Index Symb = Int
 
