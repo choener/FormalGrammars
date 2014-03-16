@@ -205,13 +205,12 @@ newGen g = do
                [recC (sg^.sName) ((map return $ fs^..folded.fVarStrictType) ++ [return h])
                ]
                []
-  runIO . printf "the grammar uses the following arguments: %s\n" . concat . intersperse ", " . map show $ M.keys tnames
+  runIO . printf "the grammar uses the following arguments: %s\n" . concat . intersperse ", " $ (map show $ M.keys ns) ++ (map show $ M.keys tnames)
   let graArgs =  (recP (sg^.sName) ((return (h^._1, VarP $ h^._1)):[return (n, VarP n) | n <- fs^..folded.fName])) -- bind algebra
               :  (map (return . view nPat) $ ns^..folded) -- bind non-terminal memo-tables
               ++ (map varP $ tnames^..folded)  -- bind terminal symbols
   let graBody = normalB . tupE . map (genBodyPair h ix ns ts fs) . groupBy ((==)`on`_lhs) $ g^..rules.folded
   gra <- funD (mkName $ "g" ++ g^.name) [clause graArgs graBody []]
-  runIO $ print gra
   inl <- pragInlD (mkName $ "g" ++ g^.name) Inline FunLike AllPhases
   return [sig,gra,inl]
 
