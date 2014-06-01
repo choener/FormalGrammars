@@ -29,15 +29,15 @@ module FormalLanguage.CFG.Grammar where
 
 import           Control.Applicative
 import           Control.Lens
+import           Data.Data
 import           Data.Default
 import           Data.Foldable
+import           Data.List (sort,nub)
 import           Data.Set (Set)
+import           Data.Typeable
 import           Prelude hiding (all)
 import qualified Control.Lens.Indexed as Lens
 import qualified Data.Set as S
-import           Data.List (sort,nub)
-import           Data.Typeable
-import           Data.Data
 
 
 

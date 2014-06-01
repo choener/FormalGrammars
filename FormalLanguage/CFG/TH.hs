@@ -43,15 +43,6 @@ import FormalLanguage.CFG.Grammar
 
 -- * Local data ctors we use to build up signature and grammar
 
--- data TheTT = TheTT
---   { _ttType :: TyVarBndr
---   , _ttName :: Name
---   , _ttPat  :: Pat
---   }
---   deriving (Show)
--- 
--- makeLenses ''TheTT
-
 data TheF = TheF
   { _fName   :: Name
   , _fVar    :: Exp
@@ -77,15 +68,6 @@ data TheN = TheN
   deriving (Show)
 
 makeLenses ''TheN
-
---data TheT = TheT
---  { _tNames :: [Name]
---  , _tVar   :: Exp
---  , _tType  :: Type
---  }
---  deriving (Show)
---
---makeLenses ''TheT
 
 data TheSymb = TheSymb
   { _symbType :: Type
@@ -139,7 +121,8 @@ genHfun m x r = do
   let rtrn = AppT (VarT m) (VarT r)
   return (mkName n, NotStrict, AppT args rtrn)
 
--- | Generate all the information for single terminals, if necessary with
+-- | Generate all the information for single terminals. Terminal symbols
+-- are indexed by dimension.
 
 associateTerminalNames :: [Symb] -> Q ([((String,Int),Name)])
 associateTerminalNames xs = do
@@ -209,7 +192,8 @@ newGen g = do
   let graArgs =  (recP (sg^.sName) ((return (h^._1, VarP $ h^._1)):[return (n, VarP n) | n <- fs^..folded.fName])) -- bind algebra
               :  (map (return . view nPat) $ ns^..folded) -- bind non-terminal memo-tables
               ++ (map varP $ tnames^..folded)  -- bind terminal symbols
-  let graBody = normalB . tupE . map (genBodyPair h ix ns ts fs) . groupBy ((==)`on`_lhs) $ g^..rules.folded
+--  let graBody = normalB . tupE . map (genBodyPair h ix ns ts fs) . groupBy ((==)`on`_lhs) $ g^..rules.folded
+  let graBody = normalB . foldl (\acc z -> [| $acc :. $(genBodyPair h ix ns ts fs z) |]) [|Z|] . groupBy ((==) `on` _lhs) $ g^..rules.folded
   gra <- funD (mkName $ "g" ++ g^.name) [clause graArgs graBody []]
   inl <- pragInlD (mkName $ "g" ++ g^.name) Inline FunLike AllPhases
   return [sig,gra,inl]
@@ -233,61 +217,7 @@ genBodyRhs ns ts fs (Rule _ f rs) = appE (appE (varE '(<<<)) (return . view fVar
           | isSymbT s = return . view symbVar $ ts M.! s
           | isSymbN s = return . view nVar    $ ns M.! s
 
-  {-
-  tt <- M.fromList <$> (mapM genTT . nub $ g^..tsyms.folded.symb.folded.tnName) -- individual SCALAR terminal types
-  uu <- M.fromList <$> (genUU tt . nub . collectSymbT $ g)
-  ts <- M.fromList <$> (mapM (genT uu) $ collectSymbT g) -- potentially multi-dim terminal symbols
-  fs <- M.fromList <$> (mapM (genF x ts) . nubBy ((==) `on` _fun) $ g^..rules.folded)
-  runIO $ print fs
-  -- TODO return all term symbs in the first dim, then second dim, etc
-  let graArgs =  (recP (sg^.sName) ((return (h^._1, VarP $ h^._1)):[return (n, VarP n) | n <- fs^..folded.fName])) -- bind algebra
-              :  (map (return . view nPat) $ ns^..folded) -- bind non-terminal memo-tables
-              ++ (map (return . view ttPat) $ uu^..folded)  -- bind terminal symbols
-  let graBody = normalB . tupE . map (genBodyPair h ix ns ts fs) . groupBy ((==)`on`_lhs) $ g^..rules.folded
---  gra <- funD (mkName $ "g" ++ g^.name) [clause graArgs graBody []]
-  return [sig,gra,inl]
-  -}
 
-{-
-
--- | Generate grammar arguments. If we have only one dimension, then we can just use the pattern
-
--- | Generate all the information for single terminals
-
-genTT :: String -> Q (String,TheTT)
-genTT t = do
-  nn <- newName t
-  return (t, TheTT (PlainTV nn) nn (VarP nn))
-
--- | Generate all the information for single terminals, if necessary with
--- dimensional information.
-
-genUU :: M.Map String TheTT -> [Symb] -> Q ([((TN,Int),TheTT)])
-genUU types xs = do
-  let maxd = subtract 1 . the . map (length . view symb) $ xs
-  ys <- forM [0 .. maxd] $ \d ->
-    forM (filter isT . nub $ xs^..folded.symb.ix d) $ \s -> do
-      nn <- newName $ (s^.tnName) ++ if maxd>0 then show d else ""
-      return ((s,d), TheTT (view ttType $ types M.! (s^.tnName)) nn (VarP nn))
-  return $ concat ys
-
--- | builds up a terminal symbol, in 1-dim stuff we just have the terminal
--- symbol; in multi-dim cases we build up using ADPfusion stuff.
-
-genT :: M.Map (TN,Int) TheTT -> Symb -> Q (Symb,TheT)
-genT tt s@(Symb [z]) = do
-  let n = view ttName $ M.findWithDefault (error "genT") (z,0) tt
-  return $ (s, TheT [n] (VarE n) (VarT n))
-{-
-genT tt s@(Symb zs) = do
-  let ns = map (view ttName . (\z -> M.findWithDefault (error $ printf "symbol %s of %s not in terminal map %s." z (show zs) (show tt)) z tt) . view tnName) zs
-  k <- foldl (\acc z -> [| $acc ADP.:> $z |] ) [| ADP.M |] . map varE $ ns
-  -- let t = foldl (\l r -> AppT (AppT (ConT '(:.)) l) r) (ConT 'Z) (map VarT ns)
-  t <- foldl (\acc z -> [t| $acc :. $z |] ) [t| Z |] . map varT $ ns
-  return $ (s, TheT ns k t)
--}
-
--}
 
 -- * helper functions
 

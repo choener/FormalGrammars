@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 
--- | The Nussinov RNA secondary structure prediction problem.
+-- | Needleman-Wunsch global alignment algorithm.
 
 module Main where
 

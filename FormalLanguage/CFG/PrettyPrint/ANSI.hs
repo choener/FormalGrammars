@@ -23,7 +23,7 @@ import FormalLanguage.CFG.Parser
 
 grammarDoc :: Grammar -> Doc
 grammarDoc g = text "Grammar: " <+> (text $ g^.name) <$> indent 2 (ns <$> ts <$> es <$> ss <$> rs) <$> line where
-  ns = ind "non terminals:" 2 . vcat $ zipWith (\k z -> (fill 5 $ int k) <+> (symbolDoc z <+> (text . show $ z))) [1..] (g^..nsyms.folded)
+  ns = ind "non terminals:" 2 . vcat $ map (\z -> (symbolDoc z <+> (text . show $ z))) (g^..nsyms.folded)
   ts = ind "terminals:" 2 . vcat . map (\z -> symbolDoc z <+> (text . show $ z)) $ g^..tsyms.folded
   es = ind "epsilons:" 2 . vcat . map (\z -> tnDoc z <+> (text . show $ z)) $ g^..epsis.folded
   ss = ind "start symbol:" 2 . startDoc $ g^.start

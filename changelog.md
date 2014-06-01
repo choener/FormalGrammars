@@ -1,7 +1,8 @@
-0.0.1.0
+0.1.0.0
 -------
 
 - fixed dependencies
+- major version bump
 
 0.0.0.2
 -------

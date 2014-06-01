@@ -1,5 +1,5 @@
 name:           FormalGrammars
-version:        0.0.1.0
+version:        0.1.0.0
 author:         Christian Hoener zu Siederdissen, 2013-2014
 copyright:      Christian Hoener zu Siederdissen, 2013-2014
 homepage:       http://www.tbi.univie.ac.at/~choener/gramprod/
@@ -38,7 +38,7 @@ description:
                 @
                 Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler
                 Product Grammars for Alignment and Folding
-                submitted
+                IEEE/ACM Transactions on Computational Biology and Bioinformatics (TCBB) (accepted)
                 @
                 .
                 and
@@ -59,6 +59,7 @@ Extra-Source-Files:
 flag examples
   description: build the examples
   default: False
+  manual: True
 
 library
   build-depends:
@@ -106,6 +107,8 @@ executable NussinovFG
     buildable: True
   else
     buildable: False
+  build-depends:
+    PrimitiveArray    == 0.6.*
   main-is:
     FormalLanguage/CFG/Examples/Nussinov.hs
   ghc-options:
@@ -118,13 +121,15 @@ executable NussinovFG
     -optlo-O3 -optlo-std-compile-opts
     -fllvm-tbaa
 
-executable GlobalFG
+executable NeedlemanWunschFG
   if flag(examples)
     buildable: True
   else
     buildable: False
+  build-depends:
+    PrimitiveArray    == 0.6.*
   main-is:
-    FormalLanguage/CFG/Examples/Global.hs
+    FormalLanguage/CFG/Examples/NeedlemanWunsch.hs
   ghc-options:
     -Odph
     -fcpr-off
@@ -135,7 +140,7 @@ executable GlobalFG
     -optlo-O3 -optlo-std-compile-opts
     -fllvm-tbaa
 
-  
+
 
 source-repository head
   type: git
