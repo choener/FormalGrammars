@@ -10,6 +10,7 @@ module Main where
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.ST
+import           Data.Array.Repa.Index
 import           Data.Char (toUpper,toLower)
 import           Data.List
 import           Data.Vector.Fusion.Util
@@ -20,10 +21,7 @@ import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
 
 import           ADP.Fusion
-import           Data.Array.Repa.Index
-import           Data.Array.Repa.Index.Points
-import           Data.PrimitiveArray as PA
-import           Data.PrimitiveArray.Zero as PA
+import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage.CFG
 
@@ -70,7 +68,10 @@ pretty = SigGlobal
   , h     = return . id
   }
 
-forward :: VU.Vector Char -> VU.Vector Char -> ST s (Unboxed (Z:.PointL:.PointL) Int)
+type Arr  = PA.Unboxed (Z:.PointL:.PointL) Int
+type Arrs = Z:.Arr
+
+forward :: VU.Vector Char -> VU.Vector Char -> ST s Arrs
 forward as bs = do
   let aL = VU.length as
   let bL = VU.length bs
@@ -78,16 +79,8 @@ forward as bs = do
   let bb = chr bs
   !t' <- PA.newWithM (Z:.pointL 0 0:.pointL 0 0) (Z:.pointL 0 aL:.pointL 0 bL) (-999999)
   let t  = mTblD (Z:.EmptyOk:.EmptyOk) t'
-  fillTable $ gGlobal score t aa bb Empty Empty
-  PA.freeze t'
+  runFreezeMTbls $ gGlobal score t aa bb Empty Empty
 {-# NOINLINE forward #-}
-
-fillTable (MTbl _ t,f) = do
-  let (_,Z:.PointL (_:.aL):.PointL (_:.bL)) = boundsM t
-  forM_ [0..aL] $ \a -> forM_ [0..bL] $ \b -> do
-    let ix = Z:.pointL 0 a:.pointL 0 b
-    (f $ ix) >>= PA.writeM t ix
-{-# INLINE fillTable #-}
 
 runGlobal :: Int -> String -> String -> (Int,[[String]])
 runGlobal k as bs = (t PA.! (Z:.pointL 0 aL:.pointL 0 bL), take k b) where
@@ -95,8 +88,8 @@ runGlobal k as bs = (t PA.! (Z:.pointL 0 aL:.pointL 0 bL), take k b) where
   bb = VU.fromList bs
   aL = VU.length aa
   bL = VU.length bb
-  t = runST $ forward aa bb
-  b = backtrack aa bb t
+  (Z:.t) = runST $ forward aa bb
+  b = backtrack aa bb (Z:.t)
 {-# NOINLINE runGlobal #-}
 
 main = do
@@ -111,13 +104,13 @@ main = do
         eats xs
   eats ls
 
-backtrack :: VU.Vector Char -> VU.Vector Char -> PA.Unboxed (Z:.PointL:.PointL) Int -> [[String]]
-backtrack as bs t' = unId . SM.toList . unId . g $ Z:.pointL 0 aL:.pointL 0 bL where
+backtrack :: VU.Vector Char -> VU.Vector Char -> Arrs -> [[String]]
+backtrack as bs (Z:.t') = map (map reverse) . unId . SM.toList . unId . g $ Z:.pointL 0 aL:.pointL 0 bL where
   aL = VU.length as
   bL = VU.length bs
   aa = chr as
   bb = chr bs
   t = btTblD (Z:.EmptyOk:.EmptyOk) t' g
-  (_,g) = gGlobal (score <** pretty) t aa bb Empty Empty
+  (Z:.(_,g)) = gGlobal (score <** pretty) t aa bb Empty Empty
 {-# NOINLINE backtrack #-}
 

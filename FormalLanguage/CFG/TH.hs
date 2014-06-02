@@ -12,6 +12,10 @@
 --
 -- TODO we should build the algebra product automatically (but that piece of TH
 -- should go into ADPfusion)
+--
+-- TODO if the dimension of the grammar is 1, we should output specialized
+-- code. Compare performance with and without an underlying @(Z:.a)@ in
+-- ADPfusion.
 
 module FormalLanguage.CFG.TH where
 

@@ -18,12 +18,10 @@ import           Language.Haskell.TH.Syntax
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
+import           Data.Array.Repa.Index
 
 import           ADP.Fusion
-import           Data.Array.Repa.Index
-import           Data.Array.Repa.Index.Subword
-import           Data.PrimitiveArray as PA
-import           Data.PrimitiveArray.Zero as PA
+import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage.CFG
 
@@ -41,7 +39,6 @@ X -> jux <<< X c X c
 X -> nil <<< e
 //
 |]
-
 
 makeAlgebraProductH ['h] ''SigNussinov
 
@@ -74,36 +71,40 @@ pretty = SigNussinov
   }
 {-# INLINE pretty #-}
 
-forward :: VU.Vector Char -> ST s (Unboxed (Z:.Subword) Int)
+type Arr  = PA.Unboxed (Z:.Subword) Int
+type Arrs = Z:.Arr
+
+forward :: VU.Vector Char -> ST s Arrs -- (Unboxed (Z:.Subword) Int)
 forward inp = do
   let n  = VU.length inp
   let c  = chr inp
   !t' <- PA.newWithM (Z:.subword 0 0) (Z:.subword 0 n) (-999999)
   let t  = mTblS EmptyOk t'
   fillTable $ gNussinov bpmax t c Empty
-  PA.freeze t'
+  (Z:.) `fmap` PA.freeze t'
+--  runFreezeMTbls $ gNussinov bpmax t c Empty
 {-# NOINLINE forward #-}
 
-fillTable (MTbl _ t,f) = do
+fillTable (Z:.(MTbl _ t,f)) = do
   let (_,Z:.Subword (_:.n)) = boundsM t
   forM_ [n,n-1 .. 0] $ \i -> forM_ [i..n] $ \j ->
     (f $ subword i j) >>= PA.writeM t (Z:.subword i j)
 {-# INLINE fillTable #-}
 
-backtrack :: VU.Vector Char -> PA.Unboxed (Z:.Subword) Int -> [String]
-backtrack inp t' = unId . SM.toList . unId . g $ subword 0 n where
+backtrack :: VU.Vector Char -> Arrs -> [String]
+backtrack inp (Z:.t') = unId . SM.toList . unId . g $ subword 0 n where
   n = VU.length inp
   c = chr inp
   t = btTblS EmptyOk t' g
-  (_,g) = gNussinov (bpmax <** pretty) t c Empty
+  (Z:.(_,g)) = gNussinov (bpmax <** pretty) t c Empty
 {-# NOINLINE backtrack #-}
 
 runNussinov :: Int -> String -> (Int,[String])
 runNussinov k inp = (t PA.! (Z:.subword 0 n), take k b) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
-  t = runST $ forward i
-  b = backtrack i t
+  (Z:.t) = runST $ forward i
+  b = backtrack i (Z:.t)
 {-# NOINLINE runNussinov #-}
 
 main = do
