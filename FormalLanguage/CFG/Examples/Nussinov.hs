@@ -71,24 +71,24 @@ pretty = SigNussinov
   }
 {-# INLINE pretty #-}
 
-type Arr  = PA.Unboxed (Z:.Subword) Int
+type Arr  = PA.Unboxed Subword Int
 type Arrs = Z:.Arr
 
 forward :: VU.Vector Char -> ST s Arrs -- (Unboxed (Z:.Subword) Int)
 forward inp = do
   let n  = VU.length inp
   let c  = chr inp
-  !t' <- PA.newWithM (Z:.subword 0 0) (Z:.subword 0 n) (-999999)
+  !t' <- PA.newWithM (subword 0 0) (subword 0 n) (-999999)
   let t  = mTblS EmptyOk t'
-  fillTable $ gNussinov bpmax t c Empty
-  (Z:.) `fmap` PA.freeze t'
---  runFreezeMTbls $ gNussinov bpmax t c Empty
+--  fillTable $ gNussinov bpmax t c Empty
+--  (Z:.) `fmap` PA.freeze t'
+  runFreezeMTbls $ gNussinov bpmax t c Empty
 {-# NOINLINE forward #-}
 
 fillTable (Z:.(MTbl _ t,f)) = do
-  let (_,Z:.Subword (_:.n)) = boundsM t
+  let (_,Subword (_:.n)) = boundsM t
   forM_ [n,n-1 .. 0] $ \i -> forM_ [i..n] $ \j ->
-    (f $ subword i j) >>= PA.writeM t (Z:.subword i j)
+    (f $ subword i j) >>= PA.writeM t (subword i j)
 {-# INLINE fillTable #-}
 
 backtrack :: VU.Vector Char -> Arrs -> [String]
@@ -100,7 +100,7 @@ backtrack inp (Z:.t') = unId . SM.toList . unId . g $ subword 0 n where
 {-# NOINLINE backtrack #-}
 
 runNussinov :: Int -> String -> (Int,[String])
-runNussinov k inp = (t PA.! (Z:.subword 0 n), take k b) where
+runNussinov k inp = (t PA.! (subword 0 n), take k b) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   (Z:.t) = runST $ forward i

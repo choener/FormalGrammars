@@ -61,6 +61,8 @@ flag examples
   default: False
   manual: True
 
+-- TODO relax parsers dependency once https://github.com/ekmett/parsers/issues/37 is dealt with
+
 library
   build-depends:
     ADPfusion             == 0.3.*    ,
@@ -71,7 +73,7 @@ library
     HaTeX                 == 3.13.*   ,
     lens                  == 4.*      ,
     mtl                   == 2.*      ,
-    parsers               == 0.11.*   ,
+    parsers               == 0.11.0.1 ,
     repa                  == 3.2.*    ,
     template-haskell                  ,
     text                  == 1.*      ,
