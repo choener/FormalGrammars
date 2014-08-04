@@ -278,24 +278,30 @@ headLower (x:xs) = toLower x : xs
 --
 -- NOTE the defaults all start out undefined, making sure anything invalid
 -- explodes in our face.
+--
+-- TODO for TermTyNames, use @M.Map TN Name@ ?
 
 data CfgState = CfgState
-  { _qGrammar :: Grammar  -- ^ the input grammar
-  , _qIx    :: Name   -- ^ index name ??? [type name of index var?]
-  , _qStreamTyName  :: Name -- ^ stream type name, as in @Stream m qStreamTyName@
-  , _qRetTyName     :: Name -- ^ choice return type name, as in @h :: Stream m qStreamTyName -> m qRetTyName@
-  , _qMTyName       :: Name -- ^ monad type name, as in @h :: Stream MTyName ...@
-  , _qNone  :: Name
-  , _qTermNames :: M.Map String Name
-  , _qNonTNames :: M.Map [String] Name
-  , _qSigName :: Name
+  { _qGrammar       :: Grammar  -- ^ the input grammar
+  , _qElemTyName    :: Name     -- ^ stream type name, as in @Stream m qElemTyName@
+  , _qRetTyName     :: Name     -- ^ choice return type name, as in @h :: Stream m qElemTyName -> m qRetTyName@
+  , _qMTyName       :: Name     -- ^ monad type name, as in @h :: Stream MTyName ...@
+  , _qSigName       :: Name     -- ^ the name of the signature type and data constructor, both (signatures need to have a single data constructor)
+  , _qTermTyNames   :: M.Map String Name  -- ^ the type name for each unique terminal symbol
+  , _qSVarTyNames   :: M.Map Symb Name    -- ^ type variable names for syntactic variables (aka non-terminals)
   }
 
 makeLenses ''CfgState
 
 instance Default CfgState where
   def = CfgState
-    { _qIx = error "_qIx was never set"
+    { _qGrammar     = error "def / grammar"
+    , _qElemTyName  = error "def / elemty"
+    , _qRetTyName   = error "def / retty"
+    , _qMTyName     = error "def / mty"
+    , _qSigName     = error "def / signame"
+    , _qTermTyNames = error "def / termtynames"
+    , _qSVarTyNames = error "def / svartynames"
     }
 
 type TQ z = StateT CfgState Q z
@@ -305,9 +311,9 @@ type TQ z = StateT CfgState Q z
 signature :: TQ Dec
 signature = do
   m <- use qMTyName
-  x <- use qStreamTyName
+  x <- use qElemTyName
   r <- use qRetTyName
-  termNames <- use qTermNames
+  termNames <- use qTermTyNames
   sigName <- (mkName . ("Sig" ++)) <$> use (qGrammar.name)
   let fs = undefined :: M.Map [String] TheF
       h = undefined
@@ -319,16 +325,22 @@ signature = do
                       []
   return sig
 
--- | New entry point for generation. Will also stuff the 'Grammar' into the
--- state data.
+-- | New entry point for generation of @Grammar@ and @Signature@ code. Will
+-- also stuff the 'Grammar' into the state data. A bunch of TH names are
+-- generated here and become part of the state, as they are used in
+-- multiple places.
+--
+-- TODO _qTermTyNames: use collectSymbT ?
 
 newGen2 :: Grammar -> Q [Dec]
 newGen2 g = do
   let _qGrammar = g
-  _qMTyName <- newName "m"
-  _qStreamTyName <- newName "s"
-  _qRetTyName <- newName "r"
-  evalStateT newGenM def{_qGrammar, _qMTyName, _qStreamTyName, _qRetTyName}
+  _qMTyName     <- newName "m"
+  _qElemTyName  <- newName "s"
+  _qRetTyName   <- newName "r"
+  _qTermTyNames <- M.fromList <$> (mapM (\t -> (t,) <$> newName t) $ g^..tsyms.folded.symb.folded.tnName)
+  _qSVarTyNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName (n^..symb.folded.tnName.folded)) $ collectSymbN g)
+  evalStateT newGenM def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermTyNames, _qSVarTyNames}
 
 newGenM :: TQ [Dec]
 newGenM = do
