@@ -1,8 +1,15 @@
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TemplateHaskell #-}
+
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeOperators #-}
+
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- |
 --
@@ -24,24 +31,30 @@ import           Control.Arrow ((&&&))
 import           Control.Lens hiding (Strict, (...))
 import           Control.Monad
 import           Control.Monad.Trans.Class
-import           Data.Array.Repa.Index
 import           Data.Char (toUpper,toLower)
 import           Data.Function (on)
 import           Data.List (intersperse,nub,nubBy,groupBy)
 import           Data.Maybe
 import           Data.Vector.Fusion.Stream.Monadic (Stream)
+import           GHC.Exts (the)
 import           Language.Haskell.TH
-import           Language.Haskell.TH.Syntax
+import           Language.Haskell.TH.Syntax hiding (lift)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import           Text.Printf
-import           GHC.Exts (the)
 
+import           Data.PrimitiveArray (Z(..), (:.)(..))
 import           ADP.Fusion ( (%), (|||), (...), (<<<) )
 import qualified ADP.Fusion.Multi as ADP
 import           ADP.Fusion.None
 
 import FormalLanguage.CFG.Grammar
+
+{-
+-}
+
+import Control.Monad.State.Strict as M
+import Data.Default
 
 
 
@@ -63,6 +76,10 @@ fVarStrictType = lens get set where
   get f = (f^.fName, f^.fStrict, f^.fType)
   set :: TheF -> VarStrictType -> TheF
   set f (v,s,t) = f { _fName = v, _fStrict = s, _fType = t }
+
+-- |
+--
+-- TODO add the generated name for the fully sated version in the grammar!
 
 data TheN = TheN
   { _nName :: Name
@@ -196,13 +213,32 @@ newGen g = do
   let graArgs =  (recP (sg^.sName) ((return (h^._1, VarP $ h^._1)):[return (n, VarP n) | n <- fs^..folded.fName])) -- bind algebra
               :  (map (return . view nPat) $ ns^..folded) -- bind non-terminal memo-tables
               ++ (map varP $ tnames^..folded)  -- bind terminal symbols
---  let graBody = normalB . tupE . map (genBodyPair h ix ns ts fs) . groupBy ((==)`on`_lhs) $ g^..rules.folded
-  let graBody = normalB . foldl (\acc z -> [| $acc :. $(genBodyPair h ix ns ts fs z) |]) [|Z|] . groupBy ((==) `on` _lhs) $ g^..rules.folded
+--  let graBody = normalB . foldl (\acc z -> [| $acc :. $(genBodyPair h ix ns ts fs z) |]) [|Z|] . groupBy ((==) `on` _lhs) $ g^..rules.folded
+  let graBody = genFullBody h ix ns ts fs g
   gra <- funD (mkName $ "g" ++ g^.name) [clause graArgs graBody []]
   inl <- pragInlD (mkName $ "g" ++ g^.name) Inline FunLike AllPhases
   return [sig,gra,inl]
 
+-- | With the new system, we need to bind non-terminals in a serier of
+-- @let@'s. This requires: ...
+
+genFullBody h ix ns ts fs g = do
+  let gs = groupBy ((==) `on` _lhs) $ g^..rules.folded
+  -- (i) create names for non-terminal, full bound
+  nfb <- mapM (\(z:_) -> newName $ "nfb" ++ (z^.lhs.symb.folded.tnName)) gs
+  runIO $ mapM_ print nfb
+  -- (ii) pair those up with the non-terminals
+  runIO $ print ns
+  -- (iii) run something similar to genBodyPair
+  -- (iv) profit
+  return undefined
+
 -- | The body is a series of pairs, built here
+--
+-- @h@ is the choice function; @ix@ the index variable; @ns@ the
+-- non-terminals; @ts@ the terminals; @fs@ are the evaluation functions;
+-- @rs@ are all the right-hand sides that have the same non-terminal symbol
+-- on the left, i.e. @X -> y; X -> z@.
 
 genBodyPair h ix ns ts fs rs = do
   let r = head rs
@@ -230,4 +266,72 @@ headUpper (x:xs) = toUpper x : xs
 
 headLower [] = []
 headLower (x:xs) = toLower x : xs
+
+
+
+-- * bundle up state
+
+-- |
+--
+-- TODO why do I carry around an index? I should create a new name
+-- everytime! Are these guys type names?
+--
+-- NOTE the defaults all start out undefined, making sure anything invalid
+-- explodes in our face.
+
+data CfgState = CfgState
+  { _qGrammar :: Grammar  -- ^ the input grammar
+  , _qIx    :: Name   -- ^ index name ??? [type name of index var?]
+  , _qStreamTyName  :: Name -- ^ stream type name, as in @Stream m qStreamTyName@
+  , _qRetTyName     :: Name -- ^ choice return type name, as in @h :: Stream m qStreamTyName -> m qRetTyName@
+  , _qMTyName       :: Name -- ^ monad type name, as in @h :: Stream MTyName ...@
+  , _qNone  :: Name
+  , _qTermNames :: M.Map String Name
+  , _qNonTNames :: M.Map [String] Name
+  , _qSigName :: Name
+  }
+
+makeLenses ''CfgState
+
+instance Default CfgState where
+  def = CfgState
+    { _qIx = error "_qIx was never set"
+    }
+
+type TQ z = StateT CfgState Q z
+
+-- | Create the signature. Will also set the signature name
+
+signature :: TQ Dec
+signature = do
+  m <- use qMTyName
+  x <- use qStreamTyName
+  r <- use qRetTyName
+  termNames <- use qTermNames
+  sigName <- (mkName . ("Sig" ++)) <$> use (qGrammar.name)
+  let fs = undefined :: M.Map [String] TheF
+      h = undefined
+  qSigName .= sigName
+  sig <- lift $ dataD (cxt [])
+                      sigName
+                      (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
+                      [recC sigName ((map return $ fs^..folded.fVarStrictType) ++ [return h])]
+                      []
+  return sig
+
+-- | New entry point for generation. Will also stuff the 'Grammar' into the
+-- state data.
+
+newGen2 :: Grammar -> Q [Dec]
+newGen2 g = do
+  let _qGrammar = g
+  _qMTyName <- newName "m"
+  _qStreamTyName <- newName "s"
+  _qRetTyName <- newName "r"
+  evalStateT newGenM def{_qGrammar, _qMTyName, _qStreamTyName, _qRetTyName}
+
+newGenM :: TQ [Dec]
+newGenM = do
+  (sig) <- signature
+  return [sig]
 
