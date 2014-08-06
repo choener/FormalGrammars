@@ -289,6 +289,7 @@ data CfgState = CfgState
   , _qSigName       :: Name     -- ^ the name of the signature type and data constructor, both (signatures need to have a single data constructor)
   , _qTermTyNames   :: M.Map String Name  -- ^ the type name for each unique terminal symbol
   , _qSVarTyNames   :: M.Map Symb Name    -- ^ type variable names for syntactic variables (aka non-terminals)
+  , _qAttribFuns    :: M.Map [String] VarStrictType -- ^ map from the composed name to the template haskell attribute function @(Var,Strict,Type)@
   }
 
 makeLenses ''CfgState
@@ -302,6 +303,7 @@ instance Default CfgState where
     , _qSigName     = error "def / signame"
     , _qTermTyNames = error "def / termtynames"
     , _qSVarTyNames = error "def / svartynames"
+    , _qAttribFuns  = error "def / attribfuns"
     }
 
 type TQ z = StateT CfgState Q z
