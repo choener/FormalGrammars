@@ -269,63 +269,146 @@ headLower (x:xs) = toLower x : xs
 
 
 
--- * bundle up state
+-- * @StateT CfgState Q@ monad and wrapper for TH-based grammar
+-- construction.
 
--- |
---
--- TODO why do I carry around an index? I should create a new name
--- everytime! Are these guys type names?
+-- | The state we carry around. Contains all the bound names, and lookup
+-- tables for functions, terminals and syntactic variables.
 --
 -- NOTE the defaults all start out undefined, making sure anything invalid
 -- explodes in our face.
 --
 -- TODO for TermTyNames, use @M.Map TN Name@ ?
+--
+-- TODO if we allow multiple different choice function, we'll have to
+-- extend @_qChoiceFun@
 
 data CfgState = CfgState
   { _qGrammar       :: Grammar  -- ^ the input grammar
+  , _qGrammarName   :: Name     -- ^ the name for the body of the grammar
   , _qElemTyName    :: Name     -- ^ stream type name, as in @Stream m qElemTyName@
   , _qRetTyName     :: Name     -- ^ choice return type name, as in @h :: Stream m qElemTyName -> m qRetTyName@
   , _qMTyName       :: Name     -- ^ monad type name, as in @h :: Stream MTyName ...@
   , _qSigName       :: Name     -- ^ the name of the signature type and data constructor, both (signatures need to have a single data constructor)
   , _qTermTyNames   :: M.Map String Name  -- ^ the type name for each unique terminal symbol
   , _qSVarTyNames   :: M.Map Symb Name    -- ^ type variable names for syntactic variables (aka non-terminals)
-  , _qAttribFuns    :: M.Map [String] VarStrictType -- ^ map from the composed name to the template haskell attribute function @(Var,Strict,Type)@
+  , _qSynBodyNames  :: M.Map Symb Name    -- ^ type variable names for the fully applied grammar body / where part
+  , _qAttribFuns    :: M.Map [String] VarStrictType -- ^ map from the composed name to the template haskell attribute function @(Var,Strict,Type)@ (functions are currently stored as @[String]@ in @Grammar.hs@
+  , _qChoiceFun     :: VarStrictType  -- ^ the choice function
   }
 
 makeLenses ''CfgState
 
 instance Default CfgState where
   def = CfgState
-    { _qGrammar     = error "def / grammar"
-    , _qElemTyName  = error "def / elemty"
-    , _qRetTyName   = error "def / retty"
-    , _qMTyName     = error "def / mty"
-    , _qSigName     = error "def / signame"
-    , _qTermTyNames = error "def / termtynames"
-    , _qSVarTyNames = error "def / svartynames"
-    , _qAttribFuns  = error "def / attribfuns"
+    { _qGrammar       = error "def / grammar"
+    , _qGrammarName   = error "def / grammarname"
+    , _qElemTyName    = error "def / elemty"
+    , _qRetTyName     = error "def / retty"
+    , _qMTyName       = error "def / mty"
+    , _qSigName       = error "def / signame"
+    , _qTermTyNames   = error "def / termtynames"
+    , _qSVarTyNames   = error "def / svartynames"
+    , _qSynBodyNames  = error "def / synbodynames"
+    , _qAttribFuns    = error "def / attribfuns"
+    , _qChoiceFun     = error "def / choicefun"
     }
 
 type TQ z = StateT CfgState Q z
 
--- | Create the signature. Will also set the signature name
+-- | Create the signature. Will also set the signature name.
 
 signature :: TQ Dec
 signature = do
-  m <- use qMTyName
-  x <- use qElemTyName
-  r <- use qRetTyName
+  m         <- use qMTyName
+  x         <- use qElemTyName
+  r         <- use qRetTyName
   termNames <- use qTermTyNames
-  sigName <- (mkName . ("Sig" ++)) <$> use (qGrammar.name)
-  let fs = undefined :: M.Map [String] TheF
-      h = undefined
+  sigName   <- (mkName . ("Sig" ++)) <$> use (qGrammar.name)
+  fs        <- use qAttribFuns
+  h         <- use qChoiceFun
   qSigName .= sigName
-  sig <- lift $ dataD (cxt [])
-                      sigName
-                      (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
-                      [recC sigName ((map return $ fs^..folded.fVarStrictType) ++ [return h])]
-                      []
-  return sig
+  lift $ dataD (cxt [])
+               sigName
+               (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
+               [recC sigName ((map return $ fs^..folded) ++ [return h])]
+               []
+
+-- | The grammar requires three types of arguments. First we need to bind
+-- an algebra. Then we bind a list of non-terminals. Finally we bind a list
+-- of terminals.
+
+grammarArguments :: TQ [PatQ]
+grammarArguments = do
+  signame <- use qSigName
+  h       <- use qChoiceFun
+  fs      <- use qAttribFuns
+  tnames  <- use qTermTyNames
+  snames  <- use qSVarTyNames
+  -- bind algebra
+  let alg = recP signame [ fieldPat n (varP n) | (n,_,_) <- h:(fs^..folded) ]
+  -- bind non-terminals
+  let syn = [ varP s | s <- snames^..folded ]
+  -- bind terminals
+  let ter = [ varP t | t <- tnames^..folded ]
+  return $ alg : syn ++ ter
+
+-- | The grammar body is a series of @let@'s that bind the partially
+-- applied syntactic variables to the right-hand sides. In each right-hand
+-- side, the syntactic variable symbols are replaced by the left-bound
+-- fully applied syntactic variables.
+--
+-- @
+--  let s = s' (f >>> t ... h)
+--      t = t' (f >>> s ... h)
+--  in  Z:.s:.t
+-- @
+
+grammarBody :: TQ BodyQ
+grammarBody = do
+  return undefined
+
+-- | Fully apply each partial syntactic variable to the corresponding
+-- right-hand side. First, build up the map of fully applied names, then
+-- associate each one.
+
+grammarBodyWhere :: TQ [DecQ]
+grammarBodyWhere = do
+  synKeys   <- M.keys <$> use qSVarTyNames
+  bodySynNames <- lift $ sequence [ (n,) <$> (newName $ concat k) | n <- synKeys, let k = n^..symb.folded.tnName ]
+  qSynBodyNames .= M.fromList bodySynNames
+  mapM grammarBodySyn bodySynNames
+
+-- | Fully bind each 'Symb' (which is partially applied, coming in as an
+-- argument in the grammar) to the correct right-hand side.
+
+grammarBodySyn :: (Symb,Name) -> TQ DecQ
+grammarBodySyn (s,n) = do
+  hname <- use qChoiceName
+  let rhs = appE ( uInfixE (foldl1 (\acc z -> uInfixE acc (varE '(|||)) z) . map grammarBodyRHS $ undefined)
+                           (varE '(...))
+                           (varE hname) )
+  return $ valD (varP n) (normalB rhs) []
+
+-- | Build up the rhs for each rule.
+--
+-- Requires using the fully bound syntactic variable name!
+
+-- grammarBodyRHS :: ()
+grammarBodyRHS = undefined
+
+-- | Build the full grammar. Generate a name (the grammar name prefixed
+-- with a @"g"@), the arguments, and the body of the grammar.
+
+grammar :: TQ Dec
+grammar = do
+  gname <- (mkName . ("g" ++)) <$> use (qGrammar.name)
+  qGrammarName .= gname
+  args      <- grammarArguments
+  bodyWhere <- grammarBodyWhere
+  bodyNames <- use qSynBodyNames
+  let body  =  normalB . foldl (\acc z -> [| $acc :. $z |]) [|Z|] . map varE $ bodyNames^..folded
+  lift $ funD gname [clause args body bodyWhere]
 
 -- | New entry point for generation of @Grammar@ and @Signature@ code. Will
 -- also stuff the 'Grammar' into the state data. A bunch of TH names are
@@ -333,6 +416,9 @@ signature = do
 -- multiple places.
 --
 -- TODO _qTermTyNames: use collectSymbT ?
+--
+-- TODO call multiple times with different grammars will be a requirement
+-- soon
 
 newGen2 :: Grammar -> Q [Dec]
 newGen2 g = do
@@ -344,8 +430,15 @@ newGen2 g = do
   _qSVarTyNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName (n^..symb.folded.tnName.folded)) $ collectSymbN g)
   evalStateT newGenM def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermTyNames, _qSVarTyNames}
 
+-- | Actually create signature, grammar, inline pragma.
+
 newGenM :: TQ [Dec]
 newGenM = do
-  (sig) <- signature
-  return [sig]
+  -- create signature
+  sig <- signature
+  -- create grammar
+  gra <- grammar
+  -- create inlining code
+  inl <- use qGrammarName >>= \gname -> lift $ pragInlD gname Inline FunLike AllPhases
+  return [sig,gra,inl]
 
