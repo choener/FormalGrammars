@@ -49,7 +49,7 @@ parseFormalLanguage s = do
       gSig <- genSignature g
       gGra <- genGrammar   g
       -}
-      zs <- newGen g
+      zs <- newGen2 g
       runIO $ print "TESTING ABOVE"
       -- TODO build signature and grammar using TH
       return zs -- [gSig,gGra]

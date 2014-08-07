@@ -26,6 +26,7 @@
 
 module FormalLanguage.CFG.TH
   ( newGen
+  , newGen2
   ) where
 
 import           Control.Applicative
@@ -458,6 +459,18 @@ grammar = do
   let body        =  normalB . foldl (\acc z -> [| $acc :. $z |]) [|Z|] . map varE $ bodyNames^..folded
   lift $ funD gname [clause args body bodyWhere]
 
+attributeFunction :: Rule -> TQ VarStrictType
+attributeFunction r = do
+  let (f:fs) = r^.fun
+  let argument = undefined
+  nm <- lift $ newName $ over _head toLower f ++ concatMap (over _head toUpper) fs
+  let tp = foldr AppT (VarT undefined) $ map (AppT ArrowT . argument undefined undefined) $ r^.rhs
+  return (nm,NotStrict,tp)
+
+choiceFunction :: TQ ()
+choiceFunction = do
+  return ()
+
 -- | New entry point for generation of @Grammar@ and @Signature@ code. Will
 -- also stuff the 'Grammar' into the state data. A bunch of TH names are
 -- generated here and become part of the state, as they are used in
@@ -487,6 +500,9 @@ newGen2 g = do
 
 newGenM :: TQ [Dec]
 newGenM = do
+  -- create attribute function bindings (needed by signature and grammar)
+--  attributeFunctions
+--  choiceFunction
   -- create signature
   sig <- signature
   -- create grammar
