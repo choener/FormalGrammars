@@ -375,7 +375,7 @@ grammarArguments = do
 grammarBodyWhere :: TQ [DecQ]
 grammarBodyWhere = do
   synKeys       <- M.keys <$> use qSVarTyNames
-  bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ concat k) | n <- synKeys, let k = n^..symb.folded.tnName ]
+  bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..symb.folded.tnName ]
   qSynBodyNames .= M.fromList bodySynNames
   mapM grammarBodySyn bodySynNames
 
@@ -403,10 +403,10 @@ grammarBodyRHS :: Rule -> TQ ExpQ
 grammarBodyRHS (Rule _ f rs) = do
   -- bundle up terminals and non-terminals
   terms <- use qTermSymbExp
-  synts <- use qSynSymbExp
+  synNames <- use qSynBodyNames -- just the name of the fully applied symbol
   let genSymbol s
-        | isSymbT s = return . snd $ terms M.! s
-        | isSymbN s = return . snd $ synts M.! s
+        | isSymbT s = return . snd  $ terms    M.! s
+        | isSymbN s = return . VarE $ synNames M.! s
   let rhs = foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
   -- apply evaluation function
   Just (fname,_,_) <- use (qAttribFuns . at f)
@@ -450,26 +450,34 @@ dimensionalTermSymbNames = do
 grammar :: TQ Dec
 grammar = do
   gname <- (mkName . ("g" ++)) <$> use (qGrammar.name)
-  qGrammarName    .= gname
-  args            <- grammarArguments
-  qTermSymbNames  <~ M.fromList <$> dimensionalTermSymbNames
-  qTermSymbExp    <~ M.fromList <$> (mapM grammarTermExpression =<< collectSymbT <$> use qGrammar)
-  bodyWhere       <- grammarBodyWhere
-  bodyNames       <- use qSynBodyNames
-  let body        =  normalB . foldl (\acc z -> [| $acc :. $z |]) [|Z|] . map varE $ bodyNames^..folded
+  qGrammarName .= gname
+  args         <- grammarArguments
+  bodyWhere    <- grammarBodyWhere
+  bodyNames    <- use qSynBodyNames
+  let body     =  normalB . foldl (\acc z -> [| $acc :. $z |]) [|Z|] . map varE $ bodyNames^..folded
   lift $ funD gname [clause args body bodyWhere]
 
-attributeFunction :: Rule -> TQ VarStrictType
+attributeFunction :: Rule -> TQ ([String],VarStrictType)
 attributeFunction r = do
   let (f:fs) = r^.fun
-  let argument = undefined
+  elemTyName <- use qElemTyName
+  terminal   <- use qTermSymbExp
+  let argument :: Symb -> Type
+      argument s
+        | isSymbN s = VarT elemTyName
+        | isSymbT s = fst $ terminal  M.! s
   nm <- lift $ newName $ over _head toLower f ++ concatMap (over _head toUpper) fs
-  let tp = foldr AppT (VarT undefined) $ map (AppT ArrowT . argument undefined undefined) $ r^.rhs
-  return (nm,NotStrict,tp)
+  let tp = foldr AppT (VarT elemTyName) $ map (AppT ArrowT . argument) $ r^.rhs
+  return (f:fs, (nm,NotStrict,tp))
 
-choiceFunction :: TQ ()
+choiceFunction :: TQ VarStrictType
 choiceFunction = do
-  return ()
+  elemTyName <- use qElemTyName
+  retTyName  <- use qRetTyName
+  mTyName    <- use qMTyName
+  let args = AppT ArrowT $ AppT (AppT (ConT ''Stream) (VarT mTyName)) (VarT elemTyName)
+  let rtrn = AppT (VarT mTyName) (VarT retTyName)
+  return (mkName "h", NotStrict, AppT args rtrn)
 
 -- | New entry point for generation of @Grammar@ and @Signature@ code. Will
 -- also stuff the 'Grammar' into the state data. A bunch of TH names are
@@ -489,25 +497,36 @@ newGen2 g = do
   _qRetTyName   <- newName "r"
   -- TODO this should collect the different terminal TYPES /= the number of
   -- different terminals in use!
-  _qTermTyNames <- M.fromList <$> (mapM (\t -> (t,) <$> newName t) $ g^..tsyms.folded.symb.folded.tnName)
+  _qTermTyNames <- M.fromList <$> (mapM (\t -> (t,) <$> newName ("t_" ++ t)) $ g^..tsyms.folded.symb.folded.tnName)
   -- TODO this should collect the different syntactic variable TYPES in
   -- use. This should be the same as the number of different syntactic
   -- variables in use
-  _qSVarTyNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName (n^..symb.folded.tnName.folded)) $ collectSymbN g)
+  _qSVarTyNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ n^..symb.folded.tnName.folded)) $ collectSymbN g)
   evalStateT newGenM def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermTyNames, _qSVarTyNames}
 
 -- | Actually create signature, grammar, inline pragma.
 
 newGenM :: TQ [Dec]
 newGenM = do
+  -- build up the terminal symbol lookup
+  qTermSymbNames <~ M.fromList <$> dimensionalTermSymbNames
+  qTermSymbExp   <~ M.fromList <$> (mapM grammarTermExpression =<< collectSymbT <$> use qGrammar)
   -- create attribute function bindings (needed by signature and grammar)
---  attributeFunctions
---  choiceFunction
+  rs <- use (qGrammar.rules)
+  fs <- mapM attributeFunction $ rs^..folded
+  qAttribFuns .= (M.fromList fs)
+  -- create choice function
+  qChoiceFun <~ choiceFunction
   -- create signature
   sig <- signature
   -- create grammar
   gra <- grammar
   -- create inlining code
   inl <- use qGrammarName >>= \gname -> lift $ pragInlD gname Inline FunLike AllPhases
+  lift . runIO $ print sig
+  lift . runIO $ print ""
+  lift . runIO $ print gra
+  lift . runIO $ print ""
+  lift . runIO $ print inl
   return [sig,gra,inl]
 
