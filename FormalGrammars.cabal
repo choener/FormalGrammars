@@ -76,7 +76,7 @@ library
     parsers               == 0.12.*   ,
     template-haskell                  ,
     text                  == 1.*      ,
-    transformers          == 0.3.*    ,
+    transformers          == 0.4.*    ,
     trifecta              == 1.5.*    ,
     unordered-containers  == 0.2.*    ,
     vector                == 0.10.*   ,
