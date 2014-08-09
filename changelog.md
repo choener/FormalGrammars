@@ -3,6 +3,7 @@
 
 - fixed dependencies
 - major version bump
+- new TH code generator using ADPfusion 0.3
 
 0.0.0.2
 -------
