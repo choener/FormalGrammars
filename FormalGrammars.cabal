@@ -122,6 +122,25 @@ executable NussinovFG
     -optlo-O3 -optlo-std-compile-opts
     -fllvm-tbaa
 
+executable TwoTableNussinovFG
+  if flag(examples)
+    buildable: True
+  else
+    buildable: False
+  build-depends:
+    PrimitiveArray    == 0.6.*
+  main-is:
+    FormalLanguage/CFG/Examples/TwoTableNussinov.hs
+  ghc-options:
+    -Odph
+    -fcpr-off
+    -funbox-strict-fields
+    -funfolding-use-threshold1000
+    -funfolding-keeness-factor1000
+    -fllvm
+    -optlo-O3 -optlo-std-compile-opts
+    -fllvm-tbaa
+
 executable NeedlemanWunschFG
   if flag(examples)
     buildable: True
