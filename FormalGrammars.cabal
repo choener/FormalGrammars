@@ -9,7 +9,7 @@ license:        GPL-3
 license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
-cabal-version:  >= 1.6.0
+cabal-version:  >= 1.8.0
 synopsis:
                 (Context-free) grammars in formal language theory
 description:
@@ -63,6 +63,8 @@ flag examples
 
 -- TODO relax parsers dependency once https://github.com/ekmett/parsers/issues/37 is dealt with
 
+-- explicit dependency on PrimitiveArray to be able to load the examples
+
 library
   build-depends:
     ADPfusion             == 0.3.*    ,
@@ -74,6 +76,7 @@ library
     lens                  == 4.*      ,
     mtl                   == 2.*      ,
     parsers               == 0.12.*   ,
+    PrimitiveArray        == 0.6.*    ,
     template-haskell                  ,
     text                  == 1.*      ,
     transformers          == 0.4.*    ,
@@ -99,7 +102,12 @@ library
 
 executable GrammarPP
   build-depends:
-    cmdargs == 0.10.*
+    ansi-wl-pprint            ,
+    cmdargs         == 0.10.* ,
+    FormalGrammars            ,
+    base
+  hs-source-dirs:
+    src
   main-is:
     GrammarPP.hs
 
@@ -109,9 +117,16 @@ executable NussinovFG
   else
     buildable: False
   build-depends:
-    PrimitiveArray    == 0.6.*
+    ADPfusion         ,
+    FormalGrammars    ,
+    PrimitiveArray    ,
+    template-haskell  ,
+    vector            ,
+    base
+  hs-source-dirs:
+    src
   main-is:
-    FormalLanguage/CFG/Examples/Nussinov.hs
+    Nussinov.hs
   ghc-options:
     -Odph
     -fcpr-off
@@ -128,9 +143,16 @@ executable TwoTableNussinovFG
   else
     buildable: False
   build-depends:
-    PrimitiveArray    == 0.6.*
+    ADPfusion         ,
+    FormalGrammars    ,
+    PrimitiveArray    ,
+    template-haskell  ,
+    vector            ,
+    base
+  hs-source-dirs:
+    src
   main-is:
-    FormalLanguage/CFG/Examples/TwoTableNussinov.hs
+    TwoTableNussinov.hs
   ghc-options:
     -Odph
     -fcpr-off
@@ -147,9 +169,16 @@ executable NeedlemanWunschFG
   else
     buildable: False
   build-depends:
-    PrimitiveArray    == 0.6.*
+    ADPfusion         ,
+    FormalGrammars    ,
+    PrimitiveArray    ,
+    template-haskell  ,
+    vector            ,
+    base
+  hs-source-dirs:
+    src
   main-is:
-    FormalLanguage/CFG/Examples/NeedlemanWunsch.hs
+    NeedlemanWunsch.hs
   ghc-options:
     -Odph
     -fcpr-off
