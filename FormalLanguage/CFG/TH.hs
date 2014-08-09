@@ -294,33 +294,35 @@ data CfgState = CfgState
   , _qMTyName       :: Name     -- ^ monad type name, as in @h :: Stream MTyName ...@
   , _qSigName       :: Name     -- ^ the name of the signature type and data constructor, both (signatures need to have a single data constructor)
   , _qTermTyNames   :: M.Map String Name  -- ^ the type name for each unique terminal symbol (that is: the scalar terminals in each dimension)
-  , _qTermSymbNames :: M.Map (String,Int) Name  
   , _qTermSymbExp   :: M.Map Symb (Type,Exp)  -- ^ associate a terminal @Symb@ with a complete @Type@ and @Exp@
   , _qSynSymbExp    :: M.Map Symb (Type,Exp)
-  , _qSVarTyNames   :: M.Map Symb Name    -- ^ type variable names for syntactic variables (aka non-terminals)
+--  , _qSVarTyNames   :: M.Map Symb Name    -- ^ type variable names for syntactic variables (aka non-terminals)
   , _qSynBodyNames  :: M.Map Symb Name    -- ^ type variable names for the fully applied grammar body / where part
   , _qAttribFuns    :: M.Map [String] VarStrictType -- ^ map from the composed name to the template haskell attribute function @(Var,Strict,Type)@ (functions are currently stored as @[String]@ in @Grammar.hs@
   , _qChoiceFun     :: VarStrictType  -- ^ the choice function
+  , _qTermAtomVarNames  :: M.Map (String,Int) Name -- ^ (Term-id,Dimension) to var name
+  , _qPartSyntVarNames  :: M.Map Symb       Name -- ^ syntactic-id to var name -- partially applied table / syntactic
   }
 
 makeLenses ''CfgState
 
 instance Default CfgState where
   def = CfgState
-    { _qGrammar       = error "def / grammar"
-    , _qGrammarName   = error "def / grammarname"
-    , _qElemTyName    = error "def / elemty"
-    , _qRetTyName     = error "def / retty"
-    , _qMTyName       = error "def / mty"
-    , _qSigName       = error "def / signame"
-    , _qTermTyNames   = error "def / termtynames"
-    , _qSVarTyNames   = error "def / svartynames"
-    , _qSynBodyNames  = error "def / synbodynames"
-    , _qAttribFuns    = error "def / attribfuns"
-    , _qChoiceFun     = error "def / choicefun"
-    , _qTermSymbNames = error "def / termsymbnames"
-    , _qTermSymbExp   = error "def / termsymbexp"
-    , _qSynSymbExp    = error "def / synsymbexp"
+    { _qGrammar           = error "def / grammar"
+    , _qGrammarName       = error "def / grammarname"
+    , _qElemTyName        = error "def / elemty"
+    , _qRetTyName         = error "def / retty"
+    , _qMTyName           = error "def / mty"
+    , _qSigName           = error "def / signame"
+    , _qTermTyNames       = error "def / termtynames"
+--    , _qSVarTyNames       = error "def / svartynames"
+    , _qSynBodyNames      = error "def / synbodynames"
+    , _qAttribFuns        = error "def / attribfuns"
+    , _qChoiceFun         = error "def / choicefun"
+    , _qTermSymbExp       = error "def / termsymbexp"
+    , _qSynSymbExp        = error "def / synsymbexp"
+    , _qTermAtomVarNames  = error "def / termsingvarnames"
+    , _qPartSyntVarNames  = error "def / partsyntvarnames"
     }
 
 type TQ z = StateT CfgState Q z
@@ -352,14 +354,14 @@ grammarArguments = do
   signame <- use qSigName
   h       <- use qChoiceFun
   fs      <- use qAttribFuns
-  tnames  <- use qTermTyNames
-  snames  <- use qSVarTyNames
+  tavn    <- use qTermAtomVarNames
+  psyn    <- use qPartSyntVarNames
   -- bind algebra
   let alg = recP signame [ fieldPat n (varP n) | (n,_,_) <- h:(fs^..folded) ]
-  -- bind non-terminals
-  let syn = [ varP s | s <- snames^..folded ]
+  -- bind partially applied non-terminals
+  let syn = [ varP s | s <- psyn^..folded ]
   -- bind terminals
-  let ter = [ varP t | t <- tnames^..folded ]
+  let ter = [ varP t | t <- tavn^..folded ]
   return $ alg : syn ++ ter
 
 -- | Fully apply each partial syntactic variable to the corresponding
@@ -374,7 +376,7 @@ grammarArguments = do
 
 grammarBodyWhere :: TQ [DecQ]
 grammarBodyWhere = do
-  synKeys       <- M.keys <$> use qSVarTyNames
+  synKeys       <- M.keys <$> use qPartSyntVarNames
   bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..symb.folded.tnName ]
   qSynBodyNames .= M.fromList bodySynNames
   mapM grammarBodySyn bodySynNames
@@ -385,6 +387,7 @@ grammarBodyWhere = do
 grammarBodySyn :: (Symb,Name) -> TQ DecQ
 grammarBodySyn (s,n) = do
   hname <- use (qChoiceFun._1)
+  partial <- use qPartSyntVarNames
   ix <- lift $ newName "ix"
   -- all rules that have @s@ on the left-hand side
   fs <- (filter ((s==) . _lhs) . S.elems) <$> use (qGrammar.rules)
@@ -393,7 +396,7 @@ grammarBodySyn (s,n) = do
                            (varE '(...))
                            (varE hname) )
                  (varE ix)
-  return $ valD (varP n) (normalB (lamE [varP ix] rhs)) []
+  return $ valD (varP n) (normalB $ appE (varE $ partial M.! s) (lamE [varP ix] rhs)) []
 
 -- | Build up the rhs for each rule.
 --
@@ -415,7 +418,7 @@ grammarBodyRHS (Rule _ f rs) = do
 grammarTermExpression :: Symb -> TQ (Symb, (Type,Exp))
 grammarTermExpression s = do
   ttypes <- use qTermTyNames
-  tnames <- use qTermSymbNames
+  tavn <- use qTermAtomVarNames
   let genType :: Symb -> TypeQ
       genType z
         | Symb [E]   <- z = [t| () |]
@@ -424,8 +427,8 @@ grammarTermExpression s = do
   let genExp :: Symb -> ExpQ
       genExp z
         | Symb [E]   <- z = [| None |]
-        | Symb [T t] <- z = varE $ tnames M.! (t,0)
-        | Symb xs    <- z = foldl (\acc (k,z) -> [| $acc ADP.:> $(case z of {E -> [| None |] ; T t -> varE $ tnames M.! (t,k)}) |]) [| ADP.M |] $ zip [0..] xs
+        | Symb [T t] <- z = varE $ tavn M.! (t,0)
+        | Symb xs    <- z = foldl (\acc (k,z) -> [| $acc ADP.:> $(case z of {E -> [| None |] ; T t -> varE $ tavn M.! (t,k)}) |]) [| ADP.M |] $ zip [0..] xs
   ty <- lift $ genType s
   ex <- lift $ genExp  s
   return (s, (ty,ex))
@@ -433,6 +436,9 @@ grammarTermExpression s = do
 -- | Each terminal symbol is bound to some input. Since we might have the
 -- same name in different dimensions, we now explicitly annotate with
 -- a dimensional index.
+--
+-- TODO these guys need to be used as part of the input arguments to
+-- @gGrammar@!
 
 dimensionalTermSymbNames :: TQ [((String,Int),Name)]
 dimensionalTermSymbNames = do
@@ -441,7 +447,7 @@ dimensionalTermSymbNames = do
   let maxd = subtract 1 . the . map (length . view symb) $ xs
   ys <- forM [0..maxd] $ \d ->
         forM (filter isT . nub $ xs^..folded.symb.ix d) $ \s -> do
-        ((s^.tnName,d),) <$> (lift $ newName $ (s^.tnName) ++ show d)
+        ((s^.tnName,d),) <$> (lift $ newName $ ("lol" ++ s^.tnName) ++ show d)
   return $ concat ys
 
 -- | Build the full grammar. Generate a name (the grammar name prefixed
@@ -501,15 +507,15 @@ newGen2 g = do
   -- TODO this should collect the different syntactic variable TYPES in
   -- use. This should be the same as the number of different syntactic
   -- variables in use
-  _qSVarTyNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ n^..symb.folded.tnName.folded)) $ collectSymbN g)
-  evalStateT newGenM def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermTyNames, _qSVarTyNames}
+  _qPartSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ n^..symb.folded.tnName.folded)) $ collectSymbN g)
+  evalStateT newGenM def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermTyNames, _qPartSyntVarNames}
 
 -- | Actually create signature, grammar, inline pragma.
 
 newGenM :: TQ [Dec]
 newGenM = do
   -- build up the terminal symbol lookup
-  qTermSymbNames <~ M.fromList <$> dimensionalTermSymbNames
+  qTermAtomVarNames <~ M.fromList <$> dimensionalTermSymbNames
   qTermSymbExp   <~ M.fromList <$> (mapM grammarTermExpression =<< collectSymbT <$> use qGrammar)
   -- create attribute function bindings (needed by signature and grammar)
   rs <- use (qGrammar.rules)

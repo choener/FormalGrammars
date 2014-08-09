@@ -43,7 +43,6 @@ X -> nil <<< e
 makeAlgebraProductH ['h] ''SigNussinov
 
 
-
 bpmax :: Monad m => SigNussinov m Int Int Char ()
 bpmax = SigNussinov
   { unp = \ x c     -> x
@@ -107,7 +106,7 @@ runNussinov k inp = (t PA.! (subword 0 n), take k b) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   (Z:.t) = runST $ forward i
-  b = backtrack i (Z:.t)
+  b = [] -- backtrack i (Z:.t)
 {-# NOINLINE runNussinov #-}
 
 main = do
