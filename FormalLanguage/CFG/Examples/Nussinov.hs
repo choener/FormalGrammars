@@ -82,23 +82,10 @@ forward inp = do
   runFreezeMTbls $ gNussinov bpmax t c Empty
 {-# NOINLINE forward #-}
 
-{-
-fillTable (Z:.(MTbl _ t,f)) = do
-  let (_,Subword (_:.n)) = boundsM t
-  forM_ [n,n-1 .. 0] $ \i -> forM_ [i..n] $ \j ->
-    (f $ subword i j) >>= PA.writeM t (subword i j)
-{-# INLINE fillTable #-}
--}
-
 backtrack :: VU.Vector Char -> Arrs -> [String]
-backtrack _ _ = undefined
-{-
-backtrack inp (Z:.t') = unId . SM.toList . unId . g $ subword 0 n where
-  n = VU.length inp
+backtrack inp (Z:.t') = unId . SM.toList . unId $ axiom g where
   c = chr inp
-  t = btTblS EmptyOk t' g
-  (Z:.(_,g)) = gNussinov (bpmax <** pretty) t c Empty
-  -}
+  (Z:.g) = gNussinov (bpmax <** pretty) (BtTbl EmptyOk t') c Empty
 {-# NOINLINE backtrack #-}
 
 runNussinov :: Int -> String -> (Int,[String])
@@ -106,7 +93,7 @@ runNussinov k inp = (t PA.! (subword 0 n), take k b) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   (Z:.t) = runST $ forward i
-  b = [] -- backtrack i (Z:.t)
+  b = backtrack i (Z:.t)
 {-# NOINLINE runNussinov #-}
 
 main = do
