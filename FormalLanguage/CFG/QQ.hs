@@ -28,7 +28,10 @@ formalLangFile = quoteFile formalLanguage
 -- |
 
 formalLanguage = QuasiQuoter
-  { quoteDec = parseFormalLanguage
+  { quoteDec  = parseFormalLanguage
+  , quoteExp  = error "there is only a Dec quoter"
+  , quotePat  = error "there is only a Dec quoter"
+  , quoteType = error "there is only a Dec quoter"
   }
 
 -- |
@@ -44,15 +47,7 @@ parseFormalLanguage s = do
       error "aborting parseFormalLanguage"
     (Success g) -> do
       runIO . printDoc . grammarDoc $ g
-      runIO $ print "TESTING BELOW"
-      {-
-      gSig <- genSignature g
-      gGra <- genGrammar   g
-      -}
-      zs <- newGen2 g
-      runIO $ print "TESTING ABOVE"
-      -- TODO build signature and grammar using TH
-      return zs -- [gSig,gGra]
+      thCodeGen g
 
 -- |
 
