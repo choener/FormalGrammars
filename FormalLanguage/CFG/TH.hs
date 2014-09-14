@@ -197,7 +197,7 @@ grammarArguments = do
   -- bind partially applied non-terminals
   let syn = [ varP s | s <- psyn^..folded ]
   -- bind fully applied non-terminals
-  let isn = [ varP s | s <- isyn^..folded ]
+  let isn = [ bangP $ varP s | s <- isyn^..folded ]
   -- bind terminals
   let ter = [ bangP $ varP t | t <- tavn^..folded ]
   --
