@@ -17,6 +17,7 @@ import           Data.Vector.Fusion.Util
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
+import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
 
@@ -68,6 +69,23 @@ pretty = SigGlobal
   , h     = return . id
   }
 
+runNeedlemanWunsch :: Int -> String -> String -> (Int,[[String]])
+runNeedlemanWunsch k i1' i2' = (d, take k . S.toList . unId $ axiom b) where
+  i1 = VU.fromList i1'
+  i2 = VU.fromList i2'
+  n1 = VU.length i1
+  n2 = VU.length i2
+  !(Z:.t) = mutateTablesDefault
+          $ gGlobal score
+              (ITbl (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.pointL 0 0:.pointL 0 0) (Z:.pointL 0 n1:.pointL 0 n2) (-999999) []))
+              (chr i1) (chr i2)
+              Empty Empty
+              :: Z:.ITbl Id Unboxed (Z:.PointL:.PointL) Int
+  d = let (ITbl _ arr _) = t in arr PA.! (Z:.pointL 0 n1:.pointL 0 n2)
+  !(Z:.b) = gGlobal (score <** pretty) (toBT t (undefined :: Id a -> Id a)) (chr i1) (chr i2) Empty Empty
+
+{-
+
 type Arr  = PA.Unboxed (Z:.PointL:.PointL) Int
 type Arrs = Z:.Arr
 
@@ -100,6 +118,8 @@ runGlobal k as bs = (t PA.! (Z:.pointL 0 aL:.pointL 0 bL), take k b) where
   b = backtrack aa bb (Z:.t)
 {-# NOINLINE runGlobal #-}
 
+-}
+
 main = do
   ls <- lines <$> getContents
   let eats [] = return ()
@@ -107,7 +127,7 @@ main = do
       eats (a:b:xs) = do
         putStrLn a
         putStrLn b
-        let (k,ys) = runGlobal 1 a b
+        let (k,ys) = runNeedlemanWunsch 1 a b
         forM_ ys $ \[y1,y2] -> printf "%s %5d\n%s\n" y1 k y2
         eats xs
   eats ls

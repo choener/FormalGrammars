@@ -16,6 +16,7 @@ import           Data.List
 import           Data.Vector.Fusion.Util
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
+import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
@@ -70,6 +71,20 @@ pretty = SigNussinov
   }
 {-# INLINE pretty #-}
 
+runNussinov :: Int -> String -> (Int,[String])
+runNussinov k inp = (d, take k . S.toList . unId $ axiom b) where
+  i = VU.fromList . Prelude.map toUpper $ inp
+  n = VU.length i
+  !(Z:.t) = mutateTablesDefault
+          $ gNussinov bpmax
+              (ITbl EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
+              (chr i) Empty
+              :: Z:.ITbl Id Unboxed Subword Int
+  d = let ITbl _ arr _ = t in arr PA.! subword 0 n
+  !(Z:.b) = gNussinov (bpmax <** pretty) (toBT t (undefined :: Id a -> Id a)) (chr i) Empty
+
+{-
+
 type Arr  = PA.Unboxed Subword Int
 type Arrs = Z:.Arr
 
@@ -95,6 +110,10 @@ runNussinov k inp = (t PA.! (subword 0 n), take k b) where
   (Z:.t) = runST $ forward i
   b = backtrack i (Z:.t)
 {-# NOINLINE runNussinov #-}
+
+-}
+
+
 
 main = do
   ls <- lines <$> getContents
