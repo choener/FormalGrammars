@@ -17,9 +17,10 @@ import Text.Trifecta (parseString)
 import Text.Trifecta.Result (Result (..))
 
 import FormalLanguage.CFG.Grammar
+import FormalLanguage.CFG.Outside
+import FormalLanguage.CFG.Parser
 import FormalLanguage.CFG.PrettyPrint.ANSI
 import FormalLanguage.CFG.TH
-import FormalLanguage.CFG.Parser
 
 
 
@@ -46,8 +47,11 @@ parseFormalLanguage s = do
       runIO . printDoc $ f
       error "aborting parseFormalLanguage"
     (Success g) -> do
+      let gO = outsideFromInside g
       runIO . printDoc . grammarDoc $ g
+      runIO . printDoc . grammarDoc $ gO
       thCodeGen g
+--      thCodeGen gO
 
 -- |
 

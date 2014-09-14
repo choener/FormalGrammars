@@ -27,6 +27,7 @@ module FormalLanguage.CFG.TH
 
 import           Control.Applicative
 import           Control.Arrow ((&&&))
+import           Control.Exception (assert)
 import           Control.Lens hiding (Strict, (...))
 import           Control.Monad
 import           Control.Monad.State.Strict as M
@@ -195,7 +196,8 @@ grammarArguments = do
       ppSynt xs  = PP.list $ map (ppSynt . (:[])) xs
   let ppTerm (n,k) = PP.yellow . PP.text $ printf "%s,%d" n k
   let pp = PP.dullgreen $ PP.text (printf "%s $ALGEBRA" gname)
-      sy = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map (\s -> ppSynt $ s^..symb.folded.tnName) $ M.keys psyn)
+      --sy = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map (\s -> ppSynt $ s^..symb.folded.tnName) $ M.keys psyn)
+      sy = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map symbolDoc $ M.keys psyn)
       te = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map (\s -> ppTerm $ s)                      $ M.keys tavn)
   lift . runIO . printDoc $ pp PP.<> sy PP.<> te PP.<> PP.hardline
   --
@@ -213,7 +215,8 @@ grammarArguments = do
 
 grammarBodyWhere :: TQ [DecQ]
 grammarBodyWhere = do
-  synKeys       <- M.keys <$> use qPartialSyntVarNames
+  ls <- (nub . map _lhs . S.elems) <$> use (qGrammar.rules)
+  synKeys       <- (filter (`elem` ls) . M.keys) <$> use qPartialSyntVarNames
   bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..symb.folded.tnName ]
   qFullSyntVarNames .= M.fromList bodySynNames
   mapM grammarBodySyn bodySynNames
@@ -229,11 +232,12 @@ grammarBodySyn (s,n) = do
   -- all rules that have @s@ on the left-hand side
   fs <- (filter ((s==) . _lhs) . S.elems) <$> use (qGrammar.rules)
   rs <- mapM grammarBodyRHS fs
-  let rhs = appE ( uInfixE (foldl1 (\acc z -> uInfixE acc (varE '(|||)) z) rs)
+  let rhs = assert (not $ null rs) $
+            appE ( uInfixE (foldl1 (\acc z -> uInfixE acc (varE '(|||)) z) rs)
                            (varE '(...))
                            (varE hname) )
                  (varE ix)
-  return $ valD (varP n) (normalB $ appE (varE $ partial M.! s) (lamE [varP ix] rhs)) []
+  return $ valD (varP n) (normalB $ appE (varE $ M.findWithDefault (error "grammarBodySyn") s partial) (lamE [varP ix] rhs)) []
 
 -- | Build up the rhs for each rule.
 --
@@ -245,9 +249,9 @@ grammarBodyRHS (Rule _ f rs) = do
   terms <- use qTermSymbExp
   synNames <- use qFullSyntVarNames -- just the name of the fully applied symbol
   let genSymbol s
-        | isSymbT s = return . snd  $ terms    M.! s
-        | isSymbN s = return . VarE $ synNames M.! s
-  let rhs = foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
+        | isSymbT s = return . snd  $ M.findWithDefault (error "grammarBodyRHS") s terms
+        | isSymbN s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s synNames
+  let rhs = assert (not $ null rs) $ foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
   -- apply evaluation function
   Just (fname,_,_) <- use (qAttribFuns . at f)
   return $ appE (appE (varE '(<<<)) (varE fname)) rhs
@@ -262,14 +266,16 @@ grammarTermExpression s = do
   tavn <- use qTermAtomVarNames
   let genType :: Symb -> TypeQ
       genType z
-        | Symb [E]   <- z = [t| () |]
-        | Symb [T t] <- z = varT $ ttypes M.! t
-        | Symb xs    <- z = foldl (\acc z -> [t| $acc :. $(genType $ Symb [z]) |]) [t| Z |] xs
+        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
+        | Symb _  [E]   <- z = [t| () |]
+        | Symb _  [T t] <- z = varT $ ttypes M.! t
+        | Symb io xs    <- z = foldl (\acc z -> [t| $acc :. $(genType $ Symb io [z]) |]) [t| Z |] xs
   let genExp :: Symb -> ExpQ
       genExp z
-        | Symb [E]   <- z = [| None |]
-        | Symb [T t] <- z = varE $ tavn M.! (t,0)
-        | Symb xs    <- z = foldl (\acc (k,z) -> [| $acc ADP.:> $(case z of {E -> [| None |] ; T t -> varE $ tavn M.! (t,k)}) |]) [| ADP.M |] $ zip [0..] xs
+        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
+        | Symb _ [E]   <- z = [| None |]
+        | Symb _ [T t] <- z = varE $ tavn M.! (t,0)
+        | Symb _ xs    <- z = foldl (\acc (k,z) -> [| $acc ADP.:> $(case z of {E -> [| None |] ; T t -> varE $ tavn M.! (t,k)}) |]) [| ADP.M |] $ zip [0..] xs
   ty <- lift $ genType s
   ex <- lift $ genExp  s
   return (s, (ty,ex))

@@ -83,6 +83,7 @@ grammar = do
   reserveGI "Grammar:"
   _name :: String <- identGI
   _nsyms <- S.fromList . concat <$> many nts
+  let _nIsms = S.empty
   _tsyms <- S.fromList . concat <$> many ts
   _epsis <- S.fromList <$> many epsP
   _start <- try (Just <$> startSymbol) <|> pure Nothing
@@ -101,7 +102,7 @@ startSymbol = do
   name :: String <- identGI
   -- TODO go and allow indexed NTs as start symbols, with one index given
   -- return $ nsym1 name Singular
-  return $ Symb [N name Singular]
+  return $ Symb Inside [N name Singular]
 
 -- | The non-terminal declaration "NT: ..." returns a list of non-terms as
 -- indexed non-terminals are expanded.
@@ -119,8 +120,8 @@ nts = do
 
 expandNT :: String -> Enumerated -> [Symb]
 expandNT name = go where
-  go Sing          = [Symb [N name Singular]]
-  go (ZeroBased k) = [Symb [N name (IntBased   z k)] | z <- [0..(k-1)]]
+  go Sing          = [Symb Inside [N name Singular]]
+  go (ZeroBased k) = [Symb Inside [N name (IntBased   z k)] | z <- [0..(k-1)]]
   --go (Enum es)     = [Symb [N name (Enumerated z es        )] | z <- es        ]
 
 -- | Figure out if we are dealing with indexed (enumerable) non-terminals
@@ -134,7 +135,7 @@ ts :: Parse [Symb]
 ts = do
   reserveGI "T:"
   n <- identGI
-  let z = Symb [T n]
+  let z = Symb Inside [T n]
   tsys <>= S.singleton n
   return [z]
 
@@ -190,7 +191,7 @@ generateRules gs lhs fun rhs = map buildRules js where
         ZeroBased m = (gs^.nsys) M.! s
         l :: Integer = (z+k) `mod` m
     in  N s (IntBased l m)
-  buildRules j = Rule (Symb $ map (buildTNE j) lhs) [fun] (map (Symb . map (buildTNE j)) rhs)
+  buildRules j = Rule (Symb Inside $ map (buildTNE j) lhs) [fun] (map (Symb Inside . map (buildTNE j)) rhs)
 
 data IndexedPreN
   = NotIndexed

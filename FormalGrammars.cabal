@@ -88,13 +88,14 @@ library
     FormalLanguage
     FormalLanguage.CFG
     FormalLanguage.CFG.Grammar
+    FormalLanguage.CFG.Outside
     FormalLanguage.CFG.Parser
     FormalLanguage.CFG.PrettyPrint
     FormalLanguage.CFG.PrettyPrint.ANSI
     FormalLanguage.CFG.PrettyPrint.Haskell
     FormalLanguage.CFG.PrettyPrint.LaTeX
-    FormalLanguage.CFG.QuickCheck
     FormalLanguage.CFG.QQ
+    FormalLanguage.CFG.QuickCheck
     FormalLanguage.CFG.TH
   ghc-options:
 

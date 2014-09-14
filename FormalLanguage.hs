@@ -1,11 +1,11 @@
 
 module FormalLanguage
   ( module FormalLanguage.CFG.Grammar
+  , module FormalLanguage.CFG.Outside
   , module FormalLanguage.CFG.Parser
   ) where
 
 import FormalLanguage.CFG.Grammar
-import FormalLanguage.CFG.PrettyPrint.ANSI
-import FormalLanguage.CFG.PrettyPrint.LaTeX
+import FormalLanguage.CFG.Outside
 import FormalLanguage.CFG.Parser
 

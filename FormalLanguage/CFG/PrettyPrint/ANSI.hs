@@ -4,6 +4,7 @@ module FormalLanguage.CFG.PrettyPrint.ANSI
   ( grammarDoc
   , rulesDoc
   , printDoc
+  , symbolDoc
   ) where
 
 import           Control.Lens
@@ -22,8 +23,9 @@ import FormalLanguage.CFG.Parser
 -- of the rules
 
 grammarDoc :: Grammar -> Doc
-grammarDoc g = text "Grammar: " <+> (text $ g^.name) <$> indent 2 (ns <$> ts <$> es <$> ss <$> rs) <$> line where
-  ns = ind "non terminals:" 2 . vcat $ map (\z -> (symbolDoc z <+> (text . show $ z))) (g^..nsyms.folded)
+grammarDoc g = text "Grammar: " <+> (text $ g^.name) <$> indent 2 (ns <$> is <$> ts <$> es <$> ss <$> rs) <$> line where
+  ns = ind "syntactic symbols:" 2 . vcat $ map (\z -> (symbolDoc z <+> (text . show $ z))) (g^..nsyms.folded)
+  is = if S.null (g^.nIsms) then text "" else ind "inside syntactic symbols (acting as terminals .. in a way):" 2 . vcat $ map (\z -> (symbolDoc z <+> (text . show $ z))) (g^..nIsms.folded)
   ts = ind "terminals:" 2 . vcat . map (\z -> symbolDoc z <+> (text . show $ z)) $ g^..tsyms.folded
   es = ind "epsilons:" 2 . vcat . map (\z -> tnDoc z <+> (text . show $ z)) $ g^..epsis.folded
   ss = ind "start symbol:" 2 . startDoc $ g^.start
@@ -57,8 +59,9 @@ ruleDoc r = fill 10 l <+> text "->" <+> fill 10 f <+> rs where
 
 symbolDoc :: Symb -> Doc
 symbolDoc s
-  | [z] <- s^.symb = tnDoc z
-  | otherwise      = list $ map tnDoc $ s^.symb
+  | [z] <- s^.symb = outside $ tnDoc z
+  | otherwise      = outside . list $ map tnDoc $ s^.symb
+  where outside = case s^.symbInOut of {Inside -> id; Outside -> underline . bold . (<> red (text "*"))}
 
 -- | Prettyprint a (non-)terminal symbol.
 

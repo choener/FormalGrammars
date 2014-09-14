@@ -76,12 +76,10 @@ instance Default Enumerable where
 -- 'N' – A non-terminal symbol (again, excluding non-terminal epsilons)
 --
 -- 'E' – Epsilon characters, may be named differently
+
 data TN where
-
   T :: String               -> TN
-
   N :: String -> Enumerable -> TN
-
   E ::                         TN
 
 deriving instance Show     TN
@@ -116,9 +114,21 @@ _E = prism (const E) $ f where
 
 enumed = _N . _2
 
--- | A complete grammatical symbol is multi-dimensional with 0..  dimensions.
+-- | Is a symbol of @Outside@ or @Inside@ type?
 
-newtype Symb = Symb { getSymbs :: [TN] }
+data InsideOutside = Inside | Outside
+  deriving (Show,Eq,Ord,Typeable,Data)
+
+-- | A complete grammatical symbol is multi-dimensional with 0..
+-- dimensions.
+--
+-- TODO we should expand this to three cases: (i) only terminals, (ii) only
+-- syntactic variables, (iii) mixed cases
+
+data Symb = Symb
+  { inOut    :: InsideOutside
+  , getSymbs :: [TN]
+  }
 
 deriving instance Show     Symb
 deriving instance Eq       Symb
@@ -127,7 +137,10 @@ deriving instance Typeable Symb
 deriving instance Data     Symb
 
 symb :: Lens' Symb [TN]
-symb f (Symb xs) = Symb <$> f xs  -- are we sure?
+symb f (Symb io xs) = Symb io <$> f xs -- are we sure?
+
+symbInOut :: Lens' Symb InsideOutside
+symbInOut f (Symb io xs) = (`Symb` xs) <$> f io
 
 sDim :: Symb -> Int
 sDim = length . getSymbs
@@ -137,7 +150,7 @@ type instance Index Symb = Int
 type instance IxValue Symb = TN
 
 instance Ixed Symb where
-  ix k f (Symb xs) = Symb <$> ix k f xs
+  ix k f (Symb io xs) = Symb io <$> ix k f xs
   {-# INLINE ix #-}
 
 -- | A production rule goes from a left-hand side (lhs) to a right-hand side
@@ -170,6 +183,7 @@ makeLenses ''Rule
 data Grammar = Grammar
   { _tsyms :: Set Symb
   , _nsyms :: Set Symb
+  , _nIsms :: Set Symb      -- in case of an outside grammar, this contains the inside syntactic variables that now act as "kind-of" terminals
   , _epsis :: Set TN
   , _rules :: Set Rule
   , _start :: Maybe Symb
@@ -177,6 +191,11 @@ data Grammar = Grammar
   } deriving (Show,Data,Typeable)
 
 makeLenses ''Grammar
+
+-- | Determines if this is an outside grammar
+
+isOutsideGrammar :: Grammar -> Bool
+isOutsideGrammar g = anyOf folded (\(Symb io _) -> io==Outside) $ g^.nsyms
 
 -- | the dimension of the grammar. Grammars with no symbols have dimension 0.
 
@@ -193,7 +212,7 @@ gDim g
 -- | Symb is completely in terminal form.
 
 isSymbT :: Symb -> Bool
-isSymbT (Symb xs) = allOf folded tTN xs && anyOf folded (\case (T _) -> True ; _ -> False) xs
+isSymbT (Symb io xs) = allOf folded tTN xs && anyOf folded (\case (T _) -> True ; _ -> False) xs
 
 tTN :: TN -> Bool
 tTN (T _  ) = True
@@ -201,12 +220,12 @@ tTN (E    ) = True
 tTN (N _ _) = False
 
 isSymbE :: Symb -> Bool
-isSymbE (Symb xs) = allOf folded (\case E -> True ; _ -> False) xs
+isSymbE (Symb io xs) = allOf folded (\case E -> True ; _ -> False) xs
 
 -- | Symb is completely in non-terminal form.
 
 isSymbN :: Symb -> Bool
-isSymbN (Symb xs) = allOf folded nTN xs && anyOf folded (\case (N _ _) -> True ; _ -> False) xs
+isSymbN (Symb io xs) = allOf folded nTN xs && anyOf folded (\case (N _ _) -> True ; _ -> False) xs
 
 {-
 -- | Generalized non-terminal symbol with at least one non-terminal Symb.
