@@ -43,7 +43,6 @@ X -> nil <<< e
 
 makeAlgebraProductH ['h] ''SigNussinov
 
-
 bpmax :: Monad m => SigNussinov m Int Int Char ()
 bpmax = SigNussinov
   { unp = \ x c     -> x
@@ -71,8 +70,8 @@ pretty = SigNussinov
   }
 {-# INLINE pretty #-}
 
-runNussinov :: Int -> String -> (Int,[String])
-runNussinov k inp = (d, take k . S.toList . unId $ axiom b) where
+runNussinov :: Int -> String -> (Int,[String],Int,[String])
+runNussinov k inp = (d, take k . S.toList . unId $ axiom b, d', take k . S.toList . unId $ axiom b') where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   !(Z:.t) = mutateTablesDefault
@@ -82,6 +81,14 @@ runNussinov k inp = (d, take k . S.toList . unId $ axiom b) where
               :: Z:.ITbl Id Unboxed Subword Int
   d = let ITbl _ arr _ = t in arr PA.! subword 0 n
   !(Z:.b) = gNussinov (bpmax <** pretty) (toBT t (undefined :: Id a -> Id a)) (chr i) Empty
+  !(Z:.t') = mutateTablesDefault
+           $ gOutsideNussinov bpmax
+              (ITbl EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
+              t
+              (chr i) Empty
+              :: Z:.ITbl Id Unboxed Subword Int
+  d' = let ITbl _ arr _ = t' in arr PA.! subword 0 n
+  !(Z:.b') = gOutsideNussinov (bpmax <** pretty) (toBT t' (undefined :: Id a -> Id a)) b (chr i) Empty
 
 {-
 
@@ -119,6 +126,6 @@ main = do
   ls <- lines <$> getContents
   forM_ ls $ \l -> do
     putStrLn l
-    let (k,[x]) = runNussinov 1 l
-    printf "%s %5d\n" x k
+    let (k,[x],k',[x']) = runNussinov 1 l
+    printf "%s %5d\n%s %5d\n" x k x' k'
 

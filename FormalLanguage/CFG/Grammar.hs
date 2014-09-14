@@ -205,7 +205,11 @@ gDim g
   | Just (x,_) <- S.minView (g^.tsyms) = length $ x^.symb
   | otherwise                          = 0
 
+-- | Helper function giving the grammar name. Will add an @Outside@ prefix,
+-- where necessary.
 
+grammarName :: Grammar -> String
+grammarName g = if isOutsideGrammar g then "Outside" ++ g^.name else "" ++ g^.name
 
 -- * Helper functions on rules and symbols.
 
@@ -324,6 +328,16 @@ epsilonFree g = allOf folded eFree $ g^.rules where
 
 collectSymbN :: Grammar -> [Symb]
 collectSymbN g = nub . sort . filter isSymbN $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
+
+-- | Collect the syntactic variable symbols for either inside or outside,
+-- depending on the grammar
+
+collectInOutSymbN :: Grammar -> [Symb]
+collectInOutSymbN g = filter f xs where
+  xs = collectSymbN g
+  f (Symb Outside _) = isO
+  f (Symb Inside  _) = not isO
+  isO = isOutsideGrammar g
 
 -- | Collect all terminal symbols from the rules (for cfg's it's not really
 -- needed to include the lhs).

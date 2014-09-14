@@ -35,9 +35,11 @@ renderGrammar k g -- (Grammar ps gname)
 
 -- | Transform a single 'Symb'. This will produce a column of terminal /
 -- non-terminal symbols.
+--
+-- TODO inside/outside
 
 renderNtT :: LaTeXC l => Symb -> l
-renderNtT (Symb xs) = ll <> (mci $ map go xs) <> rr
+renderNtT (Symb io xs) = ll <> (mci $ map go xs) <> rr
   where
     go (T s  ) = render s
     go (N s e)

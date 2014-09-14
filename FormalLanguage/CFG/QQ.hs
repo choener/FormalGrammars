@@ -6,6 +6,7 @@
 
 module FormalLanguage.CFG.QQ where
 
+import Control.Applicative ((<$>),(<*>))
 import Control.Monad
 import Control.Monad.Trans.State.Strict (evalStateT)
 import Data.ByteString.Char8 (pack)
@@ -50,8 +51,8 @@ parseFormalLanguage s = do
       let gO = outsideFromInside g
       runIO . printDoc . grammarDoc $ g
       runIO . printDoc . grammarDoc $ gO
-      thCodeGen g
---      thCodeGen gO
+--      thCodeGen g
+      (++) <$> thCodeGen g <*> thCodeGen gO
 
 -- |
 

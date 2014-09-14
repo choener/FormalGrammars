@@ -65,8 +65,8 @@ ruleSigDoc (Rule lhs fun rhs) =
             sigT E     = text "()" -- important, EMIT NOTHING emits @()@
 
 ntS :: Symb -> String
-ntS (Symb []) = error "zero-dim symbol"
-ntS (Symb xs) = "_" ++ concatMap (\x -> x^.tnName ++ addIndex x) xs
+ntS (Symb io []) = error "zero-dim symbol"
+ntS (Symb io xs) = "_" ++ concatMap (\x -> x^.tnName ++ addIndex x) xs
 
 addIndex :: TN -> String
 addIndex (N _ Singular) = ""

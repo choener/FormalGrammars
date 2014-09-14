@@ -83,6 +83,7 @@ data CfgState = CfgState
   , _qChoiceFun           :: VarStrictType                -- ^ the choice function
   -- syntactic variables
   , _qPartialSyntVarNames :: M.Map Symb Name              -- ^ syntactic-id to var name -- partially applied table / syntactic
+  , _qInsideSyntVarNames  :: M.Map Symb Name              -- ^ for outside grammars, these are the var-names for inside syn-vars
   , _qFullSyntVarNames    :: M.Map Symb Name              -- ^ type variable names for the fully applied grammar body / where part
   -- everything on terminals
   , _qTermAtomVarNames    :: M.Map (String,Int) Name      -- ^ (Term-id,Dimension) to var name
@@ -107,6 +108,7 @@ instance Default CfgState where
     , _qTermSymbExp         = error "def / termsymbexp"
     , _qTermAtomVarNames    = error "def / termsingvarnames"
     , _qPartialSyntVarNames = error "def / partsyntvarnames"
+    , _qInsideSyntVarNames  = error "def / insidesyntvarnames"
     }
 
 -- | The type of our little stateful @Q@ computations
@@ -129,8 +131,9 @@ thCodeGen g = do
   _qElemTyName          <- newName "s"
   _qRetTyName           <- newName "r"
   _qTermAtomTyNames     <- M.fromList <$> (mapM (\t -> (t,) <$> newName ("t_" ++ t)) $ g^..tsyms.folded.symb.folded.tnName)
-  _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ n^..symb.folded.tnName.folded)) $ collectSymbN g)
-  evalStateT codeGen def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermAtomTyNames, _qPartialSyntVarNames}
+  _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ n^..symb.folded.tnName.folded)) $ collectInOutSymbN g) -- g^..nsyms.folded) -- collectSymbN g)
+  _qInsideSyntVarNames  <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("i_" ++ n^..symb.folded.tnName.folded)) $ g^..nIsms.folded)
+  evalStateT codeGen def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermAtomTyNames, _qPartialSyntVarNames, _qInsideSyntVarNames}
 
 -- | Actually create signature, grammar, inline pragma.
 
@@ -149,7 +152,11 @@ codeGen = do
   gra <- grammar
   -- create inlining code
   inl <- use qGrammarName >>= \gname -> lift $ pragInlD gname Inline FunLike AllPhases
-  return [sig,gra,inl]
+  -- outside grammars use the inside signature?!
+  g <- use qGrammar
+  if isOutsideGrammar g
+    then return [gra,inl]
+    else return [sig,gra,inl]
 
 -- | Create the signature. Will also set the signature name.
 
@@ -184,12 +191,15 @@ grammarArguments = do
   fs      <- use qAttribFuns
   tavn    <- use qTermAtomVarNames
   psyn    <- use qPartialSyntVarNames
+  isyn    <- use qInsideSyntVarNames
   -- bind algebra
   let alg = recP signame [ fieldPat n (varP n) | (n,_,_) <- h:(fs^..folded) ]
   -- bind partially applied non-terminals
   let syn = [ varP s | s <- psyn^..folded ]
+  -- bind fully applied non-terminals
+  let isn = [ varP s | s <- isyn^..folded ]
   -- bind terminals
-  let ter = [ varP t | t <- tavn^..folded ]
+  let ter = [ bangP $ varP t | t <- tavn^..folded ]
   --
   gname <- showName <$> use qGrammarName
   let ppSynt [x] = PP.red $ PP.text x
@@ -198,10 +208,10 @@ grammarArguments = do
   let pp = PP.dullgreen $ PP.text (printf "%s $ALGEBRA" gname)
       --sy = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map (\s -> ppSynt $ s^..symb.folded.tnName) $ M.keys psyn)
       sy = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map symbolDoc $ M.keys psyn)
+      iy = if M.null isyn then PP.text "" else PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map symbolDoc $ M.keys isyn)
       te = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map (\s -> ppTerm $ s)                      $ M.keys tavn)
-  lift . runIO . printDoc $ pp PP.<> sy PP.<> te PP.<> PP.hardline
-  --
-  return $ alg : syn ++ ter
+  lift . runIO . printDoc $ pp PP.<> sy PP.<> iy PP.<> te PP.<> PP.hardline
+  return $ alg : syn ++ isn ++ ter
 
 -- | Fully apply each partial syntactic variable to the corresponding
 -- right-hand side. First, build up the map of fully applied names, then
@@ -219,6 +229,8 @@ grammarBodyWhere = do
   synKeys       <- (filter (`elem` ls) . M.keys) <$> use qPartialSyntVarNames
   bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..symb.folded.tnName ]
   qFullSyntVarNames .= M.fromList bodySynNames
+  -- TODO now we actually need to *ALSO* add symbols for the inside stuff,
+  -- if this is an outside grammar.
   mapM grammarBodySyn bodySynNames
 
 -- | Fully bind each 'Symb' (which is partially applied, coming in as an
@@ -248,9 +260,10 @@ grammarBodyRHS (Rule _ f rs) = do
   -- bundle up terminals and non-terminals
   terms <- use qTermSymbExp
   synNames <- use qFullSyntVarNames -- just the name of the fully applied symbol
+  isnNames <- use qInsideSyntVarNames
   let genSymbol s
         | isSymbT s = return . snd  $ M.findWithDefault (error "grammarBodyRHS") s terms
-        | isSymbN s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s synNames
+        | isSymbN s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synNames `M.union` isnNames)
   let rhs = assert (not $ null rs) $ foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
   -- apply evaluation function
   Just (fname,_,_) <- use (qAttribFuns . at f)
@@ -300,7 +313,7 @@ dimensionalTermSymbNames = do
 
 grammar :: TQ Dec
 grammar = do
-  gname <- (mkName . ("g" ++)) <$> use (qGrammar.name)
+  gname <- (mkName . ("g" ++) . grammarName) <$> use (qGrammar)
   qGrammarName .= gname
   args         <- grammarArguments
   bodyWhere    <- grammarBodyWhere
@@ -316,6 +329,11 @@ grammar = do
 -- function name, then take the set of rules with same name and check if
 -- the types will actually match! However, one could argue that this should
 -- way earlier in the grammar parser and not here.
+--
+-- TODO currently using @mkName@ instead of @newName@. This allows us to
+-- share the signature between grammars, but might be problematic if names
+-- overlap... We should combine the two generators for @g@ and @gO@ into
+-- one. Then, we should be able to re-use names.
 
 attributeFunctionType :: Rule -> TQ ([String],VarStrictType)
 attributeFunctionType r = do
@@ -326,7 +344,7 @@ attributeFunctionType r = do
       argument s
         | isSymbN s = VarT elemTyName
         | isSymbT s = fst $ terminal  M.! s
-  nm <- lift $ newName $ over _head toLower f ++ concatMap (over _head toUpper) fs
+  nm <- lift $ (return . mkName) $ over _head toLower f ++ concatMap (over _head toUpper) fs -- TODO mkName ???
   let tp = foldr AppT (VarT elemTyName) $ map (AppT ArrowT . argument) $ r^.rhs
   return (f:fs, (nm,NotStrict,tp))
 

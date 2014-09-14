@@ -29,7 +29,7 @@ outsideFromInside g = Grammar term synv ins eps rls strt nm where
   eps  = g^.epsis
   rls  = S.fromList . concatMap (outsideRules g) $ g^..rules.folded
   strt = Nothing -- TODO the outside version of the inside start?
-  nm   = "Outside" ++ (g^.name)
+  nm   = (g^.name)
 
 -- | Build the outside rules from inside ones.
 --
