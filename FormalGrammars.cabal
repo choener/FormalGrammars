@@ -61,6 +61,11 @@ flag examples
   default: False
   manual: True
 
+flag llvm
+  description:  build using LLVM
+  default:      False
+  manual:       True
+
 -- TODO relax parsers dependency once https://github.com/ekmett/parsers/issues/37 is dealt with
 
 -- explicit dependency on PrimitiveArray to be able to load the examples
@@ -134,9 +139,11 @@ executable NussinovFG
     -funbox-strict-fields
     -funfolding-use-threshold1000
     -funfolding-keeness-factor1000
-    -fllvm
-    -optlo-O3 -optlo-std-compile-opts
-    -fllvm-tbaa
+  if flag(llvm)
+    ghc-options:
+      -fllvm
+      -optlo-O3 -optlo-std-compile-opts
+      -fllvm-tbaa
 
 executable TwoTableNussinovFG
   if flag(examples)
@@ -160,9 +167,11 @@ executable TwoTableNussinovFG
     -funbox-strict-fields
     -funfolding-use-threshold1000
     -funfolding-keeness-factor1000
-    -fllvm
-    -optlo-O3 -optlo-std-compile-opts
-    -fllvm-tbaa
+  if flag(llvm)
+    ghc-options:
+      -fllvm
+      -optlo-O3 -optlo-std-compile-opts
+      -fllvm-tbaa
 
 executable NeedlemanWunschFG
   if flag(examples)
@@ -186,9 +195,11 @@ executable NeedlemanWunschFG
     -funbox-strict-fields
     -funfolding-use-threshold1000
     -funfolding-keeness-factor1000
-    -fllvm
-    -optlo-O3 -optlo-std-compile-opts
-    -fllvm-tbaa
+  if flag(llvm)
+    ghc-options:
+      -fllvm
+      -optlo-O3 -optlo-std-compile-opts
+      -fllvm-tbaa
 
 
 
