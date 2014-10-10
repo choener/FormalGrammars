@@ -22,6 +22,7 @@ import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
 
 import           ADP.Fusion
+import           Data.Array.Repa.Index.Outside
 import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage.CFG
@@ -83,11 +84,11 @@ runNussinov k inp = (d, take k . S.toList . unId $ axiom b, d', take k . S.toLis
   !(Z:.b) = gNussinov (bpmax <** pretty) (toBT t (undefined :: Id a -> Id a)) (chr i) Empty
   !(Z:.t') = mutateTablesDefault
            $ gOutsideNussinov bpmax
-              (ITbl EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
-              t
+              (ITbl EmptyOk (PA.fromAssocs (O $ subword 0 0) (O $ subword 0 n) (-999999) []))
+              (ITbl EmptyOk undefined                                                       )
               (chr i) Empty
-              :: Z:.ITbl Id Unboxed Subword Int
-  d' = let ITbl _ arr _ = t' in arr PA.! subword 0 n
+              :: Z:.ITbl Id Unboxed (Outside Subword) Int
+  d' = let ITbl _ arr _ = t' in arr PA.! (O $ subword 0 n)
   !(Z:.b') = gOutsideNussinov (bpmax <** pretty) (toBT t' (undefined :: Id a -> Id a)) b (chr i) Empty
 
 {-
