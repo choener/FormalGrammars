@@ -1,13 +1,15 @@
+
 {-# LANGUAGE PatternGuards #-}
 
 module FormalLanguage.CFG.PrettyPrint.ANSI
-  ( grammarDoc
-  , rulesDoc
-  , printDoc
-  , symbolDoc
-  ) where
+--  ( grammarDoc
+--  , rulesDoc
+--  , printDoc
+--  , symbolDoc
+--  ) where
+  where
 
-import           Control.Lens
+import           Control.Lens hiding (outside)
 import qualified Data.Set as S
 import           System.IO (stdout)
 import           Text.PrettyPrint.ANSI.Leijen
@@ -17,6 +19,25 @@ import FormalLanguage.CFG.Parser
 
 
 
+grammarDoc :: Grammar -> Doc
+grammarDoc g = text "Grammar: " <+> (text $ g^.gname) <$> indent 2 (vsep $ [ss] ++ [os | g^.outside] ++ [ts, s, rs]) <$> line where
+  ss = ind "syntactic symbols:"    2 . vcat $ map (\z -> symbolDoc z) (g^..synvars.folded)
+  os = ind "syntactic terminals:" 2 . vcat $ map (\z -> symbolDoc z) (g^..termsyns.folded)
+  ts = ind "terminals:" 2 . vcat $ map (\z -> symbolDoc z) (g^..termvars.folded)
+  s  = text "start symbol"
+  rs = text "rules"
+  ind s k d = text s <$> indent k d
+
+symbolDoc :: SynTermEps -> Doc
+symbolDoc (SynVar n i) = text n
+symbolDoc (Term   n i) = text n
+
+printDoc :: Doc -> IO ()
+printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)
+
+testPrint = test >>= \z -> case z of {Just g -> printDoc $ grammarDoc g}
+
+{-
 -- | Prettyprint a grammar ANSI-style.
 --
 -- TODO Later on, it would be really nice to better align the LHS, fun, and RHS
@@ -74,9 +95,5 @@ tnDoc (N s e)
 
 -- |
 
-printDoc :: Doc -> IO ()
-printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)
+-}
 
--- Print the test grammar from the parser.
-
-test = printDoc $ grammarDoc asG

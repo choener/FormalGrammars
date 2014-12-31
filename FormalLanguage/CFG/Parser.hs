@@ -1,14 +1,11 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ConstraintKinds #-}
+
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | We define a simple domain-specific language for context-free languages.
 --
@@ -18,38 +15,127 @@
 -- epsilon symbol.
 
 module FormalLanguage.CFG.Parser
-  ( module FormalLanguage.CFG.Parser
-  , Result (..)
-  ) where
+--  ( module FormalLanguage.CFG.Parser
+--  , Result (..)
+--  ) where
+  where
 
 import           Control.Applicative
 import           Control.Arrow
-import           Control.Lens
-import           Control.Monad.Identity
+import           Control.Lens hiding (Index)
+import           Control.Monad
 import           Control.Monad.State.Class (MonadState (..))
-import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State.Strict hiding (get)
 import           Data.Default
-import           Data.Either
-import           Data.List (partition,sort,nub)
-import           Data.Maybe (catMaybes,isJust)
-import           Data.Tuple (swap)
-import qualified Data.ByteString.Char8 as B
+import           Data.Maybe
 import qualified Data.HashSet as H
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-import           Text.Parser.Expression
-import           Text.Parser.Token.Highlight
 import           Text.Parser.Token.Style
-import           Text.Printf
 import           Text.Trifecta
-import           Text.Trifecta.Delta
-import           Text.Trifecta.Result
 
 import FormalLanguage.CFG.Grammar
 
 
 
+test = parseFromFile ((evalStateT . runGrammarParser) parseGrammar def) "test.gra"
+
+fgIdents = set styleReserved rs emptyIdents
+  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<"]
+
+parseGrammar :: Parse m Grammar
+parseGrammar = do
+  reserve fgIdents "Grammar:"
+  gname    <~ ident fgIdents <?> "grammar name"
+  params   <~ S.fromList <$> many (braces (ident fgIdents)) <?> "global parameters"
+  synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some parseSynDecl
+  termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
+  start    <~ parseStartSym
+  rules    <~ some parseRule
+  reserve fgIdents "//"
+  get
+
+parseSynDecl :: Parse m SynTermEps
+parseSynDecl = do
+  reserve fgIdents "N:"
+  SynVar <$> (ident fgIdents <?> "syntactic variable name") <*> pure []
+
+parseTermDecl :: Parse m SynTermEps
+parseTermDecl = do
+  reserve fgIdents "T:"
+  Term <$> (ident fgIdents <?> "terminal name") <*> pure []
+
+-- | The syntactic variable here needs to either have no index at all, have
+-- a grammar-based index, or have a fully calculated index.
+
+parseStartSym :: Parse m STE
+parseStartSym
+  =  (runUnlined $ reserve fgIdents "S:" *> knownSynVar EvalGrammar)
+  <* someSpace
+
+data EvalReq = EvalFull | EvalGrammar | EvalSymb
+
+knownSynVar :: EvalReq -> Stately m STE
+knownSynVar e = do
+  (:[]) <$> sv <|> (brackets $ commaSep sv)
+  where sv = flip (<?>) "known syntactic variable" . try $ do
+               s <- ident fgIdents
+               use (synvars . at s) >>= guard . isJust
+               return $ SynVar s []
+
+knownTermVar :: EvalReq -> Stately m STE
+knownTermVar e = do
+  (:[]) <$> tv <|> (brackets $ commaSep tv)
+  where tv = flip (<?>) "known terminal variable" . try $ do
+               t <- ident fgIdents
+               use (termvars . at t) >>= guard . isJust
+               return $ Term t []
+
+-- | Parses an already known symbol, either syntactic or terminal.
+--
+--TODO Correctly parse inside-syntactics in outside grammars? Do we want
+--this explicitly?
+
+knownSymbol :: EvalReq -> Stately m STE
+knownSymbol e = knownSynVar e <|> knownTermVar e
+
+parseRule :: Parse m Rule
+parseRule = (runUnlined rule) <* someSpace
+  where rule  = Rule
+              <$> knownSynVar EvalGrammar
+              <*  reserve fgIdents "->"
+              <*> afun
+              <*  string "<<<" <* spaces
+              <*> some syms
+        afun = (:[]) <$> ident fgIdents
+        syms = knownSymbol EvalSymb
+
+type Parse m a = (TokenParsing m, MonadState Grammar (Unlined m), MonadState Grammar m, MonadPlus m) => m a
+
+type Stately m a = (TokenParsing m, MonadState Grammar m, MonadPlus m) => m a
+
+newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT Grammar m a }
+  deriving
+  ( Alternative
+  , Applicative
+  , Functor
+  , MonadPlus
+  , Monad
+  , CharParsing
+  , Parsing
+  , MonadState Grammar
+  )
+
+instance (MonadPlus m, CharParsing m) => TokenParsing (GrammarParser m) where
+  someSpace = buildSomeSpaceParser (() <$ space) haskellCommentStyle
+
+deriving instance MonadState Grammar (Unlined (GrammarParser Parser))
+
+
+
+
+
+{-
 data Enumerated
   = Sing
   | ZeroBased Integer
@@ -358,3 +444,6 @@ testParsing = parseString
                 testGrammar
 
 asG = let (Success g) = testParsing in g
+
+-}
+

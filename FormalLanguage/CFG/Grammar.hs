@@ -1,14 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE StandaloneDeriving #-}
+
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeFamilies #-}
 
 -- | The basic data types for formal languages up to and including context-free
 -- grammars.
@@ -27,19 +18,98 @@
 
 module FormalLanguage.CFG.Grammar where
 
-import           Control.Applicative
-import           Control.Lens
-import           Data.Data
+import           Control.Lens hiding (Index)
 import           Data.Default
-import           Data.Foldable
-import           Data.List (sort,nub)
+import           Data.Map.Strict (Map)
 import           Data.Set (Set)
-import           Data.Typeable
-import           Prelude hiding (all)
-import qualified Control.Lens.Indexed as Lens
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
 
+
+-- | Encode the index of the syntactic or terminal variable.
+--
+-- In case of grammar-based indexing, keep @indexRange@ empty. The
+-- @indexStep@ keeps track of any @+k@ / @-k@ given in the production
+-- rules.
+--
+-- We allow indexing terminals now, too. When glueing together terminals,
+-- one might want to be able to differentiate between terminals.
+
+data Index = Index
+  { _indexVar   :: String
+  , _indexRange :: [String]
+  , _indexStep  :: Int
+  }
+  -- TODO need a version, where we have figured out everything
+  -- , i.e. replaced @i+2@ with, say, @1@ @(i==1+2 `mod` 3)@.
+  -- Use the @_indexVar = j@ version in the set of syn-vars, but
+  -- @_indexVar=x, x \in _indexRange@ in rules?
+  deriving (Show)
+
+makeLenses ''Index
+
+-- | Symbols, potentially with an index or more than one.
+
+data SynTermEps
+  = SynVar
+    { _name   :: String
+    , _index  :: [Index]
+    }
+  | Term
+    { _name   :: String
+    , _index  :: [Index]
+    }
+  | Epsilon
+  deriving (Show)
+
+makeLenses ''SynTermEps
+
+-- | The length of the list encodes the dimension of the symbol
+
+type STE = [SynTermEps]
+
+-- | Production rules for at-most CFGs.
+
+data Rule = Rule
+  { _lhs  :: STE      -- ^ the left-hand side of the rule
+  , _attr :: [String] -- ^ the attribute for this rule
+  , _rhs  :: [STE]    -- ^ the right-hand side with a collection of terminals and syntactic variables
+  }
+  deriving (Show)
+
+makeLenses ''Rule
+
+data Grammar = Grammar
+  { _synvars  :: Map String SynTermEps  -- ^ regular syntactic variables, without dimension
+  , _termsyns :: Map String SynTermEps  -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
+  , _termvars :: Map String SynTermEps  -- ^ regular terminal symbols
+  , _outside  :: Bool   -- ^ Is this an outside grammar
+  , _rules    :: [Rule] -- ^ set of production rules
+  , _start    :: STE    -- ^ start symbol
+  , _params   :: Set String -- ^ any global variables
+  , _gname    :: String -- ^ grammar name
+  , _write    :: Bool   -- ^ some grammar file requested this grammar to be expanded into code
+  }
+  deriving (Show)
+
+instance Default Grammar where
+  def = Grammar
+    { _synvars = M.empty
+    , _termsyns = M.empty
+    , _termvars = M.empty
+    , _outside = False
+    , _rules = []
+    , _start = []
+    , _params = S.empty
+    , _gname = ""
+    , _write = False
+    }
+
+makeLenses ''Grammar
+
+
+{-
 
 -- * Basic data types for formal grammars.
 
@@ -344,3 +414,6 @@ collectInOutSymbN g = filter f xs where
 
 collectSymbT :: Grammar -> [Symb]
 collectSymbT g = nub . sort . filter isSymbT $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
+
+-}
+

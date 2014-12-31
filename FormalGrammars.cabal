@@ -77,7 +77,7 @@ library
     bytestring            == 0.10.*   ,
     containers                        ,
     data-default          == 0.5.*    ,
-    HaTeX                 == 3.13.*   ,
+    HaTeX                 == 3.16.*   ,
     lens                  == 4.*      ,
     mtl                   == 2.*      ,
     parsers               == 0.12.*   ,
@@ -117,18 +117,22 @@ executable GrammarPP
   main-is:
     GrammarPP.hs
 
+
+
 executable NussinovFG
   if flag(examples)
-    buildable: True
+    buildable:
+      True
+    build-depends:
+      ADPfusion         ,
+      FormalGrammars    ,
+      PrimitiveArray    ,
+      template-haskell  ,
+      vector            ,
+      base
   else
-    buildable: False
-  build-depends:
-    ADPfusion         ,
-    FormalGrammars    ,
-    PrimitiveArray    ,
-    template-haskell  ,
-    vector            ,
-    base
+    buildable:
+      False
   hs-source-dirs:
     src
   main-is:
@@ -147,16 +151,18 @@ executable NussinovFG
 
 executable TwoTableNussinovFG
   if flag(examples)
-    buildable: True
+    buildable:
+      True
+    build-depends:
+      ADPfusion         ,
+      FormalGrammars    ,
+      PrimitiveArray    ,
+      template-haskell  ,
+      vector            ,
+      base
   else
-    buildable: False
-  build-depends:
-    ADPfusion         ,
-    FormalGrammars    ,
-    PrimitiveArray    ,
-    template-haskell  ,
-    vector            ,
-    base
+    buildable:
+      False
   hs-source-dirs:
     src
   main-is:
@@ -175,20 +181,54 @@ executable TwoTableNussinovFG
 
 executable NeedlemanWunschFG
   if flag(examples)
-    buildable: True
+    buildable:
+      True
+    build-depends:
+      ADPfusion         ,
+      FormalGrammars    ,
+      PrimitiveArray    ,
+      template-haskell  ,
+      vector            ,
+      base
   else
-    buildable: False
-  build-depends:
-    ADPfusion         ,
-    FormalGrammars    ,
-    PrimitiveArray    ,
-    template-haskell  ,
-    vector            ,
-    base
+    buildable:
+      False
   hs-source-dirs:
     src
   main-is:
     NeedlemanWunsch.hs
+  ghc-options:
+    -Odph
+    -fcpr-off
+    -funbox-strict-fields
+    -funfolding-use-threshold1000
+    -funfolding-keeness-factor1000
+  if flag(llvm)
+    ghc-options:
+      -fllvm
+      -optlo-O3 -optlo-std-compile-opts
+      -fllvm-tbaa
+
+executable DishonestCasinoFG
+  if flag(examples)
+    buildable:
+      True
+    build-depends:
+      ADPfusion                   ,
+      cmdargs           == 0.10.* ,
+      FormalGrammars              ,
+      log-domain        == 0.9.*  ,
+      PrimitiveArray              ,
+      template-haskell            ,
+      vector                      ,
+      base
+  else
+    buildable:
+      False
+  hs-source-dirs:
+    src
+  main-is:
+    DishonestCasino.hs
   ghc-options:
     -Odph
     -fcpr-off
