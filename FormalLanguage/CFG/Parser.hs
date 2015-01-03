@@ -6,6 +6,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | We define a simple domain-specific language for context-free languages.
 --
@@ -20,6 +22,7 @@ module FormalLanguage.CFG.Parser
 --  ) where
   where
 
+import           Data.Map.Strict (Map)
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Lens hiding (Index)
@@ -33,30 +36,79 @@ import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import           Text.Parser.Token.Style
 import           Text.Trifecta
+import           Debug.Trace
+import           Text.Printf
 
 import FormalLanguage.CFG.Grammar
 
 
 
+-- | The environment captures both the current grammar we work with
+-- (@current@) as well as everything we have parsed until now (@env@).
+
+data GrammarEnv = GrammarEnv
+  { _current  :: Grammar
+  , _env      :: Map String Grammar
+  }
+  deriving (Show)
+
+makeLenses ''GrammarEnv
+
+instance Default GrammarEnv where
+  def = GrammarEnv { _current = def
+                   , _env     = def
+                   }
+
+
 test = parseFromFile ((evalStateT . runGrammarParser) parseEverything def) "test.gra"
 
+-- | TODO reset @current@ to @def@ before parsing
+
 parseEverything :: Parse m [Grammar]
-parseEverything = some parseGrammar <* eof
+parseEverything = some (parseGrammar <|> parseOutside) <* eof
 
 fgIdents = set styleReserved rs emptyIdents
-  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<", "-"]
+  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<", "-", "Outside:", "Source:"]
+
+-- | Try to generate an outside grammar from an inside grammar. The @From:@
+-- name is looked up in the environment.
+--
+-- @
+-- Outside: NAME
+-- From: (inside)NAME
+-- //
+-- @
+
+parseOutside :: Parse m Grammar
+parseOutside = do
+  reserve fgIdents "Outside:"
+  current.gname <~ ident fgIdents <?> "grammar name"
+  reserve fgIdents "Source:"
+  g <- parseKnownSource <?> "known source grammar"
+  reserve fgIdents "//"
+  -- TODO actually run the outside generator
+  return g
+
+parseKnownSource :: Parse m Grammar
+parseKnownSource = try $ do
+  n <- ident fgIdents
+  e <- get
+  let g = M.lookup n $ e^.env
+  when (isNothing g) $ unexpected "known source grammar"
+  return $ fromJust g
 
 parseGrammar :: Parse m Grammar
 parseGrammar = do
   reserve fgIdents "Grammar:"
-  gname    <~ ident fgIdents <?> "grammar name"
-  params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
-  synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
-  termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
-  start    <~ parseStartSym
-  rules    <~ S.fromList <$> some parseRule
+  current.gname    <~ ident fgIdents <?> "grammar name"
+  current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
+  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
+  current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
+  current.start    <~ parseStartSym
+  current.rules    <~ S.fromList <$> some parseRule
   reserve fgIdents "//"
-  get
+  c <- get
+  return $ c^.current
 
 parseSynDecl :: EvalReq -> Parse m SynTermEps
 parseSynDecl e = do
@@ -83,7 +135,7 @@ knownSynVar e = do
   (:[]) <$> sv <|> (brackets $ commaSep sv)
   where sv = flip (<?>) "known syntactic variable" . try $ do
                s <- ident fgIdents
-               use (synvars . at s) >>= guard . isJust
+               use (current . synvars . at s) >>= guard . isJust
                i <- option [] $ parseIndex e
                return $ SynVar s i
 
@@ -96,7 +148,7 @@ knownTermVar e = do
   (:[]) <$> tv <|> (brackets $ commaSep (ep <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
                t <- ident fgIdents
-               use (termvars . at t) >>= guard . isJust
+               use (current . termvars . at t) >>= guard . isJust
                return $ Term t []
         ep = Epsilon <$ reserve fgIdents "-"
 
@@ -119,11 +171,11 @@ parseRule = (runUnlined rule) <* someSpace
         afun = (:[]) <$> ident fgIdents
         syms = knownSymbol EvalSymb
 
-type Parse m a = (TokenParsing m, MonadState Grammar (Unlined m), MonadState Grammar m, MonadPlus m) => m a
+type Parse m a = (TokenParsing m, MonadState GrammarEnv (Unlined m), MonadState GrammarEnv m, MonadPlus m) => m a
 
-type Stately m a = (TokenParsing m, MonadState Grammar m, MonadPlus m) => m a
+type Stately m a = (TokenParsing m, MonadState GrammarEnv m, MonadPlus m) => m a
 
-newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT Grammar m a }
+newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT GrammarEnv m a }
   deriving
   ( Alternative
   , Applicative
@@ -132,13 +184,13 @@ newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT Grammar m
   , Monad
   , CharParsing
   , Parsing
-  , MonadState Grammar
+  , MonadState GrammarEnv
   )
 
 instance (MonadPlus m, CharParsing m) => TokenParsing (GrammarParser m) where
   someSpace = buildSomeSpaceParser (() <$ space) haskellCommentStyle
 
-deriving instance MonadState Grammar (Unlined (GrammarParser Parser))
+deriving instance MonadState GrammarEnv (Unlined (GrammarParser Parser))
 
 
 
