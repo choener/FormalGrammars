@@ -45,7 +45,7 @@ data Index = Index
   -- , i.e. replaced @i+2@ with, say, @1@ @(i==1+2 `mod` 3)@.
   -- Use the @_indexVar = j@ version in the set of syn-vars, but
   -- @_indexVar=x, x \in _indexRange@ in rules?
-  deriving (Show)
+  deriving (Show,Eq,Ord)
 
 makeLenses ''Index
 
@@ -61,22 +61,22 @@ data SynTermEps
     , _index  :: [Index]
     }
   | Epsilon
-  deriving (Show)
+  deriving (Show,Eq,Ord)
 
 makeLenses ''SynTermEps
 
 -- | The length of the list encodes the dimension of the symbol
 
-type STE = [SynTermEps]
+type Symbol = [SynTermEps]
 
 -- | Production rules for at-most CFGs.
 
 data Rule = Rule
-  { _lhs  :: STE      -- ^ the left-hand side of the rule
+  { _lhs  :: Symbol      -- ^ the left-hand side of the rule
   , _attr :: [String] -- ^ the attribute for this rule
-  , _rhs  :: [STE]    -- ^ the right-hand side with a collection of terminals and syntactic variables
+  , _rhs  :: [Symbol]    -- ^ the right-hand side with a collection of terminals and syntactic variables
   }
-  deriving (Show)
+  deriving (Show,Eq,Ord)
 
 makeLenses ''Rule
 
@@ -84,12 +84,12 @@ data Grammar = Grammar
   { _synvars  :: Map String SynTermEps  -- ^ regular syntactic variables, without dimension
   , _termsyns :: Map String SynTermEps  -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
   , _termvars :: Map String SynTermEps  -- ^ regular terminal symbols
-  , _outside  :: Bool   -- ^ Is this an outside grammar
-  , _rules    :: [Rule] -- ^ set of production rules
-  , _start    :: STE    -- ^ start symbol
-  , _params   :: Set String -- ^ any global variables
-  , _gname    :: String -- ^ grammar name
-  , _write    :: Bool   -- ^ some grammar file requested this grammar to be expanded into code
+  , _outside  :: Bool                   -- ^ Is this an outside grammar
+  , _rules    :: Set Rule               -- ^ set of production rules
+  , _start    :: Symbol                 -- ^ start symbol
+  , _params   :: Map String Index       -- ^ any global variables
+  , _gname    :: String                 -- ^ grammar name
+  , _write    :: Bool                   -- ^ some grammar file requested this grammar to be expanded into code
   }
   deriving (Show)
 
@@ -99,9 +99,9 @@ instance Default Grammar where
     , _termsyns = M.empty
     , _termvars = M.empty
     , _outside = False
-    , _rules = []
+    , _rules = S.empty
     , _start = []
-    , _params = S.empty
+    , _params = M.empty
     , _gname = ""
     , _write = False
     }

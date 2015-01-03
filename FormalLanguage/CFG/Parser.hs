@@ -38,27 +38,30 @@ import FormalLanguage.CFG.Grammar
 
 
 
-test = parseFromFile ((evalStateT . runGrammarParser) parseGrammar def) "test.gra"
+test = parseFromFile ((evalStateT . runGrammarParser) parseEverything def) "test.gra"
+
+parseEverything :: Parse m [Grammar]
+parseEverything = some parseGrammar <* eof
 
 fgIdents = set styleReserved rs emptyIdents
-  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<"]
+  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<", "-"]
 
 parseGrammar :: Parse m Grammar
 parseGrammar = do
   reserve fgIdents "Grammar:"
   gname    <~ ident fgIdents <?> "grammar name"
-  params   <~ S.fromList <$> many (braces (ident fgIdents)) <?> "global parameters"
-  synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some parseSynDecl
+  params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
+  synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
   termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
   start    <~ parseStartSym
-  rules    <~ some parseRule
+  rules    <~ S.fromList <$> some parseRule
   reserve fgIdents "//"
   get
 
-parseSynDecl :: Parse m SynTermEps
-parseSynDecl = do
+parseSynDecl :: EvalReq -> Parse m SynTermEps
+parseSynDecl e = do
   reserve fgIdents "N:"
-  SynVar <$> (ident fgIdents <?> "syntactic variable name") <*> pure []
+  SynVar <$> (ident fgIdents <?> "syntactic variable name") <*> (option [] $ parseIndex e)
 
 parseTermDecl :: Parse m SynTermEps
 parseTermDecl = do
@@ -68,36 +71,42 @@ parseTermDecl = do
 -- | The syntactic variable here needs to either have no index at all, have
 -- a grammar-based index, or have a fully calculated index.
 
-parseStartSym :: Parse m STE
+parseStartSym :: Parse m Symbol
 parseStartSym
   =  (runUnlined $ reserve fgIdents "S:" *> knownSynVar EvalGrammar)
   <* someSpace
 
 data EvalReq = EvalFull | EvalGrammar | EvalSymb
 
-knownSynVar :: EvalReq -> Stately m STE
+knownSynVar :: EvalReq -> Stately m Symbol
 knownSynVar e = do
   (:[]) <$> sv <|> (brackets $ commaSep sv)
   where sv = flip (<?>) "known syntactic variable" . try $ do
                s <- ident fgIdents
                use (synvars . at s) >>= guard . isJust
-               return $ SynVar s []
+               i <- option [] $ parseIndex e
+               return $ SynVar s i
 
-knownTermVar :: EvalReq -> Stately m STE
+parseIndex :: EvalReq -> Stately m [Index]
+parseIndex e = braces $ commaSep ix where
+  ix = (\v -> Index v [] 0) <$> some alphaNum
+
+knownTermVar :: EvalReq -> Stately m Symbol
 knownTermVar e = do
-  (:[]) <$> tv <|> (brackets $ commaSep tv)
+  (:[]) <$> tv <|> (brackets $ commaSep (ep <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
                t <- ident fgIdents
                use (termvars . at t) >>= guard . isJust
                return $ Term t []
+        ep = Epsilon <$ reserve fgIdents "-"
 
 -- | Parses an already known symbol, either syntactic or terminal.
 --
 --TODO Correctly parse inside-syntactics in outside grammars? Do we want
 --this explicitly?
 
-knownSymbol :: EvalReq -> Stately m STE
-knownSymbol e = knownSynVar e <|> knownTermVar e
+knownSymbol :: EvalReq -> Stately m Symbol
+knownSymbol e = try (knownSynVar e) <|> knownTermVar e
 
 parseRule :: Parse m Rule
 parseRule = (runUnlined rule) <* someSpace

@@ -1,6 +1,11 @@
 
 {-# LANGUAGE PatternGuards #-}
 
+-- |
+--
+-- TODO grammar-level indices should be colored red! also, make grammar
+-- globally available (reader monad)
+
 module FormalLanguage.CFG.PrettyPrint.ANSI
 --  ( grammarDoc
 --  , rulesDoc
@@ -9,8 +14,11 @@ module FormalLanguage.CFG.PrettyPrint.ANSI
 --  ) where
   where
 
-import           Control.Lens hiding (outside)
+import           Control.Lens hiding (outside,Index)
+import           Control.Monad.Reader
+import           Data.List (intersperse)
 import qualified Data.Set as S
+import qualified Data.Map as M
 import           System.IO (stdout)
 import           Text.PrettyPrint.ANSI.Leijen
 
@@ -19,23 +27,53 @@ import FormalLanguage.CFG.Parser
 
 
 
-grammarDoc :: Grammar -> Doc
-grammarDoc g = text "Grammar: " <+> (text $ g^.gname) <$> indent 2 (vsep $ [ss] ++ [os | g^.outside] ++ [ts, s, rs]) <$> line where
-  ss = ind "syntactic symbols:"    2 . vcat $ map (\z -> symbolDoc z) (g^..synvars.folded)
-  os = ind "syntactic terminals:" 2 . vcat $ map (\z -> symbolDoc z) (g^..termsyns.folded)
-  ts = ind "terminals:" 2 . vcat $ map (\z -> symbolDoc z) (g^..termvars.folded)
-  s  = text "start symbol"
-  rs = text "rules"
-  ind s k d = text s <$> indent k d
+genGrammarDoc :: Grammar -> Doc
+genGrammarDoc g = runReader (grammarDoc g) g
 
-symbolDoc :: SynTermEps -> Doc
-symbolDoc (SynVar n i) = text n
-symbolDoc (Term   n i) = text n
+grammarDoc :: Grammar -> Reader Grammar Doc
+grammarDoc g = do
+  ga <- indexDoc $ g^..params.folded
+  ss <- fmap (ind "syntactic symbols:"   2 . vcat) . mapM steDoc $ g^..synvars.folded
+  os <- fmap (ind "syntactic terminals:" 2 . vcat) . mapM steDoc $ g^..termsyns.folded
+  ts <- fmap (ind "terminals:"           2 . vcat) . mapM steDoc $ g^..termvars.folded
+  s  <- fmap (ind "start symbol:"        2) $ symbolDoc (g^.start)
+  rs <- fmap (ind "rules:"               2 . vcat) . rulesDoc $ g^..rules.folded
+  ind <- undefined
+  return $ text "Grammar: " <+> (text $ g^.gname) <+> ga <$> indent 2 (vsep $ [ss] ++ [os | g^.outside] ++ [ts, s, rs]) <$> line
+  where ind s k d = text s <$> indent k d
+
+rulesDoc :: [Rule] -> Reader Grammar [Doc]
+rulesDoc rs = mapM ruleDoc rs
+
+ruleDoc :: Rule -> Reader Grammar Doc
+ruleDoc (Rule lhs fun rhs)
+  = do l  <- symbolDoc lhs
+       rs <- fmap (intersperse (text "   ")) . mapM symbolDoc $ rhs
+       return $ fill 10 l <+> text "->" <+> f <+> text "<<<" <+> hcat rs
+  where f  = fill 10 . text . concat . intersperse "_" $ fun
+
+steDoc :: SynTermEps -> Reader Grammar Doc
+steDoc (SynVar n i) = indexDoc i >>= return . blue . (text n <+>)
+steDoc (Term   n i) = return . green . text $ n
+steDoc (Epsilon   ) = return . red   . text $ "-"
+
+indexDoc :: [Index] -> Reader Grammar Doc
+indexDoc [] = return empty
+indexDoc xs = fmap (encloseSep lbrace rbrace comma) . mapM iDoc $ xs
+  where iDoc (Index i _ s) = do ps <- asks _params
+                                return $ (if i `M.member` ps then red else id) $ text i
+        sDoc s | s==0 = empty
+               | s> 0 = text $ "+" ++ show s
+               | s< 0 = text $        show s
+
+symbolDoc :: Symbol -> Reader Grammar Doc
+symbolDoc [x] = steDoc x
+symbolDoc xs  = fmap list . mapM steDoc $ xs
 
 printDoc :: Doc -> IO ()
 printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)
 
-testPrint = test >>= \z -> case z of {Just g -> printDoc $ grammarDoc g}
+testPrint = test >>= \z -> case z of {Just g -> mapM_ (printDoc . genGrammarDoc) g}
 
 {-
 -- | Prettyprint a grammar ANSI-style.
