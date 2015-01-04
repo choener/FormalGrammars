@@ -97,7 +97,7 @@ data Grammar = Grammar
   { _synvars  :: Map String SynTermEps  -- ^ regular syntactic variables, without dimension
   , _termsyns :: Map String SynTermEps  -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
   , _termvars :: Map String SynTermEps  -- ^ regular terminal symbols
-  , _epsvars  :: Map String SynTermEps  -- ^ terminal symbol names that denote @Empty@
+  , _epsvars  :: Map String SynTermEps  -- ^ terminal symbol names that denote @Epsilon@
   , _outside  :: Bool                   -- ^ Is this an outside grammar
   , _rules    :: Set Rule               -- ^ set of production rules
   , _start    :: Symbol                 -- ^ start symbol
