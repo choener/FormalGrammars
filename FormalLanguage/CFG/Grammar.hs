@@ -1,5 +1,6 @@
 
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- | The basic data types for formal languages up to and including context-free
 -- grammars.
@@ -52,14 +53,23 @@ makeLenses ''Index
 -- | Symbols, potentially with an index or more than one.
 
 data SynTermEps
+  -- | Syntactic variables.
   = SynVar
     { _name   :: String
     , _index  :: [Index]
     }
+  -- | Regular old terminal symbol -- reads stuff from the input.
   | Term
     { _name   :: String
     , _index  :: [Index]
     }
+  -- | This sym denotes the case, where we have an @Empty@ terminal, i.e.
+  -- something is matched to nothing. This is actually just a regular
+  -- terminal symbol, we just treat it differently.
+  | Empty
+  -- | Finally, a real epsilon. Again, these are somewhat regular terminal
+  -- symbols, but it is important to be able to recognize these, when
+  -- trying to create outside variants of our algorithms.
   | Epsilon
   deriving (Show,Eq,Ord)
 
@@ -68,6 +78,9 @@ makeLenses ''SynTermEps
 -- | The length of the list encodes the dimension of the symbol
 
 type Symbol = [SynTermEps]
+
+isTerminal :: Symbol -> Bool
+isTerminal = allOf folded (\case (SynVar _ _) -> False; _ -> True)
 
 -- | Production rules for at-most CFGs.
 
@@ -84,6 +97,7 @@ data Grammar = Grammar
   { _synvars  :: Map String SynTermEps  -- ^ regular syntactic variables, without dimension
   , _termsyns :: Map String SynTermEps  -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
   , _termvars :: Map String SynTermEps  -- ^ regular terminal symbols
+  , _epsvars  :: Map String SynTermEps  -- ^ terminal symbol names that denote @Empty@
   , _outside  :: Bool                   -- ^ Is this an outside grammar
   , _rules    :: Set Rule               -- ^ set of production rules
   , _start    :: Symbol                 -- ^ start symbol
@@ -98,6 +112,7 @@ instance Default Grammar where
     { _synvars = M.empty
     , _termsyns = M.empty
     , _termvars = M.empty
+    , _epsvars  = M.empty
     , _outside = False
     , _rules = S.empty
     , _start = []
@@ -108,6 +123,14 @@ instance Default Grammar where
 
 makeLenses ''Grammar
 
+-- | An outside-ready grammar (i) has a start symbol, whose RHSs only point
+-- to single syntactic variables. (ii) It has terminating rules only when
+-- the single RHS symbol is a real epsilon symbol.
+--
+-- Also known as epsilonification.
+
+outsideReady :: Grammar -> Bool
+outsideReady = error "outsideReady: write me"
 
 {-
 

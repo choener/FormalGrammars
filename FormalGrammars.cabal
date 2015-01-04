@@ -90,18 +90,18 @@ library
     vector                == 0.10.*   ,
     base                  == 4.*
   exposed-modules:
-    FormalLanguage
-    FormalLanguage.CFG
+--    FormalLanguage
+--    FormalLanguage.CFG
     FormalLanguage.CFG.Grammar
-    FormalLanguage.CFG.Outside
-    FormalLanguage.CFG.Parser
-    FormalLanguage.CFG.PrettyPrint
-    FormalLanguage.CFG.PrettyPrint.ANSI
-    FormalLanguage.CFG.PrettyPrint.Haskell
-    FormalLanguage.CFG.PrettyPrint.LaTeX
-    FormalLanguage.CFG.QQ
-    FormalLanguage.CFG.QuickCheck
-    FormalLanguage.CFG.TH
+--    FormalLanguage.CFG.Outside
+--    FormalLanguage.CFG.Parser
+--    FormalLanguage.CFG.PrettyPrint
+--    FormalLanguage.CFG.PrettyPrint.ANSI
+--    FormalLanguage.CFG.PrettyPrint.Haskell
+--    FormalLanguage.CFG.PrettyPrint.LaTeX
+--    FormalLanguage.CFG.QQ
+--    FormalLanguage.CFG.QuickCheck
+--    FormalLanguage.CFG.TH
   ghc-options:
 
 -- A Simple pretty-printer for formal grammars.

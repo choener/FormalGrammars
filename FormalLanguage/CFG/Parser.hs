@@ -145,12 +145,14 @@ parseIndex e = braces $ commaSep ix where
 
 knownTermVar :: EvalReq -> Stately m Symbol
 knownTermVar e = do
-  (:[]) <$> tv <|> (brackets $ commaSep (ep <|> tv))
+  (:[]) <$> tv <|> (brackets $ commaSep (em <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
-               t <- ident fgIdents
-               use (current . termvars . at t) >>= guard . isJust
-               return $ Term t []
-        ep = Epsilon <$ reserve fgIdents "-"
+               i <- ident fgIdents
+               t <- use (current . termvars . at i)
+               e <- use (current . epsvars  . at i)
+               guard . isJust $ t <|> e
+               return $ Term i []
+        em = Empty <$ reserve fgIdents "-"
 
 -- | Parses an already known symbol, either syntactic or terminal.
 --
