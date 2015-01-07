@@ -21,6 +21,7 @@ module FormalLanguage.CFG.Grammar where
 
 import           Control.Lens hiding (Index)
 import           Data.Default
+import           Data.List (partition)
 import           Data.Map.Strict (Map)
 import           Data.Set (Set)
 import qualified Data.Map.Strict as M
@@ -79,8 +80,20 @@ makeLenses ''SynTermEps
 
 type Symbol = [SynTermEps]
 
+-- | @Term@, @Empty@, and @Epsilon@ all count as terminal symbols.
+
 isTerminal :: Symbol -> Bool
 isTerminal = allOf folded (\case (SynVar _ _) -> False; _ -> True)
+
+-- | Only @SynVar@s are non-terminal.
+
+isSyntactic :: Symbol -> Bool
+isSyntactic = allOf folded (\case (SynVar _ _) -> True; _ -> False)
+
+-- | Epsilon-only symbols.
+
+isEpsilon :: Symbol -> Bool
+isEpsilon = allOf folded (\case Epsilon -> True; _ -> False)
 
 -- | Production rules for at-most CFGs.
 
@@ -123,14 +136,77 @@ instance Default Grammar where
 
 makeLenses ''Grammar
 
--- | An outside-ready grammar (i) has a start symbol, whose RHSs only point
--- to single syntactic variables. (ii) It has terminating rules only when
--- the single RHS symbol is a real epsilon symbol.
---
--- Also known as epsilonification.
+-- | Dimension of the grammar. Rather costly, because we check for dimensional
+-- consistency.
 
-outsideReady :: Grammar -> Bool
-outsideReady = error "outsideReady: write me"
+dim :: Grammar -> Int
+dim g
+  | null ls = error "no terminal symbol in grammar"
+  | all (l==) ls = l
+  | otherwise = error "inconsistent dimensionality"
+  where ls@(l:_) = map length . filter isTerminal $ g^..rules.folded.rhs.traverse
+
+-- | A grammar with normalized start and epsilon symbols (i) has a start
+-- symbol, whose RHSs only point to single syntactic variables. (ii) It has
+-- terminating rules only when the single RHS symbol is a real epsilon symbol.
+
+normalizeStartEpsilon :: Grammar -> Grammar
+normalizeStartEpsilon g = gE
+        -- good start rules go from the start symbol to a single syntactic
+        -- symbol. It should not be the start symbol.
+  where srs = [r | r<-g^..rules.folded , r^.lhs == g^.start]
+        (gsr,bsr) = partition goodStartRule srs
+        goodStartRule (Rule _ _ [r]) | isSyntactic r && r /= g^.start = True
+        goodStartRule _                                               = False
+        -- good epsilon rules go from a syntactic variable directly to epsilon
+        -- with no additional symbols on the RHS.
+        ers = [r | r<-g^..rules.folded, any isEpsilon (r^.rhs)]
+        (ger,ber) = partition goodEpsilonRule ers
+        goodEpsilonRule (Rule _ _ [r]) | isEpsilon r = True
+        goodEpsilonRule _                            = False
+        -- now we need to process the start rules. We create a fresh synvar,
+        -- and the corresponding rules.
+        d = dim g
+        s = freshStartSynVar g
+        sf = freshStartFun g
+        srs' = [Rule (replicate d s) (replicate d sf) [r^.lhs] | r<-srs]
+        gS = if null bsr
+             then g
+             else error "update start"
+        -- same for the epsilon rules
+        e = freshTermSynVar g
+        ef = freshTermFun g
+        ers' = concat [ [ Rule (replicate d e) (replicate d ef) [r]
+                        , Rule l f (rsl++[replicate d e]++rsr) ]
+                      | (Rule l f rs') <- ers
+                      , let (rsl,(r:rsr)) = span (not . isEpsilon) rs'
+                      ]
+        gE = if null ber
+             then gS
+             else error "update epsilon"
+
+-- | Given a grammar, generate a fresh start syntactic variable with a name
+-- that is not "too weird".
+
+freshStartSynVar :: Grammar -> SynTermEps
+freshStartSynVar g
+  | M.notMember "S" (g^.synvars) = error "freshStartSynVar: write me"
+
+-- | Given a grammar, generate a fresh terminating syntactic variable (that
+-- only traverses to @Epsilon@ rules), that is not "too weird".
+
+freshTermSynVar :: Grammar -> SynTermEps
+freshTermSynVar g = error "freshTermSynVar: write me"
+
+-- | Create a fresh start function symbol
+
+freshStartFun :: Grammar -> String
+freshStartFun g = error "freshStartFun: write me"
+
+-- | Create a fresh terminating transition function symbol
+
+freshTermFun :: Grammar -> String
+freshTermFun g = error "freshTermFun: write me"
 
 {-
 
