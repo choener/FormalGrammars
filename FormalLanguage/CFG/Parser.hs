@@ -5,8 +5,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | We define a simple domain-specific language for context-free languages.
@@ -22,24 +22,27 @@ module FormalLanguage.CFG.Parser
 --  ) where
   where
 
-import           Data.Map.Strict (Map)
 import           Control.Applicative
 import           Control.Arrow
-import           Control.Lens hiding (Index)
+import           Control.Lens hiding (Index, outside)
 import           Control.Monad
 import           Control.Monad.State.Class (MonadState (..))
 import           Control.Monad.Trans.State.Strict hiding (get)
 import           Data.Default
+import           Data.Map.Strict (Map)
 import           Data.Maybe
+import           Debug.Trace
 import qualified Data.HashSet as H
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import           Text.Parser.Token.Style
-import           Text.Trifecta
-import           Debug.Trace
 import           Text.Printf
+import           Text.Trifecta
+import qualified Data.Sequence as Seq
+import           Data.Sequence (Seq)
 
 import FormalLanguage.CFG.Grammar
+import FormalLanguage.CFG.Outside
 
 
 
@@ -49,6 +52,7 @@ import FormalLanguage.CFG.Grammar
 data GrammarEnv = GrammarEnv
   { _current  :: Grammar
   , _env      :: Map String Grammar
+  , _emit     :: Seq Grammar
   }
   deriving (Show)
 
@@ -57,18 +61,56 @@ makeLenses ''GrammarEnv
 instance Default GrammarEnv where
   def = GrammarEnv { _current = def
                    , _env     = def
+                   , _emit    = def
                    }
 
 
 test = parseFromFile ((evalStateT . runGrammarParser) parseEverything def) "test.gra"
 
--- | TODO reset @current@ to @def@ before parsing
+-- | Parse everything in the grammar source.
 
-parseEverything :: Parse m [Grammar]
-parseEverything = some (parseGrammar <|> parseOutside) <* eof
+parseEverything :: Parse m (Seq Grammar)
+parseEverything = some (assign current def >> p) <* eof >> use emit
+  where p = parseGrammar <|> parseOutside <|> parseNormStartEps <|> parseEmitGrammar
 
-fgIdents = set styleReserved rs emptyIdents
-  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<", "-", "Outside:", "Source:"]
+-- | The basic parser, which generates a grammar from a description.
+
+parseGrammar :: Parse m ()
+parseGrammar = do
+  reserve fgIdents "Grammar:"
+  n <- newGrammarName
+  current.gname    .= n
+  current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
+  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
+  current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
+  current.start    <~ parseStartSym
+  current.rules    <~ S.fromList <$> some parseRule
+  reserve fgIdents "//"
+  g <- use current
+  env %= M.insert n g
+
+-- | Which of the intermediate grammar to actually emit as code or text in
+-- TeX. Single line: @Emit: KnownGrammarName@
+
+parseEmitGrammar :: Parse m ()
+parseEmitGrammar = do
+  reserve fgIdents "Emit:"
+  g <- knownGrammarName
+  emit %= ( Seq.|> g) -- snoc the grammar
+  return ()
+
+-- | Normalize start and epsilon rules in a known @Source:@, thereby
+-- generating a new grammar.
+
+parseNormStartEps :: Parse m ()
+parseNormStartEps = do
+  reserve fgIdents "NormStartEps:"
+  n <- newGrammarName
+  current.gname .= n
+  reserve fgIdents "Source:"
+  g <- (set gname n) <$> knownGrammarName <?> "known source grammar"
+  reserve fgIdents "//"
+  env %= M.insert n (normalizeStartEpsilon g)
 
 -- | Try to generate an outside grammar from an inside grammar. The @From:@
 -- name is looked up in the environment.
@@ -79,41 +121,54 @@ fgIdents = set styleReserved rs emptyIdents
 -- //
 -- @
 
-parseOutside :: Parse m Grammar
+parseOutside :: Parse m ()
 parseOutside = do
   reserve fgIdents "Outside:"
-  current.gname <~ ident fgIdents <?> "grammar name"
+  n <- newGrammarName
+  current.gname .= n
   reserve fgIdents "Source:"
-  g <- parseKnownSource <?> "known source grammar"
+  g <- (set gname n) <$> knownGrammarName <?> "known source grammar"
+  guard (not $ g^.outside) <?> "source already is an outside grammar"
   reserve fgIdents "//"
-  -- TODO actually run the outside generator
-  return g
+  env %= M.insert n (toOutside g)
 
-parseKnownSource :: Parse m Grammar
-parseKnownSource = try $ do
+
+
+-- * Helper parsers
+
+-- |
+
+fgIdents = set styleReserved rs emptyIdents
+  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<", "-", "Outside:", "Source:", "NormStartEps:"]
+
+-- |
+
+newGrammarName :: Parse m String
+newGrammarName = flip (<?>) "grammar name previously declared!" $ do
+  n <- ident fgIdents
+  e <- get
+  let g = M.lookup n $ e^.env
+  when (isJust g) $ unexpected "previously declared grammar name"
+  return n
+
+-- |
+
+knownGrammarName :: Parse m Grammar
+knownGrammarName = try $ do
   n <- ident fgIdents
   e <- get
   let g = M.lookup n $ e^.env
   when (isNothing g) $ unexpected "known source grammar"
   return $ fromJust g
 
-parseGrammar :: Parse m Grammar
-parseGrammar = do
-  reserve fgIdents "Grammar:"
-  current.gname    <~ ident fgIdents <?> "grammar name"
-  current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
-  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
-  current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
-  current.start    <~ parseStartSym
-  current.rules    <~ S.fromList <$> some parseRule
-  reserve fgIdents "//"
-  c <- get
-  return $ c^.current
+-- |
 
 parseSynDecl :: EvalReq -> Parse m SynTermEps
 parseSynDecl e = do
   reserve fgIdents "N:"
   SynVar <$> (ident fgIdents <?> "syntactic variable name") <*> (option [] $ parseIndex e)
+
+-- |
 
 parseTermDecl :: Parse m SynTermEps
 parseTermDecl = do
@@ -128,7 +183,11 @@ parseStartSym
   =  (runUnlined $ reserve fgIdents "S:" *> knownSynVar EvalGrammar)
   <* someSpace
 
+-- |
+
 data EvalReq = EvalFull | EvalGrammar | EvalSymb
+
+-- |
 
 knownSynVar :: EvalReq -> Stately m Symbol
 knownSynVar e = do
@@ -139,9 +198,13 @@ knownSynVar e = do
                i <- option [] $ parseIndex e
                return $ SynVar s i
 
+-- |
+
 parseIndex :: EvalReq -> Stately m [Index]
 parseIndex e = braces $ commaSep ix where
   ix = (\v -> Index v [] 0) <$> some alphaNum
+
+-- |
 
 knownTermVar :: EvalReq -> Stately m Symbol
 knownTermVar e = do
@@ -162,6 +225,8 @@ knownTermVar e = do
 knownSymbol :: EvalReq -> Stately m Symbol
 knownSymbol e = try (knownSynVar e) <|> knownTermVar e
 
+-- |
+
 parseRule :: Parse m Rule
 parseRule = (runUnlined rule) <* someSpace
   where rule  = Rule
@@ -173,9 +238,15 @@ parseRule = (runUnlined rule) <* someSpace
         afun = (:[]) <$> ident fgIdents
         syms = knownSymbol EvalSymb
 
+-- |
+
 type Parse m a = (TokenParsing m, MonadState GrammarEnv (Unlined m), MonadState GrammarEnv m, MonadPlus m) => m a
 
+-- |
+
 type Stately m a = (TokenParsing m, MonadState GrammarEnv m, MonadPlus m) => m a
+
+-- |
 
 newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT GrammarEnv m a }
   deriving

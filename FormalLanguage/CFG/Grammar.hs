@@ -167,12 +167,12 @@ normalizeStartEpsilon g = gE
         -- now we need to process the start rules. We create a fresh synvar,
         -- and the corresponding rules.
         d = dim g
-        s = freshStartSynVar g
+        s = let s' = freshStartSynVar g in replicate d s'
         sf = freshStartFun g
-        srs' = [Rule (replicate d s) (replicate d sf) [r^.lhs] | r<-srs]
+        srs' = [Rule s (replicate d sf) [r^.lhs] | r<-srs]
         gS = if null bsr
              then g
-             else error "update start"
+             else (g & rules %~ S.union (S.fromList srs')) & start .~ s -- otherwise, add new rules, set new start symbol
         -- same for the epsilon rules
         e = freshTermSynVar g
         ef = freshTermFun g
@@ -183,7 +183,7 @@ normalizeStartEpsilon g = gE
                       ]
         gE = if null ber
              then gS
-             else error "update epsilon"
+             else (gS & rules %~ (S.\\ S.fromList ers)) & rules %~ S.union (S.fromList ers') -- otherwise, replace old rules
 
 -- | Given a grammar, generate a fresh start syntactic variable with a name
 -- that is not "too weird".
