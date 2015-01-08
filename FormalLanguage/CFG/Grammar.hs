@@ -19,7 +19,7 @@
 
 module FormalLanguage.CFG.Grammar where
 
-import           Control.Lens hiding (Index)
+import           Control.Lens hiding (Index,index)
 import           Data.Default
 import           Data.List (partition)
 import           Data.Map.Strict (Map)
@@ -158,26 +158,26 @@ normalizeStartEpsilon g = gE
         (gsr,bsr) = partition goodStartRule srs
         goodStartRule (Rule _ _ [r]) | isSyntactic r && r /= g^.start = True
         goodStartRule _                                               = False
-        -- good epsilon rules go from a syntactic variable directly to epsilon
-        -- with no additional symbols on the RHS.
-        ers = [r | r<-g^..rules.folded, any isEpsilon (r^.rhs)]
-        (ger,ber) = partition goodEpsilonRule ers
-        goodEpsilonRule (Rule _ _ [r]) | isEpsilon r = True
-        goodEpsilonRule _                            = False
         -- now we need to process the start rules. We create a fresh synvar,
         -- and the corresponding rules.
         d = dim g
-        s = let s' = freshStartSynVar g in replicate d s'
+        s = freshStartSymbol g
         sf = freshStartFun g
         srs' = [Rule s (replicate d sf) [r^.lhs] | r<-srs]
         gS = if null bsr
              then g
              else (g & rules %~ S.union (S.fromList srs')) & start .~ s -- otherwise, add new rules, set new start symbol
+        -- good epsilon rules go from a syntactic variable directly to epsilon
+        -- with no additional symbols on the RHS.
+        ers = [r | r<-gS^..rules.folded, any isEpsilon (r^.rhs)]
+        (ger,ber) = partition goodEpsilonRule ers
+        goodEpsilonRule (Rule _ _ [r]) | isEpsilon r = True
+        goodEpsilonRule _                            = False
         -- same for the epsilon rules
-        e = freshTermSynVar g
-        ef = freshTermFun g
-        ers' = concat [ [ Rule (replicate d e) (replicate d ef) [r]
-                        , Rule l f (rsl++[replicate d e]++rsr) ]
+        e = freshTermSynVar gS
+        ef = freshTermFun gS
+        ers' = concat [ [ Rule e (replicate d ef) [r]
+                        , Rule l f (rsl++[e]++rsr) ]
                       | (Rule l f rs') <- ers
                       , let (rsl,(r:rsr)) = span (not . isEpsilon) rs'
                       ]
@@ -186,27 +186,51 @@ normalizeStartEpsilon g = gE
              else (gS & rules %~ (S.\\ S.fromList ers)) & rules %~ S.union (S.fromList ers') -- otherwise, replace old rules
 
 -- | Given a grammar, generate a fresh start syntactic variable with a name
--- that is not "too weird".
+-- that is not "too weird". Also transfers any index structure to the start
+-- symbol.
+--
+-- TODO if indices are correctly transferred needs be closely checked.
 
-freshStartSynVar :: Grammar -> SynTermEps
-freshStartSynVar g
-  | M.notMember "S" (g^.synvars) = error "freshStartSynVar: write me"
+freshStartSymbol :: Grammar -> Symbol
+freshStartSymbol g
+  | d == 0    = error "zero-dim grammar"
+  | otherwise = zipWith SynVar (replicate d x) ix
+  where ss = ["S"] ++ (map (++"'") $ g^..start.folded.name) ++ map (\i -> "S" ++ show i) [1 :: Int ..]
+        x  = head $ dropWhile (`M.member` (g^.synvars)) ss
+        d  = dim g
+        ix :: [[Index]]
+        ix = g^..start.folded.index
 
 -- | Given a grammar, generate a fresh terminating syntactic variable (that
 -- only traverses to @Epsilon@ rules), that is not "too weird".
 
-freshTermSynVar :: Grammar -> SynTermEps
-freshTermSynVar g = error "freshTermSynVar: write me"
+freshTermSynVar :: Grammar -> Symbol
+freshTermSynVar g
+  | d == 0  = error "zero-dim grammar"
+  | otherwise = replicate d (SynVar e [])
+  where es = ["E"] ++ map (\i -> "E" ++ show i) [1 :: Int .. ]
+        e  = head $ dropWhile (`M.member` (g^.synvars)) es
+        d  = dim g
 
--- | Create a fresh start function symbol
+-- | Create a fresh start function symbol.
 
 freshStartFun :: Grammar -> String
-freshStartFun g = error "freshStartFun: write me"
+freshStartFun g
+  | S.null ks = error "no rules in grammar?"
+  | otherwise = f
+  where ks = S.fromList $ g^..rules.folded.attr.folded
+        fs = ["fS"] ++ map (\i -> "fS" ++ show i) [1::Int ..]
+        f  = head $ dropWhile (`S.member` ks) fs
 
 -- | Create a fresh terminating transition function symbol
 
 freshTermFun :: Grammar -> String
-freshTermFun g = error "freshTermFun: write me"
+freshTermFun g
+  | S.null ks = error "no rules in grammar?"
+  | otherwise = f
+  where ks = S.fromList $ g^..rules.folded.attr.folded
+        fs = ["fE"] ++ map (\i -> "fE" ++ show i) [1::Int ..]
+        f  = head $ dropWhile (`S.member` ks) fs
 
 {-
 
