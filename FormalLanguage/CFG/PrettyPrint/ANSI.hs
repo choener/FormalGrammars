@@ -23,7 +23,7 @@ import           System.IO (stdout)
 import           Text.PrettyPrint.ANSI.Leijen
 
 import FormalLanguage.CFG.Grammar
-import FormalLanguage.CFG.Parser
+--import FormalLanguage.CFG.Parser
 
 
 
@@ -53,9 +53,10 @@ ruleDoc (Rule lhs fun rhs)
   where f  = fill 10 . text . concat . intersperse "_" $ fun
 
 steDoc :: SynTermEps -> Reader Grammar Doc
-steDoc (SynVar n i) = indexDoc i >>= return . blue . (text n <+>)
-steDoc (Term   n i) = return . green . text $ n
-steDoc (Epsilon   ) = return . red   . text $ "-"
+steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text n <+>)
+steDoc (Term    n i) = return . green . text $ n
+steDoc (Epsilon n  ) = return . red   . text $ n
+steDoc (Empty      ) = return . red   . text $ "-"
 
 indexDoc :: [Index] -> Reader Grammar Doc
 indexDoc [] = return empty
@@ -73,7 +74,7 @@ symbolDoc xs  = fmap list . mapM steDoc $ xs
 printDoc :: Doc -> IO ()
 printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)
 
-testPrint = test >>= \z -> case z of {Just g -> mapM_ (printDoc . genGrammarDoc) g}
+-- testPrint = test >>= \z -> case z of {Just g -> mapM_ (printDoc . genGrammarDoc) g}
 
 {-
 -- | Prettyprint a grammar ANSI-style.

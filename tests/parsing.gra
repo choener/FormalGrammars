@@ -1,0 +1,41 @@
+
+{-
+Let us start by giving the grammar for CPG islands.
+
+Also: Pretty comments ;-)
+-}
+
+Grammar: CPG  -- the name of the grammar
+
+N: P  -- islands 'Plus'
+N: M  -- continents 'Minus'
+N: S  -- start non-terminal
+
+T: n  -- read a single nucleotide
+E: e  -- succeed on empty remaining input
+
+S: S  -- symbol to start with
+
+S -> start  <<< P     -- we could both in island,
+S -> start  <<< M     -- or not island
+
+P -> nil    <<<   e   -- no input left
+P -> isl    <<< P n   -- stay on the island
+P -> toisl  <<< M n   -- to island
+
+M -> nil    <<<   e   -- no input left here
+M -> cntnt  <<< M n   -- stay on the continent
+M -> frmisl <<< P n   -- from island
+//
+
+-- Derive outside grammar, named GPC, from known source grammar.
+
+Outside: GPC
+Source: CPG
+//
+
+-- Emit both the inside and the outside grammar.
+
+Emit: CPG
+Emit: GPC
+

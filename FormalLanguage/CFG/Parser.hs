@@ -22,6 +22,7 @@ module FormalLanguage.CFG.Parser
 --  ) where
   where
 
+import           System.IO.Unsafe (unsafePerformIO)
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Lens hiding (Index, outside)
@@ -41,8 +42,10 @@ import           Text.Trifecta
 import qualified Data.Sequence as Seq
 import           Data.Sequence (Seq)
 
-import FormalLanguage.CFG.Grammar
-import FormalLanguage.CFG.Outside
+import           FormalLanguage.CFG.Grammar
+import           FormalLanguage.CFG.Outside
+import           FormalLanguage.CFG.PrettyPrint.ANSI
+-- testPrint = test >>= \z -> case z of {Just g -> mapM_ (printDoc . genGrammarDoc) g}
 
 
 
@@ -53,6 +56,7 @@ data GrammarEnv = GrammarEnv
   { _current  :: Grammar
   , _env      :: Map String Grammar
   , _emit     :: Seq Grammar
+  , _verbose  :: Bool
   }
   deriving (Show)
 
@@ -62,15 +66,16 @@ instance Default GrammarEnv where
   def = GrammarEnv { _current = def
                    , _env     = def
                    , _emit    = def
+                   , _verbose = False
                    }
 
 
-test = parseFromFile ((evalStateT . runGrammarParser) parseEverything def) "test.gra"
+test = parseFromFile ((evalStateT . runGrammarParser) parseEverything def{_verbose = True}) "tests/parsing.gra"
 
 -- | Parse everything in the grammar source.
 
 parseEverything :: Parse m (Seq Grammar)
-parseEverything = some (assign current def >> p) <* eof >> use emit
+parseEverything = someSpace *> some (assign current def >> p) <* eof >> use emit
   where p = parseGrammar <|> parseOutside <|> parseNormStartEps <|> parseEmitGrammar
 
 -- | The basic parser, which generates a grammar from a description.
@@ -83,11 +88,14 @@ parseGrammar = do
   current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
   current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
   current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
+  -- TODO current.epsvars <~ ...
   current.start    <~ parseStartSym
   current.rules    <~ S.fromList <$> some parseRule
   reserve fgIdents "//"
   g <- use current
-  env %= M.insert n g
+  v <- use verbose
+  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ g) else return ())
+  seq z $ env %= M.insert n g
 
 -- | Which of the intermediate grammar to actually emit as code or text in
 -- TeX. Single line: @Emit: KnownGrammarName@
@@ -96,8 +104,9 @@ parseEmitGrammar :: Parse m ()
 parseEmitGrammar = do
   reserve fgIdents "Emit:"
   g <- knownGrammarName
-  emit %= ( Seq.|> g) -- snoc the grammar
-  return ()
+  v <- use verbose
+  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ g) else return ())
+  seq z $ emit %= ( Seq.|> g) -- snoc the grammar
 
 -- | Normalize start and epsilon rules in a known @Source:@, thereby
 -- generating a new grammar.
@@ -110,7 +119,10 @@ parseNormStartEps = do
   reserve fgIdents "Source:"
   g <- (set gname n) <$> knownGrammarName <?> "known source grammar"
   reserve fgIdents "//"
-  env %= M.insert n (normalizeStartEpsilon g)
+  let h = normalizeStartEpsilon g
+  v <- use verbose
+  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ h) else return ())
+  seq z $ env %= M.insert n h
 
 -- | Try to generate an outside grammar from an inside grammar. The @From:@
 -- name is looked up in the environment.
@@ -130,7 +142,10 @@ parseOutside = do
   g <- (set gname n) <$> knownGrammarName <?> "known source grammar"
   guard (not $ g^.outside) <?> "source already is an outside grammar"
   reserve fgIdents "//"
-  env %= M.insert n (toOutside g)
+  let h = toOutside g
+  v <- use verbose
+  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ h) else return ())
+  seq z $ env %= M.insert n h
 
 
 
@@ -171,9 +186,10 @@ parseSynDecl e = do
 -- |
 
 parseTermDecl :: Parse m SynTermEps
-parseTermDecl = do
-  reserve fgIdents "T:"
-  Term <$> (ident fgIdents <?> "terminal name") <*> pure []
+parseTermDecl =
+  (reserve fgIdents "T:" >> Term <$> (ident fgIdents <?> "terminal name") <*> pure [])
+  <|>
+  (reserve fgIdents "E:" >> Epsilon <$> (ident fgIdents <?> "epsilon terminal name"))
 
 -- | The syntactic variable here needs to either have no index at all, have
 -- a grammar-based index, or have a fully calculated index.
@@ -214,7 +230,9 @@ knownTermVar e = do
                t <- use (current . termvars . at i)
                e <- use (current . epsvars  . at i)
                guard . isJust $ t <|> e
-               return $ Term i []
+               if isJust t
+                then return $ Term i []
+                else return $ Epsilon i
         em = Empty <$ reserve fgIdents "-"
 
 -- | Parses an already known symbol, either syntactic or terminal.

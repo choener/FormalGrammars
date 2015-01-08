@@ -72,6 +72,8 @@ data SynTermEps
   -- symbols, but it is important to be able to recognize these, when
   -- trying to create outside variants of our algorithms.
   | Epsilon
+    { _name :: String
+    }
   deriving (Show,Eq,Ord)
 
 makeLenses ''SynTermEps
@@ -93,7 +95,7 @@ isSyntactic = allOf folded (\case (SynVar _ _) -> True; _ -> False)
 -- | Epsilon-only symbols.
 
 isEpsilon :: Symbol -> Bool
-isEpsilon = allOf folded (\case Epsilon -> True; _ -> False)
+isEpsilon = allOf folded (\case Epsilon _ -> True; _ -> False)
 
 -- | Production rules for at-most CFGs.
 
