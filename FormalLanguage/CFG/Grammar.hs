@@ -21,7 +21,7 @@ module FormalLanguage.CFG.Grammar where
 
 import           Control.Lens hiding (Index,index)
 import           Data.Default
-import           Data.List (partition)
+import           Data.List (partition,sort,nub)
 import           Data.Map.Strict (Map)
 import           Data.Set (Set)
 import qualified Data.Map.Strict as M
@@ -102,9 +102,9 @@ isEpsilon = allOf folded (\case Epsilon _ -> True; _ -> False)
 -- | Production rules for at-most CFGs.
 
 data Rule = Rule
-  { _lhs  :: Symbol      -- ^ the left-hand side of the rule
-  , _attr :: [String] -- ^ the attribute for this rule
-  , _rhs  :: [Symbol]    -- ^ the right-hand side with a collection of terminals and syntactic variables
+  { _lhs  :: Symbol     -- ^ the left-hand side of the rule
+  , _attr :: [String]   -- ^ the attribute for this rule
+  , _rhs  :: [Symbol]   -- ^ the right-hand side with a collection of terminals and syntactic variables
   }
   deriving (Show,Eq,Ord)
 
@@ -235,6 +235,19 @@ freshTermFun g
   where ks = S.fromList $ g^..rules.folded.attr.folded
         fs = ["fE"] ++ map (\i -> "fE" ++ show i) [1::Int ..]
         f  = head $ dropWhile (`S.member` ks) fs
+
+-- | Collect all terminal symbols from the rules (for cfg's it's not really
+-- needed to include the lhs).
+
+grammarTerminals :: Grammar -> [Symbol]
+grammarTerminals g = nub . sort . filter isTerminal $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
+
+-- | Collect all non-terminal symbols from the rules.
+--
+-- TODO WARNING: Problems handling syn-terms in outside grammars.
+
+grammarSynVars :: Grammar -> [Symbol]
+grammarSynVars g = nub . sort . filter isSyntactic $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
 
 {-
 

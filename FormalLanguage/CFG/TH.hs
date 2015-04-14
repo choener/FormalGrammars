@@ -120,9 +120,10 @@ thCodeGen g = do
   _qMTyName             <- newName "m"
   _qElemTyName          <- newName "s"
   _qRetTyName           <- newName "r"
-  _qTermAtomTyNames     <- M.fromList <$> (mapM (\t -> (t,) <$> newName ("t_" ++ t)) $ g^..tsyms.folded.symb.folded.tnName)
-  _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ n^..symb.folded.tnName.folded)) $ collectInOutSymbN g) -- g^..nsyms.folded) -- collectSymbN g)
-  _qInsideSyntVarNames  <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("i_" ++ n^..symb.folded.tnName.folded)) $ g^..nIsms.folded)
+  _qTermAtomTyNames     <- M.fromList <$> (mapM (\t -> (t,) <$> newName ("t_" ++ t)) $ g^..termvars.folded.name)
+  _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ n^..folded.name.folded)) $ grammarSynVars g) -- g^..nsyms.folded) -- collectSymbN g)
+  _qInsideSyntVarNames  <- return M.empty -- M.fromList <$> (mapM (\n -> (n,) <$> newName ("i_" ++ n^..folded.name.folded)) $ g^..termsyns)
+  -- TODO inside synvars in outside context
   evalStateT codeGen def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermAtomTyNames, _qPartialSyntVarNames, _qInsideSyntVarNames}
 
 -- | Actually create signature, grammar, inline pragma.
@@ -131,7 +132,7 @@ codeGen :: TQ [Dec]
 codeGen = do
   -- build up the terminal symbol lookup
   qTermAtomVarNames <~ M.fromList <$> dimensionalTermSymbNames
-  qTermSymbExp      <~ M.fromList <$> (mapM grammarTermExpression =<< collectSymbT <$> use qGrammar)
+  qTermSymbExp      <~ M.fromList <$> (mapM grammarTermExpression =<< grammarTerminals <$> use qGrammar)
   -- create attribute function bindings (needed by signature and grammar)
   qAttribFuns <~ (use (qGrammar.rules) >>= (fmap M.fromList . mapM attributeFunctionType . S.toList))
   -- create choice function
@@ -144,7 +145,7 @@ codeGen = do
   inl <- use qGrammarName >>= \gname -> lift $ pragInlD gname Inline FunLike AllPhases
   -- outside grammars use the inside signature?!
   g <- use qGrammar
-  if isOutsideGrammar g
+  if False -- TODO !!! -- isOutsideGrammar g
     then return [gra,inl]
     else return [sig,gra,inl]
 
@@ -156,7 +157,7 @@ signature = do
   x         <- use qElemTyName
   r         <- use qRetTyName
   termNames <- use qTermAtomTyNames
-  sigName   <- (mkName . ("Sig" ++)) <$> use (qGrammar.name)
+  sigName   <- (mkName . ("Sig" ++)) <$> use (qGrammar.gname)
   fs        <- use qAttribFuns
   h         <- use qChoiceFun
   qSigName .= sigName
@@ -217,7 +218,7 @@ grammarBodyWhere :: TQ [DecQ]
 grammarBodyWhere = do
   ls <- (nub . map _lhs . S.elems) <$> use (qGrammar.rules)
   synKeys       <- (filter (`elem` ls) . M.keys) <$> use qPartialSyntVarNames
-  bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..symb.folded.tnName ]
+  bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..folded.name ]
   qFullSyntVarNames .= M.fromList bodySynNames
   -- TODO now we actually need to *ALSO* add symbols for the inside stuff,
   -- if this is an outside grammar.
@@ -226,7 +227,7 @@ grammarBodyWhere = do
 -- | Fully bind each 'Symb' (which is partially applied, coming in as an
 -- argument in the grammar) to the correct right-hand side.
 
-grammarBodySyn :: (Symb,Name) -> TQ DecQ
+grammarBodySyn :: (Symbol,Name) -> TQ DecQ
 grammarBodySyn (s,n) = do
   hname <- use (qChoiceFun._1)
   partial <- use qPartialSyntVarNames
@@ -252,33 +253,36 @@ grammarBodyRHS (Rule _ f rs) = do
   synNames <- use qFullSyntVarNames -- just the name of the fully applied symbol
   isnNames <- use qInsideSyntVarNames
   let genSymbol s
-        | isSymbT s = return . snd  $ M.findWithDefault (error "grammarBodyRHS") s terms
-        | isSymbN s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synNames `M.union` isnNames)
+        | isTerminal  s = return . snd  $ M.findWithDefault (error "grammarBodyRHS") s terms
+        | isSyntactic s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synNames `M.union` isnNames)
   let rhs = assert (not $ null rs) $ foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
   -- apply evaluation function
   Just (fname,_,_) <- use (qAttribFuns . at f)
   return $ appE (appE (varE '(<<<)) (varE fname)) rhs
 
 -- | Terminal symbols are usually compound types, built up from different
--- terminals a la @M :> t1 :> t2 :> t3@. We here build up the type of these
+-- terminals a la @M :| t1 :| t2 :| t3@. We here build up the type of these
 -- and their expression.
 
-grammarTermExpression :: Symb -> TQ (Symb, (Type,Exp))
+grammarTermExpression :: Symbol -> TQ (Symbol, (Type,Exp))
 grammarTermExpression s = do
   ttypes <- use qTermAtomTyNames
   tavn <- use qTermAtomVarNames
-  let genType :: Symb -> TypeQ
+  let genType :: Symbol -> TypeQ
       genType z
-        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
-        | Symb _  [E]   <- z = [t| () |]
-        | Symb _  [T t] <- z = varT $ ttypes M.! t
-        | Symb io xs    <- z = foldl (\acc z -> [t| $acc :. $(genType $ Symb io [z]) |]) [t| Z |] xs
-  let genExp :: Symb -> ExpQ
+--        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
+        | [Empty]           <- z = [t| () |]
+        | [Term tnm tidx t] <- z = varT $ ttypes M.! tnm
+        | xs                <- z = foldl (\acc z -> [t| $acc :. $(genType [z]) |]) [t| Z |] xs
+  let genExp :: Symbol -> ExpQ
       genExp z
-        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
-        | Symb _ [E]   <- z = [| None |]
-        | Symb _ [T t] <- z = varE $ tavn M.! (t,0)
-        | Symb _ xs    <- z = foldl (\acc (k,z) -> [| $acc ADP.:> $(case z of {E -> [| None |] ; T t -> varE $ tavn M.! (t,k)}) |]) [| ADP.M |] $ zip [0..] xs
+--        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
+        | [Empty]         <- z = [| None |] -- TODO ???
+        | [Term tnm tidx] <- z = varE $ tavn M.! (tnm,0)
+        | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Empty -> [| None |]
+                                                                                 ; Term tnm tidx -> varE $ tavn M.! (tnm,k)
+                                                                                 }) |])
+                                        [| ADP.M |] $ zip [0..] xs
   ty <- lift $ genType s
   ex <- lift $ genExp  s
   return (s, (ty,ex))
@@ -291,10 +295,10 @@ grammarTermExpression s = do
 dimensionalTermSymbNames :: TQ [((String,Int),Name)]
 dimensionalTermSymbNames = do
   g <- use qGrammar
-  let xs = collectSymbT g
-  let maxd = subtract 1 . the . map (length . view symb) $ xs
+  let xs = grammarTerminals g
+  let maxd = subtract 1 . the . map length $ xs
   ys <- forM [0..maxd] $ \d ->
-        forM (filter isTerminal . nub $ xs^..folded.symb.ix d) $ \s -> do
+        forM (filter isTerminal . nub $ xs^..folded.ix d) $ \s -> do
         ((s^.name,d),) <$> (lift $ newName $ ("lol" ++ s^.name) ++ show d)
   return $ concat ys
 
@@ -309,7 +313,7 @@ grammar = do
   bodyWhere    <- grammarBodyWhere
   bodyNames    <- use qFullSyntVarNames
   let body     =  normalB . foldl (\acc z -> [| $acc :. $z |]) [|Z|] . map varE $ bodyNames^..folded
-  lift $ funD gname [clause args body bodyWhere]
+  lift $ funD gn [clause args body bodyWhere]
 
 -- | Given a rule, create the name and type for the attribute function
 -- being used.
