@@ -1,15 +1,15 @@
 name:           FormalGrammars
 version:        0.2.0.0
-author:         Christian Hoener zu Siederdissen, 2013-2014
-copyright:      Christian Hoener zu Siederdissen, 2013-2014
-homepage:       http://www.tbi.univie.ac.at/~choener/gramprod/
-maintainer:     choener@tbi.univie.ac.at
+author:         Christian Hoener zu Siederdissen, 2013-2015
+copyright:      Christian Hoener zu Siederdissen, 2013-2015
+homepage:       http://www.bioinf.uni-leipzig.de/Software/gADP/
+maintainer:     choener@bioinf.uni-leipzig.de
 category:       Formal Languages, Bioinformatics
 license:        GPL-3
 license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
-cabal-version:  >= 1.8.0
+cabal-version:  >= 1.10.0
 synopsis:
                 (Context-free) grammars in formal language theory
 description:
@@ -55,11 +55,12 @@ description:
 
 Extra-Source-Files:
   changelog.md
+  tests/parsing.gra
 
 flag examples
-  description: build the examples
-  default: False
-  manual: True
+  description:  build the examples
+  default:      False
+  manual:       True
 
 flag llvm
   description:  build using LLVM
@@ -71,47 +72,57 @@ flag llvm
 -- explicit dependency on PrimitiveArray to be able to load the examples
 
 library
-  build-depends:
-    ADPfusion             == 0.4.*    ,
-    ansi-wl-pprint        == 0.6.7.*  ,
-    bytestring            == 0.10.*   ,
-    containers                        ,
-    data-default          == 0.5.*    ,
-    HaTeX                 == 3.16.*   ,
-    lens                  == 4.*      ,
-    mtl                   == 2.*      ,
-    parsers               == 0.12.*   ,
-    PrimitiveArray        == 0.6.*    ,
-    template-haskell                  ,
-    text                  == 1.*      ,
-    transformers          >= 0.3      ,
-    trifecta              == 1.5.*    ,
-    unordered-containers  == 0.2.*    ,
-    vector                == 0.10.*   ,
-    base                  == 4.*
+  build-depends: base                  >= 4.7 && < 4.9
+               , ADPfusion             == 0.4.*
+               , ansi-wl-pprint        == 0.6.7.*
+               , bytestring            == 0.10.*
+               , containers
+               , data-default          == 0.5.*
+               , HaTeX                 == 3.16.*
+               , lens                  == 4.*
+               , mtl                   == 2.*
+               , parsers               == 0.12.*
+               , PrimitiveArray        == 0.6.*
+               , template-haskell
+               , text                  == 1.*
+               , transformers          >= 0.3
+               , trifecta              == 1.5.*
+               , unordered-containers  == 0.2.*
+               , vector                == 0.10.*
   exposed-modules:
 --    FormalLanguage
 --    FormalLanguage.CFG
     FormalLanguage.CFG.Grammar
---    FormalLanguage.CFG.Outside
---    FormalLanguage.CFG.Parser
+    FormalLanguage.CFG.Outside
+    FormalLanguage.CFG.Parser
 --    FormalLanguage.CFG.PrettyPrint
---    FormalLanguage.CFG.PrettyPrint.ANSI
+    FormalLanguage.CFG.PrettyPrint.ANSI
 --    FormalLanguage.CFG.PrettyPrint.Haskell
 --    FormalLanguage.CFG.PrettyPrint.LaTeX
 --    FormalLanguage.CFG.QQ
 --    FormalLanguage.CFG.QuickCheck
 --    FormalLanguage.CFG.TH
+  default-extensions: FlexibleContexts
+                    , FlexibleInstances
+                    , GeneralizedNewtypeDeriving
+                    , MultiParamTypeClasses
+                    , NamedFieldPuns
+                    , PatternGuards
+                    , RecordWildCards
+                    , ScopedTypeVariables
+                    , TemplateHaskell
+                    , TupleSections
+                    , TypeOperators
+
   ghc-options:
 
 -- A Simple pretty-printer for formal grammars.
 
 executable GrammarPP
-  build-depends:
-    ansi-wl-pprint            ,
-    cmdargs         == 0.10.* ,
-    FormalGrammars            ,
-    base
+  build-depends: base
+               , ansi-wl-pprint
+               , cmdargs          == 0.10.*
+               , FormalGrammars
   hs-source-dirs:
     src
   main-is:
@@ -217,7 +228,7 @@ executable DishonestCasinoFG
       ADPfusion                   ,
       cmdargs           == 0.10.* ,
       FormalGrammars              ,
-      log-domain        == 0.9.*  ,
+      log-domain        == 0.10.*  ,
       PrimitiveArray              ,
       template-haskell            ,
       vector                      ,

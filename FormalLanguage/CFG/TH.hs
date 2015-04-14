@@ -1,15 +1,4 @@
 
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeOperators #-}
-
 -- | Template Haskell system for translating formal grammars into real
 -- Haskell code based on ADPfusion.
 --
@@ -47,9 +36,10 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 
 import           ADP.Fusion ( (%), (|||), (...), (<<<) )
-import           ADP.Fusion.None
+import qualified ADP.Fusion as ADP
+import           ADP.Fusion.Term.None
 import           Data.PrimitiveArray (Z(..), (:.)(..))
-import qualified ADP.Fusion.Multi as ADP
+--import qualified ADP.Fusion.Multi as ADP
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.PrettyPrint.ANSI
@@ -82,13 +72,13 @@ data CfgState = CfgState
   , _qAttribFuns          :: M.Map [String] VarStrictType -- ^ map from the composed name to the template haskell attribute function @(Var,Strict,Type)@ (functions are currently stored as @[String]@ in @Grammar.hs@
   , _qChoiceFun           :: VarStrictType                -- ^ the choice function
   -- syntactic variables
-  , _qPartialSyntVarNames :: M.Map Symb Name              -- ^ syntactic-id to var name -- partially applied table / syntactic
-  , _qInsideSyntVarNames  :: M.Map Symb Name              -- ^ for outside grammars, these are the var-names for inside syn-vars
-  , _qFullSyntVarNames    :: M.Map Symb Name              -- ^ type variable names for the fully applied grammar body / where part
+  , _qPartialSyntVarNames :: M.Map Symbol Name            -- ^ syntactic-id to var name -- partially applied table / syntactic
+  , _qInsideSyntVarNames  :: M.Map Symbol Name            -- ^ for outside grammars, these are the var-names for inside syn-vars
+  , _qFullSyntVarNames    :: M.Map Symbol Name            -- ^ type variable names for the fully applied grammar body / where part
   -- everything on terminals
   , _qTermAtomVarNames    :: M.Map (String,Int) Name      -- ^ (Term-id,Dimension) to var name
   , _qTermAtomTyNames     :: M.Map String Name            -- ^ the type name for each unique terminal symbol (that is: the scalar terminals in each dimension)
-  , _qTermSymbExp         :: M.Map Symb (Type,Exp)        -- ^ associate a terminal @Symb@ with a complete @Type@ and @Exp@
+  , _qTermSymbExp         :: M.Map Symbol (Type,Exp)      -- ^ associate a terminal @Symb@ with a complete @Type@ and @Exp@
   }
 
 makeLenses ''CfgState
@@ -304,8 +294,8 @@ dimensionalTermSymbNames = do
   let xs = collectSymbT g
   let maxd = subtract 1 . the . map (length . view symb) $ xs
   ys <- forM [0..maxd] $ \d ->
-        forM (filter isT . nub $ xs^..folded.symb.ix d) $ \s -> do
-        ((s^.tnName,d),) <$> (lift $ newName $ ("lol" ++ s^.tnName) ++ show d)
+        forM (filter isTerminal . nub $ xs^..folded.symb.ix d) $ \s -> do
+        ((s^.name,d),) <$> (lift $ newName $ ("lol" ++ s^.name) ++ show d)
   return $ concat ys
 
 -- | Build the full grammar. Generate a name (the grammar name prefixed
@@ -313,8 +303,8 @@ dimensionalTermSymbNames = do
 
 grammar :: TQ Dec
 grammar = do
-  gname <- (mkName . ("g" ++) . grammarName) <$> use (qGrammar)
-  qGrammarName .= gname
+  gn <- (mkName . ("g" ++) . gname) <$> use (qGrammar)
+  qGrammarName .= gn
   args         <- grammarArguments
   bodyWhere    <- grammarBodyWhere
   bodyNames    <- use qFullSyntVarNames
@@ -337,13 +327,13 @@ grammar = do
 
 attributeFunctionType :: Rule -> TQ ([String],VarStrictType)
 attributeFunctionType r = do
-  let (f:fs) = r^.fun
+  let (f:fs) = r^.attr
   elemTyName <- use qElemTyName
   terminal   <- use qTermSymbExp
-  let argument :: Symb -> Type
+  let argument :: Symbol -> Type
       argument s
-        | isSymbN s = VarT elemTyName
-        | isSymbT s = fst $ terminal  M.! s
+        | isSyntactic s = VarT elemTyName
+        | isTerminal  s = fst $ terminal  M.! s
   nm <- lift $ (return . mkName) $ over _head toLower f ++ concatMap (over _head toUpper) fs -- TODO mkName ???
   let tp = foldr AppT (VarT elemTyName) $ map (AppT ArrowT . argument) $ r^.rhs
   return (f:fs, (nm,NotStrict,tp))

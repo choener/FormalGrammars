@@ -1,7 +1,8 @@
 
 {-
-Let us start by giving the grammar for CPG islands.
+CPG island grammar example, adapted from 'Biological Sequence Analysis' (Durbin et al)
 
+Let us start by giving the grammar for CPG islands.
 Also: Pretty comments ;-)
 -}
 
@@ -30,12 +31,12 @@ M -> frmisl <<< P n   -- from island
 
 -- Derive outside grammar, named GPC, from known source grammar.
 
-Outside: GPC
-Source: CPG
-//
+-- Outside: GPC
+-- Source: CPG
+-- //
 
 -- Emit both the inside and the outside grammar.
 
 Emit: CPG
-Emit: GPC
+-- Emit: GPC
 

@@ -55,6 +55,8 @@ makeLenses ''Index
 
 data SynTermEps
   -- | Syntactic variables.
+  -- | TODO we probably need a way to express syntactic terminal symbols.
+  -- However, the might just as well fit with the theme of @SynVar@s.
   = SynVar
     { _name   :: String
     , _index  :: [Index]

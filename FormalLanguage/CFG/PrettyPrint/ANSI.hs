@@ -17,8 +17,9 @@ module FormalLanguage.CFG.PrettyPrint.ANSI
 import           Control.Lens hiding (outside,Index)
 import           Control.Monad.Reader
 import           Data.List (intersperse)
-import qualified Data.Set as S
+import           Prelude hiding ((<$>))
 import qualified Data.Map as M
+import qualified Data.Set as S
 import           System.IO (stdout)
 import           Text.PrettyPrint.ANSI.Leijen
 

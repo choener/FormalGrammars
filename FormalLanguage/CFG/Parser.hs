@@ -22,7 +22,6 @@ module FormalLanguage.CFG.Parser
 --  ) where
   where
 
-import           System.IO.Unsafe (unsafePerformIO)
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Lens hiding (Index, outside)
@@ -32,15 +31,17 @@ import           Control.Monad.Trans.State.Strict hiding (get)
 import           Data.Default
 import           Data.Map.Strict (Map)
 import           Data.Maybe
+import           Data.Sequence (Seq)
 import           Debug.Trace
 import qualified Data.HashSet as H
 import qualified Data.Map.Strict as M
+import qualified Data.Sequence as Seq
 import qualified Data.Set as S
+import           System.IO.Unsafe (unsafePerformIO)
 import           Text.Parser.Token.Style
 import           Text.Printf
 import           Text.Trifecta
-import qualified Data.Sequence as Seq
-import           Data.Sequence (Seq)
+import qualified Text.PrettyPrint.ANSI.Leijen as AL
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.Outside
@@ -94,8 +95,8 @@ parseGrammar = do
   reserve fgIdents "//"
   g <- use current
   v <- use verbose
-  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ g) else return ())
-  seq z $ env %= M.insert n g
+  seq (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ g) else return ())
+    $ env %= M.insert n g
 
 -- | Which of the intermediate grammar to actually emit as code or text in
 -- TeX. Single line: @Emit: KnownGrammarName@
@@ -105,8 +106,8 @@ parseEmitGrammar = do
   reserve fgIdents "Emit:"
   g <- knownGrammarName
   v <- use verbose
-  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ g) else return ())
-  seq z $ emit %= ( Seq.|> g) -- snoc the grammar
+  seq (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ g) else return ())
+    $ emit %= ( Seq.|> g) -- snoc the grammar
 
 -- | Normalize start and epsilon rules in a known @Source:@, thereby
 -- generating a new grammar.
@@ -121,8 +122,8 @@ parseNormStartEps = do
   reserve fgIdents "//"
   let h = normalizeStartEpsilon g
   v <- use verbose
-  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ h) else return ())
-  seq z $ env %= M.insert n h
+  seq (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ h) else return ())
+    $ env %= M.insert n h
 
 -- | Try to generate an outside grammar from an inside grammar. The @From:@
 -- name is looked up in the environment.
@@ -144,8 +145,8 @@ parseOutside = do
   reserve fgIdents "//"
   let h = toOutside g
   v <- use verbose
-  let z = (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ h) else return ())
-  seq z $ env %= M.insert n h
+  seq (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ h) else return ())
+    $ env %= M.insert n h
 
 
 
