@@ -298,7 +298,7 @@ dimensionalTermSymbNames = do
   let xs = grammarTerminals g
   let maxd = subtract 1 . the . map length $ xs
   ys <- forM [0..maxd] $ \d ->
-        forM (filter isTerminal . nub $ xs^..folded.ix d) $ \s -> do
+        forM (nub . _ $ xs^.folded {- ^..folded.ix d -} ) $ \s -> do
         ((s^.name,d),) <$> (lift $ newName $ ("lol" ++ s^.name) ++ show d)
   return $ concat ys
 
@@ -307,7 +307,7 @@ dimensionalTermSymbNames = do
 
 grammar :: TQ Dec
 grammar = do
-  gn <- (mkName . ("g" ++) . gname) <$> use (qGrammar)
+  gn <- (mkName . ("g" ++) . _gname) <$> use qGrammar
   qGrammarName .= gn
   args         <- grammarArguments
   bodyWhere    <- grammarBodyWhere

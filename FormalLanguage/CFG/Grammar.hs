@@ -79,6 +79,7 @@ data SynTermEps
   deriving (Show,Eq,Ord)
 
 makeLenses ''SynTermEps
+makePrisms ''SynTermEps
 
 -- | The length of the list encodes the dimension of the symbol
 
