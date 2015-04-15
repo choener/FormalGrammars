@@ -1,7 +1,4 @@
 
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE LambdaCase #-}
-
 -- | The basic data types for formal languages up to and including context-free
 -- grammars.
 --
@@ -17,139 +14,21 @@
 -- BIGTODO @E _@ are actually the "None" thing in ADPfusion; while normal
 -- epsilons are just terminals.
 
-module FormalLanguage.CFG.Grammar where
+module FormalLanguage.CFG.Grammar
+  ( module FormalLanguage.CFG.Grammar.Types
+  , module FormalLanguage.CFG.Grammar.Util
+  ) where
 
-import           Control.Lens hiding (Index,index)
-import           Data.Default
+import FormalLanguage.CFG.Grammar.Types
+import FormalLanguage.CFG.Grammar.Util
+
+{-
 import           Data.List (partition,sort,nub)
-import           Data.Map.Strict (Map)
-import           Data.Set (Set)
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
+import           Data.Monoid
+-}
 
 
-
--- | Encode the index of the syntactic or terminal variable.
---
--- In case of grammar-based indexing, keep @indexRange@ empty. The
--- @indexStep@ keeps track of any @+k@ / @-k@ given in the production
--- rules.
---
--- We allow indexing terminals now, too. When glueing together terminals,
--- one might want to be able to differentiate between terminals.
-
-data Index = Index
-  { _indexVar   :: String
-  , _indexRange :: [String]
-  , _indexStep  :: Int
-  }
-  -- TODO need a version, where we have figured out everything
-  -- , i.e. replaced @i+2@ with, say, @1@ @(i==1+2 `mod` 3)@.
-  -- Use the @_indexVar = j@ version in the set of syn-vars, but
-  -- @_indexVar=x, x \in _indexRange@ in rules?
-  deriving (Show,Eq,Ord)
-
-makeLenses ''Index
-
--- | Symbols, potentially with an index or more than one.
-
-data SynTermEps
-  -- | Syntactic variables.
-  -- | TODO we probably need a way to express syntactic terminal symbols.
-  -- However, the might just as well fit with the theme of @SynVar@s.
-  = SynVar
-    { _name   :: String
-    , _index  :: [Index]
-    }
-  -- | Regular old terminal symbol -- reads stuff from the input.
-  | Term
-    { _name   :: String
-    , _index  :: [Index]
-    }
-  -- | This sym denotes the case, where we have an @Empty@ terminal, i.e.
-  -- something is matched to nothing. This is actually just a regular
-  -- terminal symbol, we just treat it differently.
-  | Empty
-  -- | Finally, a real epsilon. Again, these are somewhat regular terminal
-  -- symbols, but it is important to be able to recognize these, when
-  -- trying to create outside variants of our algorithms.
-  | Epsilon
-    { _name :: String
-    }
-  deriving (Show,Eq,Ord)
-
-makeLenses ''SynTermEps
-makePrisms ''SynTermEps
-
--- | The length of the list encodes the dimension of the symbol
-
-type Symbol = [SynTermEps]
-
--- | @Term@, @Empty@, and @Epsilon@ all count as terminal symbols.
-
-isTerminal :: Symbol -> Bool
-isTerminal = allOf folded (\case (SynVar _ _) -> False; _ -> True)
-
--- | Only @SynVar@s are non-terminal.
-
-isSyntactic :: Symbol -> Bool
-isSyntactic = allOf folded (\case (SynVar _ _) -> True; _ -> False)
-
--- | Epsilon-only symbols.
-
-isEpsilon :: Symbol -> Bool
-isEpsilon = allOf folded (\case Epsilon _ -> True; _ -> False)
-
--- | Production rules for at-most CFGs.
-
-data Rule = Rule
-  { _lhs  :: Symbol     -- ^ the left-hand side of the rule
-  , _attr :: [String]   -- ^ the attribute for this rule
-  , _rhs  :: [Symbol]   -- ^ the right-hand side with a collection of terminals and syntactic variables
-  }
-  deriving (Show,Eq,Ord)
-
-makeLenses ''Rule
-
-data Grammar = Grammar
-  { _synvars  :: Map String SynTermEps  -- ^ regular syntactic variables, without dimension
-  , _termsyns :: Map String SynTermEps  -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
-  , _termvars :: Map String SynTermEps  -- ^ regular terminal symbols
-  , _epsvars  :: Map String SynTermEps  -- ^ terminal symbol names that denote @Epsilon@
-  , _outside  :: Bool                   -- ^ Is this an outside grammar
-  , _rules    :: Set Rule               -- ^ set of production rules
-  , _start    :: Symbol                 -- ^ start symbol
-  , _params   :: Map String Index       -- ^ any global variables
-  , _gname    :: String                 -- ^ grammar name
-  , _write    :: Bool                   -- ^ some grammar file requested this grammar to be expanded into code
-  }
-  deriving (Show)
-
-instance Default Grammar where
-  def = Grammar
-    { _synvars = M.empty
-    , _termsyns = M.empty
-    , _termvars = M.empty
-    , _epsvars  = M.empty
-    , _outside = False
-    , _rules = S.empty
-    , _start = []
-    , _params = M.empty
-    , _gname = ""
-    , _write = False
-    }
-
-makeLenses ''Grammar
-
--- | Dimension of the grammar. Rather costly, because we check for dimensional
--- consistency.
-
-dim :: Grammar -> Int
-dim g
-  | null ls = error "no terminal symbol in grammar"
-  | all (l==) ls = l
-  | otherwise = error "inconsistent dimensionality"
-  where ls@(l:_) = map length . filter isTerminal $ g^..rules.folded.rhs.traverse
+{-
 
 -- | A grammar with normalized start and epsilon symbols (i) has a start
 -- symbol, whose RHSs only point to single syntactic variables. (ii) It has
@@ -249,6 +128,40 @@ grammarTerminals g = nub . sort . filter isTerminal $ (g^..rules.folded.lhs) ++ 
 
 grammarSynVars :: Grammar -> [Symbol]
 grammarSynVars g = nub . sort . filter isSyntactic $ (g^..rules.folded.lhs) ++ (g^..rules.folded.rhs.folded)
+
+-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 {-
 

@@ -42,6 +42,7 @@ import           Text.Parser.Token.Style
 import           Text.Printf
 import           Text.Trifecta
 import qualified Text.PrettyPrint.ANSI.Leijen as AL
+import           Data.Monoid
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.Outside
@@ -85,7 +86,7 @@ parseGrammar :: Parse m ()
 parseGrammar = do
   reserve fgIdents "Grammar:"
   n <- newGrammarName
-  current.gname    .= n
+  current.grammarName    .= n
   current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
   current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
   current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
@@ -116,9 +117,9 @@ parseNormStartEps :: Parse m ()
 parseNormStartEps = do
   reserve fgIdents "NormStartEps:"
   n <- newGrammarName
-  current.gname .= n
+  current.grammarName .= n
   reserve fgIdents "Source:"
-  g <- (set gname n) <$> knownGrammarName <?> "known source grammar"
+  g <- (set grammarName n) <$> knownGrammarName <?> "known source grammar"
   reserve fgIdents "//"
   let h = normalizeStartEpsilon g
   v <- use verbose
@@ -138,9 +139,9 @@ parseOutside :: Parse m ()
 parseOutside = do
   reserve fgIdents "Outside:"
   n <- newGrammarName
-  current.gname .= n
+  current.grammarName .= n
   reserve fgIdents "Source:"
-  g <- (set gname n) <$> knownGrammarName <?> "known source grammar"
+  g <- (set grammarName n) <$> knownGrammarName <?> "known source grammar"
   guard (not $ g^.outside) <?> "source already is an outside grammar"
   reserve fgIdents "//"
   let h = toOutside g
@@ -225,16 +226,16 @@ parseIndex e = braces $ commaSep ix where
 
 knownTermVar :: EvalReq -> Stately m Symbol
 knownTermVar e = do
-  (:[]) <$> tv <|> (brackets $ commaSep (em <|> tv))
+  (:[]) <$> tv <|> (brackets $ commaSep (del <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
                i <- ident fgIdents
                t <- use (current . termvars . at i)
                e <- use (current . epsvars  . at i)
                guard . isJust $ t <|> e
                if isJust t
-                then return $ Term i []
+                then return $ Term i [] (Tape 0)
                 else return $ Epsilon i
-        em = Empty <$ reserve fgIdents "-"
+        del = Deletion <$ reserve fgIdents "-"
 
 -- | Parses an already known symbol, either syntactic or terminal.
 --

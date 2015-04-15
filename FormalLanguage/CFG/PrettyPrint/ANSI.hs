@@ -1,6 +1,4 @@
 
-{-# LANGUAGE PatternGuards #-}
-
 -- |
 --
 -- TODO grammar-level indices should be colored red! also, make grammar
@@ -40,7 +38,7 @@ grammarDoc g = do
   s  <- fmap (ind "start symbol:"        2) $ symbolDoc (g^.start)
   rs <- fmap (ind "rules:"               2 . vcat) . rulesDoc $ g^..rules.folded
   ind <- undefined
-  return $ text "Grammar: " <+> (text $ g^.gname) <+> ga <$> indent 2 (vsep $ [ss] ++ [os | g^.outside] ++ [ts, s, rs]) <$> line
+  return $ text "Grammar: " <+> (text $ g^.grammarName) <+> ga <$> indent 2 (vsep $ [ss] ++ [os | g^.outside] ++ [ts, s, rs]) <$> line
   where ind s k d = text s <$> indent k d
 
 rulesDoc :: [Rule] -> Reader Grammar [Doc]
@@ -54,10 +52,11 @@ ruleDoc (Rule lhs fun rhs)
   where f  = fill 10 . text . concat . intersperse "_" $ fun
 
 steDoc :: SynTermEps -> Reader Grammar Doc
-steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text n <+>)
-steDoc (Term    n i) = return . green . text $ n
-steDoc (Epsilon n  ) = return . red   . text $ n
-steDoc (Empty      ) = return . red   . text $ "-"
+steDoc (SynVar  n i  ) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
+steDoc (SynTerm n i  ) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
+steDoc (Term    n i t) = return . green . text $ n^.getSymbolName ++ (show $ t^.getTape)
+steDoc (Epsilon n    ) = return . red   . text $ n^.getSymbolName
+steDoc (Deletion     ) = return . red   . text $ "-"
 
 indexDoc :: [Index] -> Reader Grammar Doc
 indexDoc [] = return empty
@@ -69,8 +68,8 @@ indexDoc xs = fmap (encloseSep lbrace rbrace comma) . mapM iDoc $ xs
                | s< 0 = text $        show s
 
 symbolDoc :: Symbol -> Reader Grammar Doc
-symbolDoc [x] = steDoc x
-symbolDoc xs  = fmap list . mapM steDoc $ xs
+symbolDoc (Symbol [x]) = steDoc x
+symbolDoc (Symbol xs ) = fmap list . mapM steDoc $ xs
 
 printDoc :: Doc -> IO ()
 printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)

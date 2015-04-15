@@ -93,6 +93,8 @@ library
 --    FormalLanguage
 --    FormalLanguage.CFG
     FormalLanguage.CFG.Grammar
+    FormalLanguage.CFG.Grammar.Types
+    FormalLanguage.CFG.Grammar.Util
     FormalLanguage.CFG.Outside
     FormalLanguage.CFG.Parser
 --    FormalLanguage.CFG.PrettyPrint
@@ -113,6 +115,7 @@ library
                     , TemplateHaskell
                     , TupleSections
                     , TypeOperators
+                    , LambdaCase
 
   ghc-options:
 
