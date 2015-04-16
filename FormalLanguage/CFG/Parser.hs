@@ -55,10 +55,10 @@ import           FormalLanguage.CFG.PrettyPrint.ANSI
 -- (@current@) as well as everything we have parsed until now (@env@).
 
 data GrammarEnv = GrammarEnv
-  { _current  :: Grammar
-  , _env      :: Map String Grammar
-  , _emit     :: Seq Grammar
-  , _verbose  :: Bool
+  { _current  :: Grammar              -- ^ The grammar declaration we currently evaluate
+  , _env      :: Map String Grammar   -- ^ grammars within the environment
+  , _emit     :: Seq Grammar          -- ^ sequence of grammars to emit (in order)
+  , _verbose  :: Bool                 -- ^ emit lots of informative messages
   }
   deriving (Show)
 
@@ -88,7 +88,8 @@ parseGrammar = do
   n <- newGrammarName
   current.grammarName    .= n
   current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
-  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynDecl EvalGrammar)
+  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSyntacticDecl EvalGrammar)
+  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSynTermDecl EvalGrammar)
   current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
   -- TODO current.epsvars <~ ...
   current.start    <~ parseStartSym
@@ -156,7 +157,7 @@ parseOutside = do
 -- |
 
 fgIdents = set styleReserved rs emptyIdents
-  where rs = H.fromList ["Grammar:", "N:", "T:", "S:", "->", "<<<", "-", "Outside:", "Source:", "NormStartEps:"]
+  where rs = H.fromList ["Grammar:", "N:", "Y:", "T:", "S:", "->", "<<<", "-", "Outside:", "Source:", "NormStartEps:"]
 
 -- |
 
@@ -178,12 +179,19 @@ knownGrammarName = try $ do
   when (isNothing g) $ unexpected "known source grammar"
   return $ fromJust g
 
--- |
+-- | Parses a syntactic (or non-terminal) symbol (for the corresponding index type). Cf. 'parseSynTermDecl'.
 
-parseSynDecl :: EvalReq -> Parse m SynTermEps
-parseSynDecl e = do
+parseSyntacticDecl :: EvalReq -> Parse m SynTermEps
+parseSyntacticDecl e = do
   reserve fgIdents "N:"
   SynVar <$> (ident fgIdents <?> "syntactic variable name") <*> (option [] $ parseIndex e)
+
+-- | Parses a syntactic terminal declaration; an inside syntactic variable in an outside context.
+
+parseSynTermDecl :: EvalReq -> Parse m SynTermEps
+parseSynTermDecl e = do
+  reserve fgIdents "Y:"
+  SynTerm <$> (ident fgIdents <?> "syntactic variable name") <*> (option [] $ parseIndex e)
 
 -- |
 
@@ -221,7 +229,7 @@ knownSynVar e = Symbol <$> do
 knownSynTerm :: EvalReq -> Stately m Symbol
 knownSynTerm e = Symbol <$> do
   ((:[]) <$> sv) <|> (brackets $ commaSep sv)
-  where sv = flip (<?>) "known syntactic variable" . try $ do
+  where sv = flip (<?>) "known syntactic terminal" . try $ do
                s <- ident fgIdents
                use (current . synterms . at s) >>= guard . isJust
                i <- option [] $ parseIndex e
@@ -254,7 +262,7 @@ knownTermVar e = Symbol <$> do
 --this explicitly?
 
 knownSymbol :: EvalReq -> Stately m Symbol
-knownSymbol e = try (knownSynVar e) <|> knownTermVar e
+knownSymbol e = try (knownSynVar e) <|> try (knownSynTerm e) <|> knownTermVar e
 
 -- |
 
