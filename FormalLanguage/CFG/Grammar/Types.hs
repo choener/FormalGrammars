@@ -71,7 +71,6 @@ data SynTermEps
   | Term
     { _name   :: SymbolName
     , _index  :: [Index]
-    , _tape   :: Tape
     }
   -- | This sym denotes the case, where we have an @Deletion@ terminal, i.e.
   -- something is matched to nothing. This is actually just a regular
@@ -90,43 +89,52 @@ makePrisms ''SynTermEps
 
 
 
--- | The length of the list encodes the dimension of the symbol
+-- | The length of the list encodes the dimension of the symbol. Forms a monoid
+-- over dimensional concatenation.
 
 newtype Symbol = Symbol { _getSymbolList :: [SynTermEps] }
-  deriving (Show,Eq,Ord)
+  deriving (Show,Eq,Ord,Monoid)
 
 makeLenses ''Symbol
 
-instance Monoid Symbol where
-  (Symbol xs) `mappend` (Symbol ys) = Symbol $ xs ++ go (length xs) ys
-    where go _ [] = []
-          -- TODO the terminal case
-          go k (y:ys) = y : go (k+1) ys
-  mempty = Symbol []
+
+
+-- | The name of an attribute function
+
+newtype AttributeFunction = Attr { _getAttr :: String }
+  deriving (Show,Eq,Ord,IsString)
+
+makeLenses ''AttributeFunction
 
 
 
 -- | Production rules for at-most CFGs.
 
 data Rule = Rule
-  { _lhs  :: Symbol     -- ^ the left-hand side of the rule
-  , _attr :: [String]   -- ^ the attribute for this rule
-  , _rhs  :: [Symbol]   -- ^ the right-hand side with a collection of terminals and syntactic variables
+  { _lhs  :: Symbol               -- ^ the left-hand side of the rule
+  , _attr :: [AttributeFunction]  -- ^ the attribute for this rule
+  , _rhs  :: [Symbol]             -- ^ the right-hand side with a collection of terminals and syntactic variables
   }
   deriving (Show,Eq,Ord)
 
 makeLenses ''Rule
 
+
+
+-- | Complete descrition of a grammar. In principle it would be enough to hold
+-- @_rules@ and the @_start@ symbol name. We also store dimensionless names for
+-- syntactiv variables, and terminals. This makes certain checks easier or
+-- possible.
+--
+-- We store all single-tape symbol names dimensionless. This means that, for
+-- terminals, symbols with the same name have the same tape. This is slightly
+-- inconvenient for special applications (say Protein-DNA alignment) but one
+-- can easily rename terminals.
+
 data Grammar = Grammar
   { _synvars      :: Map SymbolName SynTermEps          -- ^ regular syntactic variables, without dimension
   , _termsyns     :: Map SymbolName SynTermEps          -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
-  -- TODO store terminal symbols (i) without tape: once a symbol name is
-  -- set, the symbol name denotes the same type over all tapes (ii) with
-  -- tape; we can then have different types for the same name over
-  -- different tapes. ... maybe (i) is better, giving the same meaning
-  -- (type) to each use of the symbol. We can and do still bind the data
-  -- differently for each tape.
-  , _termvars     :: Map (SymbolName,Tape) SynTermEps   -- ^ regular terminal symbols
+  , _termvars     :: Map SymbolName SynTermEps  -- ^ regular terminal symbols
   , _epsvars      :: Map SymbolName SynTermEps          -- ^ terminal symbol names that denote @Epsilon@
   , _outside      :: Bool                               -- ^ Is this an outside grammar
   , _rules        :: Set Rule                           -- ^ set of production rules

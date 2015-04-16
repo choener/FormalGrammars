@@ -49,14 +49,14 @@ ruleDoc (Rule lhs fun rhs)
   = do l  <- symbolDoc lhs
        rs <- fmap (intersperse (text "   ")) . mapM symbolDoc $ rhs
        return $ fill 10 l <+> text "->" <+> f <+> text "<<<" <+> hcat rs
-  where f  = fill 10 . text . concat . intersperse "_" $ fun
+  where f  = fill 10 . text . concat . intersperse "_" $ fun^..folded.getAttr
 
 steDoc :: SynTermEps -> Reader Grammar Doc
-steDoc (SynVar  n i  ) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
-steDoc (SynTerm n i  ) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
-steDoc (Term    n i t) = return . green . text $ n^.getSymbolName ++ (show $ t^.getTape)
-steDoc (Epsilon n    ) = return . red   . text $ n^.getSymbolName
-steDoc (Deletion     ) = return . red   . text $ "-"
+steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
+steDoc (SynTerm n i) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
+steDoc (Term    n i) = return . green . text $ n^.getSymbolName
+steDoc (Epsilon n  ) = return . red   . text $ n^.getSymbolName
+steDoc (Deletion   ) = return . red   . text $ "-"
 
 indexDoc :: [Index] -> Reader Grammar Doc
 indexDoc [] = return empty
