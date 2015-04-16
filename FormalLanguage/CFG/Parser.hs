@@ -208,11 +208,22 @@ data EvalReq = EvalFull | EvalGrammar | EvalSymb
 -- |
 
 knownSynVar :: EvalReq -> Stately m Symbol
-knownSynVar e = do
-  (:[]) <$> sv <|> (brackets $ commaSep sv)
+knownSynVar e = Symbol <$> do
+  ((:[]) <$> sv) <|> (brackets $ commaSep sv)
   where sv = flip (<?>) "known syntactic variable" . try $ do
                s <- ident fgIdents
                use (current . synvars . at s) >>= guard . isJust
+               i <- option [] $ parseIndex e
+               return $ SynVar s i
+
+-- |
+
+knownSynTerm :: EvalReq -> Stately m Symbol
+knownSynTerm e = Symbol <$> do
+  ((:[]) <$> sv) <|> (brackets $ commaSep sv)
+  where sv = flip (<?>) "known syntactic variable" . try $ do
+               s <- ident fgIdents
+               use (current . synterms . at s) >>= guard . isJust
                i <- option [] $ parseIndex e
                return $ SynVar s i
 
@@ -225,15 +236,15 @@ parseIndex e = braces $ commaSep ix where
 -- |
 
 knownTermVar :: EvalReq -> Stately m Symbol
-knownTermVar e = do
-  (:[]) <$> tv <|> (brackets $ commaSep (del <|> tv))
+knownTermVar e = Symbol <$> do
+  ((:[]) <$> tv) <|> (brackets $ commaSep (del <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
                i <- ident fgIdents
                t <- use (current . termvars . at i)
                e <- use (current . epsvars  . at i)
                guard . isJust $ t <|> e
                if isJust t
-                then return $ Term i [] (Tape 0)
+                then return $ Term i []
                 else return $ Epsilon i
         del = Deletion <$ reserve fgIdents "-"
 

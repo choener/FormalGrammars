@@ -48,7 +48,7 @@ makeLenses ''SymbolName
 -- still have the same @SymbolName@ but different type and input!
 
 newtype Tape = Tape { _getTape :: Int }
-  deriving (Show,Eq,Ord)
+  deriving (Show,Eq,Ord,Enum,Num)
 
 makeLenses ''Tape
 
@@ -133,7 +133,7 @@ makeLenses ''Rule
 
 data Grammar = Grammar
   { _synvars      :: Map SymbolName SynTermEps          -- ^ regular syntactic variables, without dimension
-  , _termsyns     :: Map SymbolName SynTermEps          -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
+  , _synterms     :: Map SymbolName SynTermEps          -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
   , _termvars     :: Map SymbolName SynTermEps  -- ^ regular terminal symbols
   , _epsvars      :: Map SymbolName SynTermEps          -- ^ terminal symbol names that denote @Epsilon@
   , _outside      :: Bool                               -- ^ Is this an outside grammar
@@ -148,7 +148,7 @@ data Grammar = Grammar
 instance Default Grammar where
   def = Grammar
     { _synvars      = M.empty
-    , _termsyns     = M.empty
+    , _synterms     = M.empty
     , _termvars     = M.empty
     , _epsvars      = M.empty
     , _outside      = False

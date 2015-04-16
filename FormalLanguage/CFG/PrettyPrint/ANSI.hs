@@ -33,7 +33,7 @@ grammarDoc :: Grammar -> Reader Grammar Doc
 grammarDoc g = do
   ga <- indexDoc $ g^..params.folded
   ss <- fmap (ind "syntactic symbols:"   2 . vcat) . mapM steDoc $ g^..synvars.folded
-  os <- fmap (ind "syntactic terminals:" 2 . vcat) . mapM steDoc $ g^..termsyns.folded
+  os <- fmap (ind "syntactic terminals:" 2 . vcat) . mapM steDoc $ g^..synterms.folded
   ts <- fmap (ind "terminals:"           2 . vcat) . mapM steDoc $ g^..termvars.folded
   s  <- fmap (ind "start symbol:"        2) $ symbolDoc (g^.start)
   rs <- fmap (ind "rules:"               2 . vcat) . rulesDoc $ g^..rules.folded
