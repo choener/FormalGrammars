@@ -34,6 +34,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
+import           Control.Monad.Reader
 
 import           ADP.Fusion ( (%), (|||), (...), (<<<) )
 import qualified ADP.Fusion as ADP
@@ -177,6 +178,7 @@ signature = do
 
 grammarArguments :: TQ [PatQ]
 grammarArguments = do
+  g       <- use qGrammar
   signame <- use qSigName
   h       <- use qChoiceFun
   fs      <- use qAttribFuns
@@ -197,8 +199,8 @@ grammarArguments = do
       ppSynt xs  = PP.list $ map (ppSynt . (:[])) xs
       ppTerm (n,k) = PP.yellow . PP.text $ printf "%s,%d" n k
       pp = PP.dullgreen $ PP.text (printf "%s $ALGEBRA" gname)
-      sy = error "grammarArguments" -- PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map symbolDoc $ M.keys psyn)
-      iy = error "grammarArguments" -- if M.null isyn then PP.text "" else PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map symbolDoc $ M.keys isyn)
+      sy = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (runReader (mapM symbolDoc $ M.keys psyn) g)
+      iy = if M.null isyn then PP.text "" else PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (runReader (mapM symbolDoc $ M.keys isyn) g)
       te = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map (\s -> ppTerm $ s)                      $ M.keys tavn)
   lift . runIO . printDoc $ pp PP.<> sy PP.<> iy PP.<> te PP.<> PP.hardline
   return $ alg : syn ++ isn ++ ter
@@ -294,18 +296,10 @@ grammarTermExpression s = do
 dimensionalTermSymbNames :: TQ [((String,Int),Name)]
 dimensionalTermSymbNames = do
   g <- use qGrammar
-  -- let xs = g^.termvars
-  -- let maxd = subtract 1 . the . map length $ xs
-  {-
-  ys <- forM [0..maxd] $ \d ->
-        forM (nub . _ $ xs^.folded {- ^..folded.ix d -} ) $ \s -> do
-        ((s^.name,d),) <$> (lift $ newName $ ("lol" ++ s^.name) ++ show d)
-  return $ concat ys
-  -}
-  ys <- forM (uniqueTermsWithTape g) $ \(t,d) -> do
+  ys <- forM (uniqueBindableTermsWithTape g) $ \(t,d) -> do
           let sn = t^.name.getSteName
           let dm = d^.getTape
-          ( (sn,dm) , ) <$> (lift $ newName $ "lol" ++ sn ++ show dm)
+          ( (sn,dm) , ) <$> (lift $ newName $ "term" ++ sn ++ show dm)
   return ys
 
 -- | Build the full grammar. Generate a name (the grammar name prefixed

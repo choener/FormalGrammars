@@ -22,10 +22,9 @@ import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
 
 import           ADP.Fusion
-import           Data.Array.Repa.Index.Outside
 import           Data.PrimitiveArray as PA hiding (map)
 
-import           FormalLanguage.CFG
+import           FormalLanguage
 
 
 
@@ -35,12 +34,16 @@ import           FormalLanguage.CFG
 Grammar: Nussinov
 N: X
 T: c
-T: e
+E: e
+S: X
 X -> unp <<< X c
 X -> jux <<< X c X c
 X -> nil <<< e
 //
+
+Emit: Nussinov
 |]
+
 
 makeAlgebraProductH ['h] ''SigNussinov
 
@@ -77,11 +80,11 @@ runNussinov k inp = (d, take k . S.toList . unId $ axiom b) where -- , d', take 
   n = VU.length i
   !(Z:.t) = mutateTablesDefault
           $ gNussinov bpmax
-              (ITbl EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
+              (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
               (chr i) Empty
               :: Z:.ITbl Id Unboxed Subword Int
-  d = let ITbl _ arr _ = t in arr PA.! subword 0 n
-  !(Z:.b) = gNussinov (bpmax <** pretty) (toBT t (undefined :: Id a -> Id a)) (chr i) Empty
+  d = let ITbl _ _ _ arr _ = t in arr PA.! subword 0 n
+  !(Z:.b) = gNussinov (bpmax <** pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i) Empty
   {-
   !(Z:.t') = mutateTablesDefault
            $ gOutsideNussinov bpmax

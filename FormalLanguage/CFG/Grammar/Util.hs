@@ -16,6 +16,11 @@ import FormalLanguage.CFG.Grammar.Types
 isTerminal :: Symbol -> Bool
 isTerminal = allOf folded (\case (SynVar _ _) -> False; (SynTerm _ _) -> False; _ -> True) . _getSymbolList
 
+-- | @Term@, and @Epsilon@ are terminal symbols that can be bound.
+
+isBindableTerminal :: Symbol -> Bool
+isBindableTerminal = allOf folded (\case (Term _ _) -> True; (Epsilon _) -> True; _ -> False) . _getSymbolList
+
 -- | Only @SynVar@s are non-terminal.
 
 isSyntactic :: Symbol -> Bool
@@ -49,10 +54,25 @@ uniqueTermsWithTape = nub . sort                              -- cleanup
                     . concatMap (zip [0..] . _getSymbolList)  -- combine single-tape terminals with tape indices
                     . uniqueTerminalSymbols
 
--- | Return the nub list of terminal symbols.
+-- | Extract single-tape bindable terminals together with their tape dimension.
+
+uniqueBindableTermsWithTape :: Grammar -> [(SynTermEps , Tape)]
+uniqueBindableTermsWithTape = nub . sort                              -- cleanup
+                            . map swap                                -- swap the index to the second position
+                            . concatMap (zip [0..] . _getSymbolList)  -- combine single-tape terminals with tape indices
+                            . uniqueBindableTerminalSymbols
+
+-- | Return the nub list of terminal symbols. This includes @Deletion@
+-- symbols, and might not be what you want. Check
+-- 'uniqueBindableTerminalSymbols' too!
 
 uniqueTerminalSymbols :: Grammar -> [Symbol]
 uniqueTerminalSymbols = nub . sort . filter isTerminal . toListOf (rules.folded.rhs.folded)
+
+-- |
+
+uniqueBindableTerminalSymbols :: Grammar -> [Symbol]
+uniqueBindableTerminalSymbols = nub . sort . filter isBindableTerminal . toListOf (rules.folded.rhs.folded)
 
 -- | Return the nub list of syntactic symbols.
 

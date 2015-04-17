@@ -8,11 +8,11 @@
 
 module Main where
 
-import           Control.Applicative
+import           Control.Applicative ()
 import           Control.Monad
 import           Control.Monad.ST
 import           Data.Char (toUpper,toLower)
-import           Data.List
+import           Data.List (take)
 import           Data.Vector.Fusion.Util
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
@@ -20,9 +20,11 @@ import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
+import           Data.Sequence ((|>),Seq,empty)
+import           Data.Foldable (toList)
 
 import           ADP.Fusion
-import           Data.PrimitiveArray as PA hiding (map)
+import           Data.PrimitiveArray as PA hiding (map,toList)
 
 import           FormalLanguage.CFG
 
@@ -34,13 +36,15 @@ import           FormalLanguage.CFG
 Grammar: Global
 N: X
 T: c
-T: e
-E: z
+E: e
+S: [X,X]
 [X,X] -> done  <<< [e,e]
 [X,X] -> align <<< [X,X] [c,c]
-[X,X] -> indel <<< [X,X] [z,c]
-[X,X] -> delin <<< [X,X] [c,z]
+[X,X] -> indel <<< [X,X] [-,c]
+[X,X] -> delin <<< [X,X] [c,-]
 //
+
+Emit: Global
 |]
 
 
@@ -60,16 +64,16 @@ score = SigGlobal
 --
 -- NOTE The alignment needs to be reversed to print out.
 
-pretty :: Monad m => SigGlobal m [String] (SM.Stream m [String]) Char ()
+pretty :: Monad m => SigGlobal m [Seq Char] (SM.Stream m [Seq Char]) Char ()
 pretty = SigGlobal
-  { done  = \       (Z:.():.()) -> [""   ,""   ]
-  , align = \ [x,y] (Z:.a :.b ) -> [a  :x,b  :y]
-  , indel = \ [x,y] (Z:.():.b ) -> ['-':x,b  :y]
-  , delin = \ [x,y] (Z:.a :.()) -> [a  :x,'-':y]
+  { done  = \       (Z:.():.()) -> [empty,empty]
+  , align = \ [x,y] (Z:.a :.b ) -> [x |> a  ,y |> b  ]
+  , indel = \ [x,y] (Z:.():.b ) -> [x |> '-',y |> b  ]
+  , delin = \ [x,y] (Z:.a :.()) -> [x |> a  ,y |> '-']
   , h     = return . id
   }
 
-runNeedlemanWunsch :: Int -> String -> String -> (Int,[[String]])
+runNeedlemanWunsch :: Int -> String -> String -> (Int,[[Seq Char]])
 runNeedlemanWunsch k i1' i2' = (d, take k . S.toList . unId $ axiom b) where
   i1 = VU.fromList i1'
   i2 = VU.fromList i2'
@@ -77,12 +81,12 @@ runNeedlemanWunsch k i1' i2' = (d, take k . S.toList . unId $ axiom b) where
   n2 = VU.length i2
   !(Z:.t) = mutateTablesDefault
           $ gGlobal score
-              (ITbl (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.pointL 0 0:.pointL 0 0) (Z:.pointL 0 n1:.pointL 0 n2) (-999999) []))
+              (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.PointL 0:.PointL 0) (Z:.PointL n1:.PointL n2) (-999999) []))
               (chr i1) (chr i2)
               Empty Empty
               :: Z:.ITbl Id Unboxed (Z:.PointL:.PointL) Int
-  d = let (ITbl _ arr _) = t in arr PA.! (Z:.pointL 0 n1:.pointL 0 n2)
-  !(Z:.b) = gGlobal (score <** pretty) (toBT t (undefined :: Id a -> Id a)) (chr i1) (chr i2) Empty Empty
+  d = unId $ axiom t
+  !(Z:.b) = gGlobal (score <** pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i1) (chr i2) Empty Empty
 
 {-
 
@@ -128,7 +132,7 @@ main = do
         putStrLn a
         putStrLn b
         let (k,ys) = runNeedlemanWunsch 1 a b
-        forM_ ys $ \[y1,y2] -> printf "%s %5d\n%s\n" y1 k y2
+        forM_ ys $ \[y1,y2] -> printf "%s %5d\n%s\n" (toList y1) k (toList y2)
         eats xs
   eats ls
 

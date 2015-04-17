@@ -42,17 +42,19 @@ parseFormalLanguage :: String -> Q [Dec]
 parseFormalLanguage s = do
   loc <- location
   let (lpos,cpos) = loc_start loc
-  let r = parseString ((evalStateT . runGrammarP) grammar def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
+  -- let r = parseString ((evalStateT . runGrammarP) grammar def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
+  let r = parseString ((evalStateT . runGrammarParser) parseEverything def{_verbose = True}) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
   case r of
     (Failure f) -> do
       runIO . printDoc $ f
       error "aborting parseFormalLanguage"
     (Success g) -> do
-      let gO = outsideFromInside g
-      runIO . printDoc . grammarDoc $ g
-      runIO . printDoc . grammarDoc $ gO
+--      let gO = outsideFromInside g
+--      runIO . printDoc . grammarDoc $ g
+--      runIO . printDoc . grammarDoc $ gO
 --      thCodeGen g
-      (++) <$> thCodeGen g <*> thCodeGen gO
+      -- (++) <$> thCodeGen g <*> thCodeGen gO
+      concat <$> mapM thCodeGen g
 
 -- |
 

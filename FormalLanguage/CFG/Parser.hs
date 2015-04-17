@@ -77,7 +77,7 @@ test = parseFromFile ((evalStateT . runGrammarParser) parseEverything def{_verbo
 -- | Parse everything in the grammar source.
 
 parseEverything :: Parse m (Seq Grammar)
-parseEverything = someSpace *> some (assign current def >> p) <* eof >> use emit
+parseEverything = whiteSpace *> some (assign current def >> p) <* eof >> use emit
   where p = parseGrammar <|> parseOutside <|> parseNormStartEps <|> parseEmitGrammar
 
 -- | The basic parser, which generates a grammar from a description.

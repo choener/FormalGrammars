@@ -90,8 +90,8 @@ library
                , unordered-containers  == 0.2.*
                , vector                == 0.10.*
   exposed-modules:
---    FormalLanguage
---    FormalLanguage.CFG
+    FormalLanguage
+    FormalLanguage.CFG
     FormalLanguage.CFG.Grammar
     FormalLanguage.CFG.Grammar.Types
     FormalLanguage.CFG.Grammar.Util
@@ -101,9 +101,10 @@ library
     FormalLanguage.CFG.PrettyPrint.ANSI
 --    FormalLanguage.CFG.PrettyPrint.Haskell
 --    FormalLanguage.CFG.PrettyPrint.LaTeX
---    FormalLanguage.CFG.QQ
+    FormalLanguage.CFG.QQ
 --    FormalLanguage.CFG.QuickCheck
---    FormalLanguage.CFG.TH
+    FormalLanguage.CFG.TH
+  default-language: Haskell2010
   default-extensions: FlexibleContexts
                     , FlexibleInstances
                     , GeneralizedNewtypeDeriving
@@ -121,15 +122,15 @@ library
 
 -- A Simple pretty-printer for formal grammars.
 
-executable GrammarPP
-  build-depends: base
-               , ansi-wl-pprint
-               , cmdargs          == 0.10.*
-               , FormalGrammars
-  hs-source-dirs:
-    src
-  main-is:
-    GrammarPP.hs
+-- executable GrammarPP
+--   build-depends: base
+--                , ansi-wl-pprint
+--                , cmdargs          == 0.10.*
+--                , FormalGrammars
+--   hs-source-dirs:
+--     src
+--   main-is:
+--     GrammarPP.hs
 
 
 
@@ -151,6 +152,10 @@ executable NussinovFG
     src
   main-is:
     Nussinov.hs
+  default-language:
+    Haskell2010
+  default-extensions: FlexibleContexts
+                    , TypeFamilies
   ghc-options:
     -Odph
     -fcpr-off
@@ -163,47 +168,49 @@ executable NussinovFG
       -optlo-O3 -optlo-std-compile-opts
       -fllvm-tbaa
 
-executable TwoTableNussinovFG
-  if flag(examples)
-    buildable:
-      True
-    build-depends:
-      ADPfusion         ,
-      FormalGrammars    ,
-      PrimitiveArray    ,
-      template-haskell  ,
-      vector            ,
-      base
-  else
-    buildable:
-      False
-  hs-source-dirs:
-    src
-  main-is:
-    TwoTableNussinov.hs
-  ghc-options:
-    -Odph
-    -fcpr-off
-    -funbox-strict-fields
-    -funfolding-use-threshold1000
-    -funfolding-keeness-factor1000
-  if flag(llvm)
-    ghc-options:
-      -fllvm
-      -optlo-O3 -optlo-std-compile-opts
-      -fllvm-tbaa
+-- executable TwoTableNussinovFG
+--   if flag(examples)
+--     buildable:
+--       True
+--     build-depends:
+--       ADPfusion         ,
+--       FormalGrammars    ,
+--       PrimitiveArray    ,
+--       template-haskell  ,
+--       vector            ,
+--       base
+--   else
+--     buildable:
+--       False
+--   hs-source-dirs:
+--     src
+--   main-is:
+--     TwoTableNussinov.hs
+--   default-language:
+--     Haskell2010
+--   ghc-options:
+--     -Odph
+--     -fcpr-off
+--     -funbox-strict-fields
+--     -funfolding-use-threshold1000
+--     -funfolding-keeness-factor1000
+--   if flag(llvm)
+--     ghc-options:
+--       -fllvm
+--       -optlo-O3 -optlo-std-compile-opts
+--       -fllvm-tbaa
 
 executable NeedlemanWunschFG
   if flag(examples)
     buildable:
       True
-    build-depends:
-      ADPfusion         ,
-      FormalGrammars    ,
-      PrimitiveArray    ,
-      template-haskell  ,
-      vector            ,
-      base
+    build-depends: base
+                 , ADPfusion
+                 , containers
+                 , FormalGrammars
+                 , PrimitiveArray
+                 , template-haskell
+                 , vector
   else
     buildable:
       False
@@ -211,6 +218,10 @@ executable NeedlemanWunschFG
     src
   main-is:
     NeedlemanWunsch.hs
+  default-language:
+    Haskell2010
+  default-extensions: FlexibleContexts
+                    , TypeFamilies
   ghc-options:
     -Odph
     -fcpr-off
@@ -223,37 +234,39 @@ executable NeedlemanWunschFG
       -optlo-O3 -optlo-std-compile-opts
       -fllvm-tbaa
 
-executable DishonestCasinoFG
-  if flag(examples)
-    buildable:
-      True
-    build-depends:
-      ADPfusion                   ,
-      cmdargs           == 0.10.* ,
-      FormalGrammars              ,
-      log-domain        == 0.10.*  ,
-      PrimitiveArray              ,
-      template-haskell            ,
-      vector                      ,
-      base
-  else
-    buildable:
-      False
-  hs-source-dirs:
-    src
-  main-is:
-    DishonestCasino.hs
-  ghc-options:
-    -Odph
-    -fcpr-off
-    -funbox-strict-fields
-    -funfolding-use-threshold1000
-    -funfolding-keeness-factor1000
-  if flag(llvm)
-    ghc-options:
-      -fllvm
-      -optlo-O3 -optlo-std-compile-opts
-      -fllvm-tbaa
+-- executable DishonestCasinoFG
+--   if flag(examples)
+--     buildable:
+--       True
+--     build-depends:
+--       ADPfusion                   ,
+--       cmdargs           == 0.10.* ,
+--       FormalGrammars              ,
+--       log-domain        == 0.10.*  ,
+--       PrimitiveArray              ,
+--       template-haskell            ,
+--       vector                      ,
+--       base
+--   else
+--     buildable:
+--       False
+--   hs-source-dirs:
+--     src
+--   main-is:
+--     DishonestCasino.hs
+--   default-language:
+--     Haskell2010
+--   ghc-options:
+--     -Odph
+--     -fcpr-off
+--     -funbox-strict-fields
+--     -funfolding-use-threshold1000
+--     -funfolding-keeness-factor1000
+--   if flag(llvm)
+--     ghc-options:
+--       -fllvm
+--       -optlo-O3 -optlo-std-compile-opts
+--       -fllvm-tbaa
 
 
 
