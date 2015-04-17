@@ -37,7 +37,7 @@ makeLenses ''Index
 
 -- | Newtype wrapper for symbol names.
 
-newtype SymbolName = SymbolName { _getSymbolName :: String }
+newtype SymbolName = SymbolName { _getSteName :: String }
   deriving (Show,Eq,Ord,IsString)
 
 makeLenses ''SymbolName

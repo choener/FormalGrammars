@@ -43,12 +43,26 @@ dim g
 
 -- | Extract single-tape terminals together with their tape dimension.
 
-termsWithTape :: Grammar -> [(SynTermEps , Tape)]
-termsWithTape = nub . sort                              -- cleanup
-              . map swap                                -- swap the index to the second position
-              . concatMap (zip [0..] . _getSymbolList)  -- combine single-tape terminals with tape indices
-              . filter isTerminal                       -- keep only full terminals
-              . toListOf (rules.folded.rhs.folded)      -- linearized list of all symbols on all right-hand-sides.
+uniqueTermsWithTape :: Grammar -> [(SynTermEps , Tape)]
+uniqueTermsWithTape = nub . sort                              -- cleanup
+                    . map swap                                -- swap the index to the second position
+                    . concatMap (zip [0..] . _getSymbolList)  -- combine single-tape terminals with tape indices
+                    . uniqueTerminalSymbols
+
+-- | Return the nub list of terminal symbols.
+
+uniqueTerminalSymbols :: Grammar -> [Symbol]
+uniqueTerminalSymbols = nub . sort . filter isTerminal . toListOf (rules.folded.rhs.folded)
+
+-- | Return the nub list of syntactic symbols.
+
+uniqueSyntacticSymbols :: Grammar -> [Symbol]
+uniqueSyntacticSymbols g = nub . sort . filter isSyntactic $ g^..rules.folded.lhs
+
+-- | Return the nub list of syntactic terminals.
+
+uniqueSynTermSymbols :: Grammar -> [Symbol]
+uniqueSynTermSymbols = nub . sort . filter isSynTerm . toListOf (rules.folded.rhs.folded)
 
 -- |
 --

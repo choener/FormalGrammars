@@ -52,10 +52,10 @@ ruleDoc (Rule lhs fun rhs)
   where f  = fill 10 . text . concat . intersperse "_" $ fun^..folded.getAttr
 
 steDoc :: SynTermEps -> Reader Grammar Doc
-steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
-steDoc (SynTerm n i) = indexDoc i >>= return . blue . (text (n^.getSymbolName) <+>)
-steDoc (Term    n i) = return . green . text $ n^.getSymbolName
-steDoc (Epsilon n  ) = return . red   . text $ n^.getSymbolName
+steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text (n^.getSteName) <+>)
+steDoc (SynTerm n i) = indexDoc i >>= return . blue . (text (n^.getSteName) <+>)
+steDoc (Term    n i) = return . green . text $ n^.getSteName
+steDoc (Epsilon n  ) = return . red   . text $ n^.getSteName
 steDoc (Deletion   ) = return . red   . text $ "-"
 
 indexDoc :: [Index] -> Reader Grammar Doc
