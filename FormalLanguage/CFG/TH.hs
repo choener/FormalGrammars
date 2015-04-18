@@ -38,9 +38,7 @@ import           Control.Monad.Reader
 
 import           ADP.Fusion ( (%), (|||), (...), (<<<) )
 import qualified ADP.Fusion as ADP
-import           ADP.Fusion.Term.None
 import           Data.PrimitiveArray (Z(..), (:.)(..))
---import qualified ADP.Fusion.Multi as ADP
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.PrettyPrint.ANSI
@@ -279,11 +277,11 @@ grammarTermExpression s = do
   let genExp :: [SynTermEps] -> ExpQ
       genExp z
 --        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
-        | [Deletion]      <- z = [| ADP.None  |] -- TODO ???
-        | [Epsilon ]      <- z = [| ADP.Empty |]
+        | [Deletion]      <- z = [| ADP.Deletion |] -- TODO ???
+        | [Epsilon ]      <- z = [| ADP.Epsilon  |]
         | [Term tnm tidx] <- z = varE $ tavn M.! (tnm^.getSteName,0)
-        | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Deletion -> [| ADP.None  |]
-                                                                                 ; Epsilon  -> [| ADP.Empty |]
+        | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Deletion -> [| ADP.Deletion |]
+                                                                                 ; Epsilon  -> [| ADP.Epsilon  |]
                                                                                  ; Term tnm tidx -> varE $ tavn M.! (tnm^.getSteName,k)
                                                                                  }) |])
                                         [| ADP.M |] $ zip [0..] xs
