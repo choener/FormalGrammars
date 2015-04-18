@@ -19,7 +19,7 @@ isTerminal = allOf folded (\case (SynVar _ _) -> False; (SynTerm _ _) -> False; 
 -- | @Term@, and @Epsilon@ are terminal symbols that can be bound.
 
 isBindableTerminal :: Symbol -> Bool
-isBindableTerminal = allOf folded (\case (Term _ _) -> True; (Epsilon _) -> True; _ -> False) . _getSymbolList
+isBindableTerminal = allOf folded (\case (Term _ _) -> True; _ -> False) . _getSymbolList
 
 -- | Only @SynVar@s are non-terminal.
 
@@ -34,7 +34,7 @@ isSynTerm = allOf folded (\case (SynTerm _ _) -> True; _ -> False) . _getSymbolL
 -- | Epsilon-only symbols.
 
 isEpsilon :: Symbol -> Bool
-isEpsilon = allOf folded (\case Epsilon _ -> True; _ -> False) . _getSymbolList
+isEpsilon = allOf folded (\case Epsilon -> True; _ -> False) . _getSymbolList
 
 -- | Dimension of the grammar. Rather costly, because we check for dimensional
 -- consistency.

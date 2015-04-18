@@ -80,8 +80,6 @@ data SynTermEps
   -- symbols, but it is important to be able to recognize these, when
   -- trying to create outside variants of our algorithms.
   | Epsilon
-    { _name :: SymbolName
-    }
   deriving (Show,Eq,Ord)
 
 makeLenses ''SynTermEps
@@ -135,7 +133,7 @@ data Grammar = Grammar
   { _synvars      :: Map SymbolName SynTermEps          -- ^ regular syntactic variables, without dimension
   , _synterms     :: Map SymbolName SynTermEps          -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
   , _termvars     :: Map SymbolName SynTermEps  -- ^ regular terminal symbols
-  , _epsvars      :: Map SymbolName SynTermEps          -- ^ terminal symbol names that denote @Epsilon@
+--  , _epsvars      :: Map SymbolName SynTermEps          -- ^ terminal symbol names that denote @Epsilon@
   , _outside      :: Bool                               -- ^ Is this an outside grammar
   , _rules        :: Set Rule                           -- ^ set of production rules
   , _start        :: Symbol                             -- ^ start symbol
@@ -150,7 +148,7 @@ instance Default Grammar where
     { _synvars      = M.empty
     , _synterms     = M.empty
     , _termvars     = M.empty
-    , _epsvars      = M.empty
+--    , _epsvars      = M.empty
     , _outside      = False
     , _rules        = S.empty
     , _start        = mempty

@@ -13,7 +13,6 @@ N: M  -- continents 'Minus'
 N: S  -- start non-terminal
 
 T: n  -- read a single nucleotide
-E: e  -- succeed on empty remaining input
 
 S: S  -- symbol to start with
 

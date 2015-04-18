@@ -157,7 +157,7 @@ parseOutside = do
 -- |
 
 fgIdents = set styleReserved rs emptyIdents
-  where rs = H.fromList ["Grammar:", "N:", "Y:", "T:", "S:", "->", "<<<", "-", "Outside:", "Source:", "NormStartEps:"]
+  where rs = H.fromList ["Grammar:", "N:", "Y:", "T:", "S:", "->", "<<<", "-", "e", "ε", "Outside:", "Source:", "NormStartEps:"]
 
 -- |
 
@@ -198,8 +198,8 @@ parseSynTermDecl e = do
 parseTermDecl :: Parse m SynTermEps
 parseTermDecl =
   (reserve fgIdents "T:" >> Term <$> (ident fgIdents <?> "terminal name") <*> pure [])
-  <|>
-  (reserve fgIdents "E:" >> Epsilon <$> (ident fgIdents <?> "epsilon terminal name"))
+--  <|>
+--  (reserve fgIdents "E:" >> Epsilon <$> (ident fgIdents <?> "epsilon terminal name"))
 
 -- | The syntactic variable here needs to either have no index at all, have
 -- a grammar-based index, or have a fully calculated index.
@@ -245,16 +245,20 @@ parseIndex e = braces $ commaSep ix where
 
 knownTermVar :: EvalReq -> Stately m Symbol
 knownTermVar e = Symbol <$> do
-  ((:[]) <$> tv) <|> (brackets $ commaSep (del <|> tv))
+  ((:[]) <$> (eps <|> tv)) <|> (brackets $ commaSep (del <|> eps <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
                i <- ident fgIdents
                t <- use (current . termvars . at i)
-               e <- use (current . epsvars  . at i)
-               guard . isJust $ t <|> e
+--               e <- use (current . epsvars  . at i)
+               guard . isJust $ t -- <|> e
+               return $ Term i []
+               {-
                if isJust t
                 then return $ Term i []
-                else return $ Epsilon i
+                else return $ Epsilon
+                -}
         del = Deletion <$ reserve fgIdents "-"
+        eps = Epsilon  <$ (reserve fgIdents "e" <|> reserve fgIdents "ε")
 
 -- | Parses an already known symbol, either syntactic or terminal.
 --

@@ -19,6 +19,7 @@ import           Language.Haskell.TH.Syntax
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Unboxed as VU
+import           Data.Vector.Unboxed (Vector)
 import           Text.Printf
 import           Data.Sequence ((|>),Seq,empty)
 import           Data.Foldable (toList)
@@ -36,7 +37,6 @@ import           FormalLanguage.CFG
 Grammar: Global
 N: X
 T: c
-E: e
 S: [X,X]
 [X,X] -> done  <<< [e,e]
 [X,X] -> align <<< [X,X] [c,c]
@@ -50,7 +50,7 @@ Emit: Global
 
 makeAlgebraProductH ['h] ''SigGlobal
 
-score :: Monad m => SigGlobal m Int Int Char ()
+score :: Monad m => SigGlobal m Int Int Char
 score = SigGlobal
   { done  = \   (Z:.():.()) -> 0
   , align = \ x (Z:.a :.b ) -> if a==b then x+1 else -999999
@@ -64,7 +64,7 @@ score = SigGlobal
 --
 -- NOTE The alignment needs to be reversed to print out.
 
-pretty :: Monad m => SigGlobal m [Seq Char] (SM.Stream m [Seq Char]) Char ()
+pretty :: Monad m => SigGlobal m [Seq Char] (SM.Stream m [Seq Char]) Char
 pretty = SigGlobal
   { done  = \       (Z:.():.()) -> [empty,empty]
   , align = \ [x,y] (Z:.a :.b ) -> [x |> a  ,y |> b  ]
@@ -77,16 +77,20 @@ runNeedlemanWunsch :: Int -> String -> String -> (Int,[[Seq Char]])
 runNeedlemanWunsch k i1' i2' = (d, take k . S.toList . unId $ axiom b) where
   i1 = VU.fromList i1'
   i2 = VU.fromList i2'
-  n1 = VU.length i1
-  n2 = VU.length i2
-  !(Z:.t) = mutateTablesDefault
-          $ gGlobal score
-              (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.PointL 0:.PointL 0) (Z:.PointL n1:.PointL n2) (-999999) []))
-              (chr i1) (chr i2)
-              Empty Empty
-              :: Z:.ITbl Id Unboxed (Z:.PointL:.PointL) Int
+  !(Z:.t) = runNeedlemanWunschForward i1 i2
   d = unId $ axiom t
-  !(Z:.b) = gGlobal (score <** pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i1) (chr i2) Empty Empty
+  !(Z:.b) = gGlobal (score <** pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i1) (chr i2) -- Empty Empty
+{-# NoInline runNeedlemanWunsch #-}
+
+-- | Decoupling the forward phase for CORE observation.
+
+runNeedlemanWunschForward :: Vector Char -> Vector Char -> Z:.ITbl Id Unboxed (Z:.PointL:.PointL) Int
+runNeedlemanWunschForward i1 i2 = let n1 = VU.length i1; n2 = VU.length i2 in mutateTablesDefault $
+  gGlobal score
+    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.PointL 0:.PointL 0) (Z:.PointL n1:.PointL n2) (-999999) []))
+    (chr i1) (chr i2)
+--    Empty Empty
+{-# NoInline runNeedlemanWunschForward #-}
 
 {-
 

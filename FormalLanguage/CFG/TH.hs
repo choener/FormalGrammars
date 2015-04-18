@@ -273,14 +273,17 @@ grammarTermExpression s = do
       genType z
 --        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
         | [Deletion]      <- z = [t| () |]
+        | [Epsilon ]      <- z = [t| () |]
         | [Term tnm tidx] <- z = varT $ ttypes M.! (tnm^.getSteName)
         | xs              <- z = foldl (\acc z -> [t| $acc :. $(genType [z]) |]) [t| Z |] xs
   let genExp :: [SynTermEps] -> ExpQ
       genExp z
 --        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
-        | [Deletion]      <- z = [| None |] -- TODO ???
+        | [Deletion]      <- z = [| ADP.None  |] -- TODO ???
+        | [Epsilon ]      <- z = [| ADP.Empty |]
         | [Term tnm tidx] <- z = varE $ tavn M.! (tnm^.getSteName,0)
-        | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Deletion -> [| None |]
+        | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Deletion -> [| ADP.None  |]
+                                                                                 ; Epsilon  -> [| ADP.Empty |]
                                                                                  ; Term tnm tidx -> varE $ tavn M.! (tnm^.getSteName,k)
                                                                                  }) |])
                                         [| ADP.M |] $ zip [0..] xs
