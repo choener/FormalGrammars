@@ -160,7 +160,9 @@ productFun (Rule l f rs) = text (concat f) <> text " = \\" <> vars <> text " -> 
                   . foldl' go ([],["Data.Vector.Fusion.Stream.Monadic.singleton $", (concat $ "_S" : f)])
                   $ zs
 
+{-
 test = printDoc $ grammarHaskell asG where
   printDoc :: Doc -> IO ()
   printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)
+-}
 
