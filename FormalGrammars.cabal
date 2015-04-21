@@ -97,14 +97,15 @@ library
     FormalLanguage.CFG.Grammar.Util
     FormalLanguage.CFG.Outside
     FormalLanguage.CFG.Parser
---    FormalLanguage.CFG.PrettyPrint
+    FormalLanguage.CFG.PrettyPrint
     FormalLanguage.CFG.PrettyPrint.ANSI
---    FormalLanguage.CFG.PrettyPrint.Haskell
---    FormalLanguage.CFG.PrettyPrint.LaTeX
+    FormalLanguage.CFG.PrettyPrint.Haskell
+    FormalLanguage.CFG.PrettyPrint.LaTeX
     FormalLanguage.CFG.QQ
 --    FormalLanguage.CFG.QuickCheck
     FormalLanguage.CFG.TH
-  default-language: Haskell2010
+  default-language:
+    Haskell2010
   default-extensions: FlexibleContexts
                     , FlexibleInstances
                     , GeneralizedNewtypeDeriving
@@ -117,8 +118,8 @@ library
                     , TupleSections
                     , TypeOperators
                     , LambdaCase
-
   ghc-options:
+    -O2 -funbox-strict-fields
 
 -- A Simple pretty-printer for formal grammars.
 
