@@ -22,7 +22,9 @@ import FormalLanguage.CFG.Grammar
 
 
 renderLaTeX :: Int -> Grammar -> LaTeX
-renderLaTeX = renderGrammar
+renderLaTeX = error "renderLaTeX" -- renderGrammar
+
+{-
 
 -- | Transform a grammar to some LaTeX code.
 
@@ -67,4 +69,5 @@ align2 = (liftL $ TeXEnv "align*" []) . go where
               to' c = if c > len `div` 2 then "" else to
           in
               mci [ ll & to <> lr & rl & to' c <> rr | (ll,lr) <- as | ((rl,rr),c) <- zip bs [1..] ]
+-}
 
