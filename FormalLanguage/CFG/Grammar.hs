@@ -378,15 +378,6 @@ nTN (T _  ) = False
 -- TODO maybe restrict those to epsilon-type terminals in generalized
 -- non-terminals.
 
--- | Left-linear grammars have at most one non-terminal on the RHS. It is the
--- first symbol.
-
-isLeftLinear :: Grammar -> Bool
-isLeftLinear g = allOf folded isll $ g^.rules where
-  isll :: Rule -> Bool
-  isll (Rule l _ []) = isSymbN l
-  isll (Rule l _ rs) = isSymbN l && (allOf folded (not . isSymbN) $ tail rs) -- at most one non-terminal
-
 -- | Right-linear grammars have at most one non-terminal on the RHS. It is the
 -- last symbol.
 

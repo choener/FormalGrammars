@@ -4,7 +4,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -72,13 +71,15 @@ instance Default GrammarEnv where
                    }
 
 
-test = parseFromFile ((evalStateT . runGrammarParser) parseEverything def{_verbose = True}) "tests/parsing.gra"
+test = parseFromFile ((evalStateT . runGrammarParser) (parseEverything empty) def{_verbose = True}) "tests/parsing.gra"
 
--- | Parse everything in the grammar source.
+-- | Parse everything in the grammar source. The additional argument, normally
+-- @empty :: Alternative f a@, allows for providing additional parsing
+-- capabilities -- e.g. for grammar products..
 
-parseEverything :: Parse m (Seq Grammar)
-parseEverything = whiteSpace *> some (assign current def >> p) <* eof >> use emit
-  where p = parseGrammar <|> parseOutside <|> parseNormStartEps <|> parseEmitGrammar
+parseEverything :: Parse m () -> Parse m (Seq Grammar)
+parseEverything ps = whiteSpace *> some (assign current def >> p) <* eof >> use emit
+  where p = parseGrammar <|> parseOutside <|> parseNormStartEps <|> parseEmitGrammar <|> ps
 
 -- | The basic parser, which generates a grammar from a description.
 

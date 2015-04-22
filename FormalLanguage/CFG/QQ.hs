@@ -6,7 +6,7 @@
 
 module FormalLanguage.CFG.QQ where
 
-import Control.Applicative ((<$>),(<*>))
+import Control.Applicative ((<$>),(<*>),empty)
 import Control.Monad
 import Control.Monad.Trans.State.Strict (evalStateT)
 import Data.ByteString.Char8 (pack)
@@ -14,7 +14,7 @@ import Data.Default (def)
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 import Text.Trifecta.Delta (Delta (Directed))
-import Text.Trifecta (parseString)
+import Text.Trifecta (parseString,Parser)
 import Text.Trifecta.Result (Result (..))
 
 import FormalLanguage.CFG.Grammar
@@ -30,7 +30,7 @@ formalLangFile = quoteFile formalLanguage
 -- |
 
 formalLanguage = QuasiQuoter
-  { quoteDec  = parseFormalLanguage
+  { quoteDec  = parseFormalLanguage empty
   , quoteExp  = error "there is only a Dec quoter"
   , quotePat  = error "there is only a Dec quoter"
   , quoteType = error "there is only a Dec quoter"
@@ -38,12 +38,12 @@ formalLanguage = QuasiQuoter
 
 -- |
 
-parseFormalLanguage :: String -> Q [Dec]
-parseFormalLanguage s = do
+parseFormalLanguage :: GrammarParser Parser () -> String -> Q [Dec]
+parseFormalLanguage ps s = do
   loc <- location
   let (lpos,cpos) = loc_start loc
   -- let r = parseString ((evalStateT . runGrammarP) grammar def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
-  let r = parseString ((evalStateT . runGrammarParser) parseEverything def{_verbose = True}) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
+  let r = parseString ((evalStateT . runGrammarParser) (parseEverything ps) def{_verbose = True}) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
   case r of
     (Failure f) -> do
       runIO . printDoc $ f

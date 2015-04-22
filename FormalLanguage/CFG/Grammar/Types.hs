@@ -4,10 +4,11 @@
 module FormalLanguage.CFG.Grammar.Types where
 
 import           Control.Lens hiding (Index,index)
-import           Data.String
 import           Data.Default
 import           Data.Map.Strict (Map)
+import           Data.Semigroup
 import           Data.Set (Set)
+import           Data.String
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
@@ -91,7 +92,7 @@ makePrisms ''SynTermEps
 -- over dimensional concatenation.
 
 newtype Symbol = Symbol { _getSymbolList :: [SynTermEps] }
-  deriving (Show,Eq,Ord,Monoid)
+  deriving (Show,Eq,Ord,Monoid,Semigroup)
 
 makeLenses ''Symbol
 

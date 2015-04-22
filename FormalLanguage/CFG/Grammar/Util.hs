@@ -103,3 +103,14 @@ uniqueSynTermSymbols = nub . sort . filter isSynTerm . toListOf (rules.folded.rh
 normalizeStartEpsilon :: Grammar -> Grammar
 normalizeStartEpsilon = error "normalizeStartEpsilon: (re-)write me"
 
+
+
+-- | Left-linear grammars have at most one non-terminal on the RHS. It is the
+-- first symbol.
+
+isLeftLinear :: Grammar -> Bool
+isLeftLinear g = allOf folded isll $ g^.rules where
+  isll :: Rule -> Bool
+  isll (Rule l _ []) = isSyntactic l
+  isll (Rule l _ rs) = isSyntactic l && (allOf folded (not . isSyntactic) $ tail rs) -- at most one non-terminal
+

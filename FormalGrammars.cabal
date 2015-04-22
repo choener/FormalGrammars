@@ -83,6 +83,7 @@ library
                , mtl                   == 2.*
                , parsers               == 0.12.*
                , PrimitiveArray        == 0.6.*
+               , semigroups            >= 0.16    && < 0.17
                , template-haskell
                , text                  == 1.*
                , transformers          >= 0.3
@@ -118,6 +119,8 @@ library
                     , TupleSections
                     , TypeOperators
                     , LambdaCase
+                    , RankNTypes
+                    , StandaloneDeriving
   ghc-options:
     -O2 -funbox-strict-fields
 
