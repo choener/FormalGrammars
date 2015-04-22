@@ -49,18 +49,29 @@ dim g
 -- | Extract single-tape terminals together with their tape dimension.
 
 uniqueTermsWithTape :: Grammar -> [(SynTermEps , Tape)]
-uniqueTermsWithTape = nub . sort                              -- cleanup
-                    . map swap                                -- swap the index to the second position
-                    . concatMap (zip [0..] . _getSymbolList)  -- combine single-tape terminals with tape indices
-                    . uniqueTerminalSymbols
+uniqueTermsWithTape = uniqueSynTermEpsWithTape . uniqueTerminalSymbols
 
 -- | Extract single-tape bindable terminals together with their tape dimension.
 
 uniqueBindableTermsWithTape :: Grammar -> [(SynTermEps , Tape)]
-uniqueBindableTermsWithTape = nub . sort                              -- cleanup
-                            . map swap                                -- swap the index to the second position
-                            . concatMap (zip [0..] . _getSymbolList)  -- combine single-tape terminals with tape indices
-                            . uniqueBindableTerminalSymbols
+uniqueBindableTermsWithTape = uniqueSynTermEpsWithTape . uniqueBindableTerminalSymbols
+
+-- |
+
+uniqueSynVarsWithTape :: Grammar -> [(SynTermEps, Tape)]
+uniqueSynVarsWithTape = uniqueSynTermEpsWithTape . uniqueSyntacticSymbols
+
+-- |
+
+uniqueSynTermsWithTape :: Grammar -> [(SynTermEps, Tape)]
+uniqueSynTermsWithTape = uniqueSynTermEpsWithTape . uniqueSynTermSymbols
+
+-- |
+
+uniqueSynTermEpsWithTape :: [Symbol] -> [(SynTermEps, Tape)]
+uniqueSynTermEpsWithTape = nub . sort                             -- cleanup
+                         . map swap                               -- swap index to second position
+                         . concatMap (zip [0..] . _getSymbolList) -- combine single-tape STEs with tape indices
 
 -- | Return the nub list of terminal symbols. This includes @Deletion@
 -- symbols, and might not be what you want. Check
