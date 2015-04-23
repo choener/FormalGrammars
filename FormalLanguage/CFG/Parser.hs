@@ -91,7 +91,7 @@ parseGrammar = do
   current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
   current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSyntacticDecl EvalGrammar)
   current.synterms <~ (M.fromList . fmap (_name &&& id)) <$> many (parseSynTermDecl EvalGrammar)
-  current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> some parseTermDecl
+  current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> many parseTermDecl
   -- TODO current.epsvars <~ ...
   current.start    <~ parseStartSym
   current.rules    <~ S.fromList <$> some parseRule
