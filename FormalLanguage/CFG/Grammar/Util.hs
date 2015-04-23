@@ -44,7 +44,7 @@ dim g
   | null ls = error "no terminal symbol in grammar"
   | all (l==) ls = l
   | otherwise = error "inconsistent dimensionality"
-  where ls@(l:_) = map (length . _getSymbolList) . filter isTerminal $ g^.rules.folded.rhs
+  where ls@(l:_) = map (length . _getSymbolList) $ g^.rules.folded.rhs
 
 -- | Extract single-tape terminals together with their tape dimension.
 

@@ -20,6 +20,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import           System.IO (stdout)
 import           Text.PrettyPrint.ANSI.Leijen
+import           Data.Char (toUpper)
 
 import FormalLanguage.CFG.Grammar
 --import FormalLanguage.CFG.Parser
@@ -49,7 +50,7 @@ ruleDoc (Rule lhs fun rhs)
   = do l  <- symbolDoc lhs
        rs <- fmap (intersperse (text "   ")) . mapM symbolDoc $ rhs
        return $ fill 10 l <+> text "->" <+> f <+> text "<<<" <+> hcat rs
-  where f  = fill 10 . text . concat . intersperse "_" $ fun^..folded.getAttr
+  where f  = fill 10 . text . concat . (over (_tail.traverse._head) toUpper) $ fun^..folded.getAttr
 
 steDoc :: SynTermEps -> Reader Grammar Doc
 steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text (n^.getSteName) <+>)
