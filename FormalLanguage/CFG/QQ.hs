@@ -7,7 +7,7 @@
 module FormalLanguage.CFG.QQ where
 
 import Control.Applicative ((<$>),(<*>),empty)
-import Control.Monad
+import Control.Monad hiding (mapM)
 import Control.Monad.Trans.State.Strict (evalStateT)
 import Data.ByteString.Char8 (pack)
 import Data.Default (def)
@@ -16,6 +16,12 @@ import Language.Haskell.TH.Quote
 import Text.Trifecta.Delta (Delta (Directed))
 import Text.Trifecta (parseString,Parser)
 import Text.Trifecta.Result (Result (..))
+
+-- ghc 7.8 / 7.10 split
+
+import Data.Traversable (mapM)
+import Data.Foldable (concat)
+import Prelude hiding (mapM,concat)
 
 import FormalLanguage.CFG.Grammar
 import FormalLanguage.CFG.Outside
