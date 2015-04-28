@@ -19,7 +19,12 @@ description:
                 such grammars.
                 .
                 Grammars can be defined in a small domain-specific language
-                that is very close to typical CFG notation.
+                that is very close to typical CFG notation. The DSL parser can
+                easily be extended. Grammar products, for example, are
+                implemented as a single additional sub-parser.
+                .
+                This library also provides the machinery that transforms an
+                Inside grammar into the corresponding Outside grammar.
                 .
                 In addition, TemplateHaskell and QuasiQuoting functionality
                 allow embedding thusly defined grammars in Haskell programs.
@@ -33,27 +38,41 @@ description:
                 .
                 .
                 .
-                Formal background can be found in two papers:
+                .
+                Formal background can be found in these papers:
                 .
                 @
-                Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler
-                Product Grammars for Alignment and Folding
-                IEEE/ACM Transactions on Computational Biology and Bioinformatics (TCBB) (accepted)
+                Christian Hoener zu Siederdissen
+                Sneaking Around ConcatMap: Efficient Combinators for Dynamic Programming
+                2012. Proceedings of the 17th ACM SIGPLAN international conference on Functional programming
+                <http://doi.acm.org/10.1145/2364527.2364559> preprint: <http://www.tbi.univie.ac.at/newpapers/pdfs/TBI-p-2012-2.pdf>
                 @
                 .
-                and
+                @
+                Andrew Farmer, Christian Höner zu Siederdissen, and Andy Gill.
+                The HERMIT in the stream: fusing stream fusion’s concatMap.
+                2014. Proceedings of the ACM SIGPLAN 2014 workshop on Partial evaluation and program manipulation.
+                <http://dl.acm.org/citation.cfm?doid=2543728.2543736>
+                @
                 .
                 @
-                Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler
-                How to Multiply Dynamic Programming Algorithms
-                Brazilian Symposium on Bioinformatics (BSB 2013)
-                Lecture Notes in Bioinformatics 8213, Springer, Heidelberg
+                Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler.
+                Product Grammars for Alignment and Folding.
+                2014. IEEE/ACM Transactions on Computational Biology and Bioinformatics. 99.
+                <http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=6819790>
+                @
+                .
+                @
+                Christian Höner zu Siederdissen, Sonja J. Prohaska, and Peter F. Stadler.
+                Algebraic Dynamic Programming over General Data Structures.
+                2015. submitted.
                 @
                 .
 
 
 
 Extra-Source-Files:
+  README.md
   changelog.md
   tests/parsing.gra
 
@@ -72,8 +91,8 @@ flag llvm
 -- explicit dependency on PrimitiveArray to be able to load the examples
 
 library
-  build-depends: base                  >= 4.7 && < 4.9
-               , ADPfusion             == 0.4.*
+  build-depends: base                  >= 4.7     && < 4.9
+               , ADPfusion             == 0.4.0.*
                , ansi-wl-pprint        == 0.6.7.*
                , bytestring            == 0.10.*
                , containers
@@ -81,12 +100,12 @@ library
                , HaTeX                 == 3.16.*
                , lens                  == 4.*
                , mtl                   == 2.*
-               , parsers               == 0.12.*
-               , PrimitiveArray        == 0.6.*
+               , parsers               >= 0.12    && < 0.13
+               , PrimitiveArray        == 0.6.0.*
                , semigroups            >= 0.16    && < 0.17
                , template-haskell
                , text                  == 1.*
-               , transformers          >= 0.3
+               , transformers          >= 0.3     && < 0.5
                , trifecta              == 1.5.*
                , unordered-containers  == 0.2.*
                , vector                == 0.10.*

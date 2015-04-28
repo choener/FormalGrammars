@@ -1,3 +1,9 @@
+0.2.0.0
+-------
+
+- completely rewritten parsing system
+- makes use of newer ADPfusion 0.4.0
+
 0.1.0.0
 -------
 

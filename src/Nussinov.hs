@@ -65,17 +65,17 @@ pairs !c !d
   || c=='U' && d=='G'
 {-# INLINE pairs #-}
 
-pretty :: Monad m => SigNussinov m String (SM.Stream m String) Char
+pretty :: Monad m => SigNussinov m String [String] Char
 pretty = SigNussinov
   { unp = \ x c     -> x ++ "."
   , jux = \ x c y d -> x ++ "(" ++ y ++ ")"
   , nil = \ ()      -> ""
-  , h   = return . id
+  , h   = SM.toList
   }
 {-# INLINE pretty #-}
 
 runNussinov :: Int -> String -> (Int,[String]) -- ,Int,[String])
-runNussinov k inp = (d, take k . S.toList . unId $ axiom b) where
+runNussinov k inp = (d, take k . unId $ axiom b) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   !(Z:.t) = mutateTablesDefault
@@ -83,8 +83,9 @@ runNussinov k inp = (d, take k . S.toList . unId $ axiom b) where
               (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
               (chr i)
               :: Z:.ITbl Id Unboxed Subword Int
-  d = unId $ axiom t -- let ITbl _ _ _ arr _ = t in arr PA.! subword 0 n
-  !(Z:.b) = gNussinov (bpmax <** pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i)
+  d = unId $ axiom t
+  !(Z:.b) = gNussinov (bpmax <|| pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i)
+{-# NoInline runNussinov #-}
 
 
 
