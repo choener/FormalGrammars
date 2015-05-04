@@ -16,6 +16,10 @@ import Language.Haskell.TH.Quote
 import Text.Trifecta.Delta (Delta (Directed))
 import Text.Trifecta (parseString,Parser)
 import Text.Trifecta.Result (Result (..))
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
+import Control.Lens
+import Data.List (transpose,sort,group)
 
 -- ghc 7.8 / 7.10 split
 
@@ -49,21 +53,38 @@ parseFormalLanguage ps s = do
   loc <- location
   let (lpos,cpos) = loc_start loc
   -- let r = parseString ((evalStateT . runGrammarP) grammar def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
-  let r = parseString ((evalStateT . runGrammarParser) (parseEverything ps) def{_verbose = True}) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
+  let r = parseString ((evalStateT . runGrammarParser) (parseEverything ps) def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
   case r of
     (Failure f) -> do
       runIO . printDoc $ f
       error "aborting parseFormalLanguage"
     (Success g) -> do
+      let l = uniquePrefixLength g
 --      let gO = outsideFromInside g
 --      runIO . printDoc . grammarDoc $ g
 --      runIO . printDoc . grammarDoc $ gO
 --      thCodeGen g
       -- (++) <$> thCodeGen g <*> thCodeGen gO
-      concat <$> mapM thCodeGen g
+      -- TODO here, we should know how many grammars we have and be able to
+      -- determine the required prefix to make everything unique in terms
+      -- of attribute functions
+      concat <$> mapM (thCodeGen l) g
 
 -- |
 
 trim ('\n':xs) = trim xs
 trim xs = xs
+
+-- | Determine the length of the unique prefix we need for algebra
+-- functions.
+
+uniquePrefixLength :: Seq Grammar -> Int
+uniquePrefixLength xs
+  | l == 0    = 0
+  | l == 1    = 0
+  | otherwise = go 1 . transpose $ xs^..folded.grammarName
+  where l = Seq.length xs
+        go :: Int -> [String] -> Int
+        go acc []       = error $ "for whatever reason, there are two grammars with the same name!" ++ show xs
+        go acc (xs:xss) = if (maximum . map length . group $ sort xs) > 1 then go (acc+1) xss else acc
 

@@ -39,7 +39,7 @@ grammarDoc g = do
   s  <- fmap (ind "start symbol:"        2) $ symbolDoc (g^.start)
   rs <- fmap (ind "rules:"               2 . vcat) . rulesDoc $ g^..rules.folded
   ind <- undefined
-  return $ text "Grammar: " <+> (text $ g^.grammarName) <+> ga <$> indent 2 (vsep $ [ss] ++ [os | g^.outside] ++ [ts, s, rs]) <$> line
+  return $ text "Grammar: " <+> (text $ g^.grammarName) <+> ga <$> indent 2 (vsep $ [ss] ++ [os | Outside _ <- [g^.outside]] ++ [ts, s, rs]) <$> line
   where ind s k d = text s <$> indent k d
 
 rulesDoc :: [Rule] -> Reader Grammar [Doc]
@@ -54,7 +54,7 @@ ruleDoc (Rule lhs fun rhs)
 
 steDoc :: SynTermEps -> Reader Grammar Doc
 steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text (n^.getSteName) <+>)
-steDoc (SynTerm n i) = indexDoc i >>= return . blue . (text (n^.getSteName) <+>)
+steDoc (SynTerm n i) = indexDoc i >>= return . magenta . (text (n^.getSteName) <+>)
 steDoc (Term    n i) = return . green . text $ n^.getSteName
 steDoc (Epsilon    ) = return . red   . text $ "ε"
 steDoc (Deletion   ) = return . red   . text $ "-"

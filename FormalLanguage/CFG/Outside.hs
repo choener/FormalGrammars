@@ -12,10 +12,13 @@
 
 module FormalLanguage.CFG.Outside where
 
-import           Data.List (inits,tails,nub)
+import           Data.List (inits,tails,nub,sort)
 import           Control.Lens hiding (Index,outside)
 import qualified Data.Set as S
+import           Data.Set (Set)
 import           Data.Maybe (catMaybes)
+import           Data.Default
+import qualified Data.Map as M
 
 import FormalLanguage.CFG.Grammar
 
@@ -26,13 +29,26 @@ import FormalLanguage.CFG.Grammar
 
 outsideFromInside :: Grammar -> Maybe Grammar
 outsideFromInside g
-  | g^.outside = Nothing
+  | Outside _ <- g^.outside = Nothing
   -- TODO in theory, we should now check if we are at most context-free.
   -- (linear grammars are context-free as well).
   -- | not $ isContextFree g = Nothing
   | otherwise = Just $ Grammar {..}
-  where _outside = True
-        _rules   = S.fromList . concatMap genOutsideRules $ g^..rules.folded
+  where _outside     = Outside (g^.grammarName)
+        _rules       = S.fromList $ epsrule : (concatMap genOutsideRules $ g^..rules.folded)
+        _grammarName = "" -- will be set in the parser
+        _params      = g^.params
+        _synvars     = M.fromList $ [ (n,v) | v@(SynVar  n _) <- (_rules^..folded.lhs.getSymbolList.folded) ]
+        _synterms    = M.fromList $ [ (n,v) | v@(SynTerm n _) <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]
+        _termvars    = M.fromList $ [ (n,t) | t@(Term    n _) <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]
+        _start       = case (findStartSymbols $ g^.rules) of
+                         [s] -> s
+                         xs  -> error $ "more than one epsilon rule in the source: " ++ show xs
+        _write       = False
+        epsfun       = case (filter (isEpsilon . head . _rhs) $ g^..rules.folded) of
+                         [] -> error "grammar does not terminate with an epsilon"
+                         (Rule _ f _ : _) -> f
+        epsrule      = genEpsilonRule epsfun (g^.start)
 
 -- | Given a single inside rule, create the outside rules.
 --
@@ -53,11 +69,31 @@ outsideFromInside g
 
 genOutsideRules :: Rule -> [Rule]
 genOutsideRules (Rule l f rs) = catMaybes $ zipWith go (inits rs) (init $ tails rs)
-  where go xs (h:ys)
-          | isTerminal h = error "TODO these don't generate a rule -- unless we have an epsilon"
-          | otherwise  = Just $ Rule (outsideSymb h) (outsideFun f) (xs ++ [outsideSymb l] ++ ys)
-        outsideSymb s = undefined -- TODO simple lookup of inside name -> outside name!
-        outsideFun  s = undefined -- this one should be @id@ if the algebra types are isomorphic ...
+  where go xs (h:ys)  -- @xs ++ [h] ++ ys@. We [h] the current element
+          | isTerminal h = Nothing
+          | otherwise  = Just $ Rule (outsideSymb h) (outsideFun f) (map toSynTerm xs ++ [outsideSymb l] ++ map toSynTerm ys)
+        outsideFun  = id
+        toSynTerm s
+          | isSyntactic s = over (getSymbolList . traverse) (\(SynVar n i) -> SynTerm n i) s
+          | otherwise     = s
+
+-- | Helper function that turns an inside symbol into an outside symbol.
+-- Simply by attaching a @'@ (prime) symbol.
+
+outsideSymb :: Symbol -> Symbol
+outsideSymb = over (getSymbolList . traverse . name . getSteName) (++"'")
+
+-- | 
+
+genEpsilonRule :: [AttributeFunction] -> Symbol -> Rule
+genEpsilonRule epsfun s = Rule (outsideSymb s) epsfun [(Symbol $ replicate (length $ s^.getSymbolList) Epsilon)]
+
+-- | 
+
+findStartSymbols :: Set Rule -> [Symbol]
+findStartSymbols rs =  map (outsideSymb . _lhs) . filter (sing . _rhs) $ rs^..folded
+  where sing [x] | isEpsilon x = True
+        sing _                 = False
 
 -- | If necessary add a special "start" rule to the set of rules.
 
@@ -66,7 +102,7 @@ genOutsideRules (Rule l f rs) = catMaybes $ zipWith go (inits rs) (init $ tails 
 
 toOutside :: Grammar -> Grammar
 toOutside g
-  | g^.outside = g
+  | Outside _ <- g^.outside = g
   | Just o <- outsideFromInside g = o
 
 

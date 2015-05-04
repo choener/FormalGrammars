@@ -120,6 +120,19 @@ makeLenses ''Rule
 
 
 
+data DerivedGrammar
+  = Inside
+  | Outside String
+  deriving (Show,Eq)
+
+isOutside (Outside _) = True
+isOutside _           = False
+
+instance Default DerivedGrammar where
+  def = Inside
+
+makeLenses ''DerivedGrammar
+
 -- | Complete descrition of a grammar. In principle it would be enough to hold
 -- @_rules@ and the @_start@ symbol name. We also store dimensionless names for
 -- syntactiv variables, and terminals. This makes certain checks easier or
@@ -129,18 +142,19 @@ makeLenses ''Rule
 -- terminals, symbols with the same name have the same tape. This is slightly
 -- inconvenient for special applications (say Protein-DNA alignment) but one
 -- can easily rename terminals.
+--
+-- TODO better way to handle indexed symbols?
 
 data Grammar = Grammar
   { _synvars      :: Map SymbolName SynTermEps          -- ^ regular syntactic variables, without dimension
   , _synterms     :: Map SymbolName SynTermEps          -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
   , _termvars     :: Map SymbolName SynTermEps  -- ^ regular terminal symbols
---  , _epsvars      :: Map SymbolName SynTermEps          -- ^ terminal symbol names that denote @Epsilon@
-  , _outside      :: Bool                               -- ^ Is this an outside grammar
+  , _outside      :: DerivedGrammar                     -- ^ Is this an automatically derived outside grammar
   , _rules        :: Set Rule                           -- ^ set of production rules
   , _start        :: Symbol                             -- ^ start symbol
   , _params       :: Map String Index                   -- ^ any global variables
   , _grammarName  :: String                             -- ^ grammar name
-  , _write        :: Bool                               -- ^ some grammar file requested this grammar to be expanded into code
+  , _write        :: Bool                               -- ^ some grammar file requested this grammar to be expanded into code -- TODO remove, we have an emission queue
   }
   deriving (Show)
 
@@ -149,8 +163,7 @@ instance Default Grammar where
     { _synvars      = M.empty
     , _synterms     = M.empty
     , _termvars     = M.empty
---    , _epsvars      = M.empty
-    , _outside      = False
+    , _outside      = def
     , _rules        = S.empty
     , _start        = mempty
     , _params       = M.empty

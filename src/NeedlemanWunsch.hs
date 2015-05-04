@@ -1,9 +1,4 @@
 
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeOperators #-}
-
 -- | Needleman-Wunsch global alignment algorithm.
 
 module Main where
@@ -32,25 +27,28 @@ import           FormalLanguage.CFG
 -- | Define signature and grammar
 
 [formalLanguage|
+Verbose
+
 Grammar: Global
 N: X
-T: c
+T: l
+T: u
 S: [X,X]
 [X,X] -> done  <<< [e,e]
-[X,X] -> align <<< [X,X] [c,c]
-[X,X] -> indel <<< [X,X] [-,c]
-[X,X] -> delin <<< [X,X] [c,-]
+[X,X] -> align <<< [X,X] [l,u]
+[X,X] -> indel <<< [X,X] [-,u]
+[X,X] -> delin <<< [X,X] [l,-]
 //
 
 Emit: Global
 |]
 
 
-makeAlgebraProductH ['h] ''SigGlobal
+makeAlgebraProduct ''SigGlobal
 
 -- |
 
-score :: Monad m => SigGlobal m Int Int Char
+score :: Monad m => SigGlobal m Int Int Char Char
 score = SigGlobal
   { done  = \   (Z:.():.()) -> 0
   , align = \ x (Z:.a :.b ) -> if a==b then x+1 else -999999
@@ -64,7 +62,7 @@ score = SigGlobal
 --
 -- NOTE The alignment needs to be reversed to print out.
 
-pretty :: Monad m => SigGlobal m (String,String) [(String,String)] Char
+pretty :: Monad m => SigGlobal m (String,String) [(String,String)] Char Char
 pretty = SigGlobal
   { done  = \       (Z:.():.()) -> ("","")
   , align = \ (x,y) (Z:.a :.b ) -> (x ++ [a] ,y ++ [b]) 

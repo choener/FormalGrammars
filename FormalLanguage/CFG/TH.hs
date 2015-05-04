@@ -17,7 +17,7 @@ module FormalLanguage.CFG.TH
 import           Control.Applicative
 import           Control.Arrow ((&&&))
 import           Control.Exception (assert)
-import           Control.Lens hiding (Strict, (...))
+import           Control.Lens hiding (Strict, (...), outside)
 import           Control.Monad
 import           Control.Monad.State.Strict as M
 import           Control.Monad.Trans.Class
@@ -78,6 +78,7 @@ data CfgState = CfgState
   , _qTermAtomVarNames    :: M.Map (String,Int) Name      -- ^ (Term-id,Dimension) to var name
   , _qTermAtomTyNames     :: M.Map String Name            -- ^ the type name for each unique terminal symbol (that is: the scalar terminals in each dimension)
   , _qTermSymbExp         :: M.Map Symbol (Type,Exp)      -- ^ associate a terminal @Symb@ with a complete @Type@ and @Exp@
+  , _qPrefix              :: String                       -- ^ prefix for attribute functions
   }
 
 makeLenses ''CfgState
@@ -98,6 +99,7 @@ instance Default CfgState where
     , _qTermAtomVarNames    = error "def / termsingvarnames"
     , _qPartialSyntVarNames = error "def / partsyntvarnames"
     , _qInsideSyntVarNames  = error "def / insidesyntvarnames"
+    , _qPrefix              = error "def / prefix"
     }
 
 -- | The type of our little stateful @Q@ computations
@@ -113,8 +115,8 @@ type TQ z = StateT CfgState Q z
 -- generated here and become part of the state, as they are used in
 -- multiple places.
 
-thCodeGen :: Grammar -> Q [Dec]
-thCodeGen g = do
+thCodeGen :: Int -> Grammar -> Q [Dec]
+thCodeGen prefixLen g = do
   let _qGrammar = g
   _qMTyName             <- newName "m"
   _qElemTyName          <- newName "s"
@@ -122,8 +124,9 @@ thCodeGen g = do
   _qTermAtomTyNames     <- M.fromList <$> (mapM (\t -> (t,) <$> newName ("t_" ++ t)) $ g^..termvars.folded.name.getSteName)
   _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ (n^..getSymbolList.folded.name.getSteName.folded))) $ uniqueSyntacticSymbols g) -- g^..nsyms.folded) -- collectSymbN g)
   _qInsideSyntVarNames  <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("i_" ++ (n^..getSymbolList.folded.name.getSteName.folded))) $ uniqueSynTermSymbols   g)
+  let _qPrefix          =  over _head toLower $ take prefixLen (g^.grammarName)
   -- TODO inside synvars in outside context
-  evalStateT codeGen def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermAtomTyNames, _qPartialSyntVarNames, _qInsideSyntVarNames}
+  evalStateT codeGen def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermAtomTyNames, _qPartialSyntVarNames, _qInsideSyntVarNames, _qPrefix}
 
 -- | Actually create signature, grammar, inline pragma.
 
@@ -144,7 +147,7 @@ codeGen = do
   inl <- use qGrammarName >>= \gname -> lift $ pragInlD gname Inline FunLike AllPhases
   -- outside grammars use the inside signature?!
   g <- use qGrammar
-  if False -- TODO !!! -- isOutsideGrammar g
+  if False -- isOutside $ g^.outside -- considering to just use unsafeCoerce on inside algebras
     then return [gra,inl]
     else return [sig,gra,inl]
 
@@ -248,12 +251,13 @@ grammarBodySyn (s,n) = do
 grammarBodyRHS :: Rule -> TQ ExpQ
 grammarBodyRHS (Rule _ f rs) = do
   -- bundle up terminals and non-terminals
-  terms <- use qTermSymbExp
-  synNames <- use qFullSyntVarNames -- just the name of the fully applied symbol
-  isnNames <- use qInsideSyntVarNames
+  terms        <- use qTermSymbExp
+  synNames     <- use qFullSyntVarNames -- just the name of the fully applied symbol
+  synTermNames <- use qInsideSyntVarNames
   let genSymbol s
         | isTerminal  s = return . snd  $ M.findWithDefault (error "grammarBodyRHS") s terms
-        | isSyntactic s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synNames `M.union` isnNames)
+        | isSyntactic s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synNames) -- `M.union` isnNames)
+        | isSynTerm   s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synTermNames)
   let rhs = assert (not $ null rs) $ foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
   -- apply evaluation function
   Just (fname,_,_) <- use (qAttribFuns . at f)
@@ -338,8 +342,13 @@ attributeFunctionType r = do
   let argument :: Symbol -> Type
       argument s
         | isSyntactic s = VarT elemTyName
+        | isSynTerm   s = VarT elemTyName
         | isTerminal  s = fst $ terminal  M.! s
-  nm <- lift $ (return . mkName) $ over _head toLower (f^.getAttr) ++ concatMap (over _head toUpper) (fs^..folded.getAttr) -- TODO mkName ???
+  prefix <- use qPrefix
+  let attrFun = over _head toLower (f^.getAttr) ++ concatMap (over _head toUpper) (fs^..folded.getAttr) -- TODO mkName ???
+  nm <- lift $ (return . mkName) $ if null prefix
+                                      then attrFun
+                                      else prefix ++ over _head toUpper attrFun
   let tp = foldr AppT (VarT elemTyName) $ map (AppT ArrowT . argument) $ r^.rhs
   return (f:fs, (nm,NotStrict,tp))
 
@@ -352,5 +361,7 @@ choiceFunction = do
   mTyName    <- use qMTyName
   let args = AppT ArrowT $ AppT (AppT (ConT ''Stream) (VarT mTyName)) (VarT elemTyName)
   let rtrn = AppT (VarT mTyName) (VarT retTyName)
-  return (mkName "h", NotStrict, AppT args rtrn)
+  prefix <- use qPrefix
+  let hFun = if null prefix then "h" else prefix ++ "H"
+  return (mkName hFun, NotStrict, AppT args rtrn)
 

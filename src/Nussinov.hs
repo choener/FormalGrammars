@@ -1,9 +1,4 @@
 
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeOperators #-}
-
 -- | The Nussinov RNA secondary structure prediction problem.
 
 module Main where
@@ -20,6 +15,7 @@ import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
+import           Unsafe.Coerce (unsafeCoerce)
 
 import           ADP.Fusion
 import           Data.PrimitiveArray as PA hiding (map)
@@ -31,6 +27,8 @@ import           FormalLanguage
 -- | Define signature and grammar
 
 [formalLanguage|
+Verbose
+
 Grammar: Nussinov
 N: X
 T: c
@@ -40,21 +38,30 @@ X -> jux <<< X c X c
 X -> nil <<< e
 //
 
+Outside: Vonissun
+Source:  Nussinov
+//
+
 Emit: Nussinov
+Emit: Vonissun
 |]
 
 
 
-makeAlgebraProductH ['h] ''SigNussinov
+makeAlgebraProduct ''SigNussinov
+makeAlgebraProduct ''SigVonissun
 
 bpmax :: Monad m => SigNussinov m Int Int Char
 bpmax = SigNussinov
-  { unp = \ x c     -> x
-  , jux = \ x c y d -> if c `pairs` d then x + y + 1 else -999999
-  , nil = \ ()      -> 0
-  , h   = SM.foldl' max 0
+  { nUnp = \ x c     -> x
+  , nJux = \ x c y d -> if c `pairs` d then x + y + 1 else -999999
+  , nNil = \ ()      -> 0
+  , nH   = SM.foldl' max 0
   }
 {-# INLINE bpmax #-}
+
+bpmaxV :: Monad m => SigVonissun m Int Int Char
+bpmaxV = undefined
 
 pairs !c !d
   =  c=='A' && d=='U'
@@ -67,12 +74,15 @@ pairs !c !d
 
 pretty :: Monad m => SigNussinov m String [String] Char
 pretty = SigNussinov
-  { unp = \ x c     -> x ++ "."
-  , jux = \ x c y d -> x ++ "(" ++ y ++ ")"
-  , nil = \ ()      -> ""
-  , h   = SM.toList
+  { nUnp = \ x c     -> x ++ "."
+  , nJux = \ x c y d -> x ++ "(" ++ y ++ ")"
+  , nNil = \ ()      -> ""
+  , nH   = SM.toList
   }
 {-# INLINE pretty #-}
+
+prettyV :: Monad m => SigVonissun m String [String] Char
+prettyV = undefined
 
 runNussinov :: Int -> String -> (Int,[String]) -- ,Int,[String])
 runNussinov k inp = (d, take k . unId $ axiom b) where
@@ -86,6 +96,20 @@ runNussinov k inp = (d, take k . unId $ axiom b) where
   d = unId $ axiom t
   !(Z:.b) = gNussinov (bpmax <|| pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i)
 {-# NoInline runNussinov #-}
+
+runVonissun :: Int -> String -> (Int,[String])
+runVonissun k inp = (d, []) where -- take k . unId $ axiom b) where
+  i = VU.fromList . Prelude.map toUpper $ inp
+  n = VU.length i
+  !(Z:.t) = mutateTablesDefault
+          $ gVonissun bpmaxV
+              (ITbl 0 0 EmptyOk (PA.fromAssocs (O $ subword 0 0) (O $ subword 0 n) (-999999) []))
+              (undefined :: ITbl Id Unboxed Subword Int)
+              (chr i)
+              :: Z:.ITbl Id Unboxed (Outside Subword) Int
+  d = unId $ axiom t
+--  !(Z:.b) = gVonissun (bpmaxV <|| prettyV) (toBacktrack t (undefined :: Id a -> Id a)) (undefined :: Backtrack (ITbl Id Unboxed Subword Int) Id Id String) (chr i)
+{-# NoInline runVonissun #-}
 
 
 

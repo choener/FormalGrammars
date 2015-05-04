@@ -16,10 +16,9 @@
 -- epsilon symbol.
 
 module FormalLanguage.CFG.Parser
---  ( module FormalLanguage.CFG.Parser
---  , Result (..)
---  ) where
-  where
+  ( module FormalLanguage.CFG.Parser
+  , Result (..)
+  ) where
 
 import           Control.Applicative
 import           Control.Arrow
@@ -42,6 +41,8 @@ import           Text.Printf
 import           Text.Trifecta
 import qualified Text.PrettyPrint.ANSI.Leijen as AL
 import           Data.Monoid
+import           Text.Trifecta.Delta (Delta (Directed))
+import           Data.ByteString.Char8 (pack)
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.Outside
@@ -73,13 +74,18 @@ instance Default GrammarEnv where
 
 test = parseFromFile ((evalStateT . runGrammarParser) (parseEverything empty) def{_verbose = True}) "tests/parsing.gra"
 
+
+
+-- parse = parseString ((evalStateT . runGrammarParser) (parseEverything empty) def{_verbose = True})
+parse = parseString ((evalStateT . runGrammarParser) (parseEverything empty) def) (Directed (pack "via QQ") (fromIntegral 0) 0 0 0)
+
 -- | Parse everything in the grammar source. The additional argument, normally
 -- @empty :: Alternative f a@, allows for providing additional parsing
 -- capabilities -- e.g. for grammar products..
 
 parseEverything :: Parse m () -> Parse m (Seq Grammar)
 parseEverything ps = whiteSpace *> some (assign current def >> p) <* eof >> use emit
-  where p = parseGrammar <|> parseOutside <|> parseNormStartEps <|> parseEmitGrammar <|> ps
+  where p = parseCommands <|> parseGrammar <|> parseOutside <|> parseNormStartEps <|> parseEmitGrammar <|> ps
 
 -- | The basic parser, which generates a grammar from a description.
 
@@ -141,15 +147,28 @@ parseOutside :: Parse m ()
 parseOutside = do
   reserve fgIdents "Outside:"
   n <- newGrammarName
-  current.grammarName .= n
   reserve fgIdents "Source:"
-  g <- (set grammarName n) <$> knownGrammarName <?> "known source grammar"
-  guard (not $ g^.outside) <?> "source already is an outside grammar"
+  g <- knownGrammarName <?> "known source grammar"
+  guard (not . isOutside $ g^.outside) <?> "source already is an outside grammar"
   reserve fgIdents "//"
-  let h = toOutside g
+  let h = set grammarName n $ toOutside g
+  current .= h
   v <- use verbose
   seq (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ h) else return ())
     $ env %= M.insert n h
+
+-- | Some additional commands that change the parsing state.
+--
+-- TODO @MonoidOfPairs@ should generate an adapter function that turns any
+-- 2-tape eval function into its k-tape version. This means collecting all
+-- name pairs, then emitting the corresponding adapter. We'll also need
+-- a monoidal function for combining pairs. (this is along the lines of
+-- sum-of-pairs).
+
+parseCommands :: Parse m ()
+parseCommands = help <|> vrbose
+  where help = reserve fgIdents "Help"
+        vrbose = reserve fgIdents "Verbose" >> verbose .= True
 
 
 
@@ -158,7 +177,9 @@ parseOutside = do
 -- |
 
 fgIdents = set styleReserved rs emptyIdents
-  where rs = H.fromList ["Grammar:", "N:", "Y:", "T:", "S:", "->", "<<<", "-", "e", "ε", "Outside:", "Source:", "NormStartEps:"]
+  where rs = H.fromList [ "Grammar:", "Outside:", "Source:", "NormStartEps:", "Emit:", "Help", "Verbose"
+                        , "N:", "Y:", "T:", "S:", "->", "<<<", "-", "e", "ε"
+                        ]
 
 -- |
 
