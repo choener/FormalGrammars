@@ -29,7 +29,7 @@ outsideFromInside g
   | Outside _ <- g^.outside = Nothing
   -- TODO in theory, we should now check if we are at most context-free.
   -- (linear grammars are context-free as well).
-  -- | not $ isContextFree g = Nothing
+  -- not $ isContextFree g = Nothing
   | otherwise = Just $ Grammar {..}
   where _outside     = Outside (g^.grammarName)
         _rules       = S.fromList $ epsrule : (concatMap genOutsideRules $ g^..rules.folded)
