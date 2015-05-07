@@ -3,6 +3,7 @@
 
 - completely rewritten parsing system
 - makes use of newer ADPfusion 0.4.0
+- travis-ci integration
 
 0.1.0.0
 -------

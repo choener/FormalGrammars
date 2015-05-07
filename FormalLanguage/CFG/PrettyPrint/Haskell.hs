@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 
 -- | A PrettyPrinter that generates "almost useable" Haskell modules. The
 -- signature and grammar are created but the algebras are (obviously) missing.

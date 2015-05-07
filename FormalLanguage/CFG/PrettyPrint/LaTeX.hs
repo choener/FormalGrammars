@@ -1,7 +1,3 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ParallelListComp #-}
-{-# LANGUAGE PatternGuards #-}
 
 module FormalLanguage.CFG.PrettyPrint.LaTeX
   ( renderFile

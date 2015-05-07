@@ -1,7 +1,4 @@
 
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE RecordWildCards #-}
-
 -- | This module provides the functionality for automatic calculation of
 -- outside grammars from their inside progenitors.
 --

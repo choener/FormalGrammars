@@ -10,8 +10,8 @@ license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
 cabal-version:  >= 1.10.0
-synopsis:
-                (Context-free) grammars in formal language theory
+tested-with:    GHC == 7.8.4, GHC == 7.10.1
+synopsis:       (Context-free) grammars in formal language theory
 description:
                 Context-free grammars in formal language theory are sets of
                 production rules, non-terminal and terminal symbols. This
@@ -137,6 +137,7 @@ library
                     , LambdaCase
                     , MultiParamTypeClasses
                     , NamedFieldPuns
+                    , NoMonomorphismRestriction
                     , PatternGuards
                     , RankNTypes
                     , RecordWildCards
