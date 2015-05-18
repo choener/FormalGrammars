@@ -1,3 +1,8 @@
+0.2.1.0
+-------
+
+- indexed rules and grammars (revamped system)
+
 0.2.0.0
 -------
 
