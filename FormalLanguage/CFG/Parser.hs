@@ -343,7 +343,7 @@ expandIndexed r = do
   let is :: [IndexName] = nub $ r ^.. biplate . indexName
   -- corresponding @Index@es
   js :: [Index] <- catMaybes <$> mapM (\i -> use (current . indices . at i)) is
-  error $ show js
+  --error $ show js
   if null js
     then return [r]
     else mapM go $ sequence $ map expand js
