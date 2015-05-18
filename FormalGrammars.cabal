@@ -3,6 +3,8 @@ version:        0.2.0.0
 author:         Christian Hoener zu Siederdissen, 2013-2015
 copyright:      Christian Hoener zu Siederdissen, 2013-2015
 homepage:       http://www.bioinf.uni-leipzig.de/Software/gADP/
+homepage:       https://github.com/choener/FormalGrammars
+bug-reports:    https://github.com/choener/FormalGrammars/issues
 maintainer:     choener@bioinf.uni-leipzig.de
 category:       Formal Languages, Bioinformatics
 license:        GPL-3
@@ -131,7 +133,8 @@ library
     FormalLanguage.CFG.TH
   default-language:
     Haskell2010
-  default-extensions: FlexibleContexts
+  default-extensions: DeriveDataTypeable
+                    , FlexibleContexts
                     , FlexibleInstances
                     , GeneralizedNewtypeDeriving
                     , LambdaCase

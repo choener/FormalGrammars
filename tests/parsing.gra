@@ -6,6 +6,7 @@ Let us start by giving the grammar for CPG islands.
 Also: Pretty comments ;-)
 -}
 
+{-
 Grammar: CPG  -- the name of the grammar
 
 N: P  -- islands 'Plus'
@@ -38,4 +39,12 @@ M -> frmisl <<< P n   -- from island
 
 Emit: CPG
 -- Emit: GPC
+-}
+
+Grammar: Two {i,j}
+N: A{i = 3}
+N: B
+S: B
+A{i} -> ff <<< B
+//
 

@@ -10,7 +10,7 @@
 module FormalLanguage.CFG.Outside where
 
 import           Data.List (inits,tails,nub,sort)
-import           Control.Lens hiding (Index,outside)
+import           Control.Lens hiding (Index,outside,indices)
 import qualified Data.Set as S
 import           Data.Set (Set)
 import           Data.Maybe (catMaybes)
@@ -35,6 +35,7 @@ outsideFromInside g
         _rules       = S.fromList $ epsrule : (concatMap genOutsideRules $ g^..rules.folded)
         _grammarName = "" -- will be set in the parser
         _params      = g^.params
+        _indices     = g^.indices
         _synvars     = M.fromList $ [ (n,v) | v@(SynVar  n _) <- (_rules^..folded.lhs.getSymbolList.folded) ]
         _synterms    = M.fromList $ [ (n,v) | v@(SynTerm n _) <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]
         _termvars    = M.fromList $ [ (n,t) | t@(Term    n _) <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]

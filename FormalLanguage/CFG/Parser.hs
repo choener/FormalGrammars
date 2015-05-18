@@ -13,7 +13,7 @@ module FormalLanguage.CFG.Parser
 
 import           Control.Applicative
 import           Control.Arrow
-import           Control.Lens hiding (Index, outside)
+import           Control.Lens hiding (Index, outside, indices, index)
 import           Control.Monad
 import           Control.Monad.State.Class (MonadState (..))
 import           Control.Monad.Trans.State.Strict hiding (get)
@@ -34,6 +34,9 @@ import qualified Text.PrettyPrint.ANSI.Leijen as AL
 import           Data.Monoid
 import           Text.Trifecta.Delta (Delta (Directed))
 import           Data.ByteString.Char8 (pack)
+import           Data.List (nub)
+
+import Data.Data.Lens
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.Outside
@@ -85,18 +88,28 @@ parseGrammar = do
   reserve fgIdents "Grammar:"
   n <- newGrammarName
   current.grammarName    .= n
-  current.params   <~ (M.fromList . fmap (_indexVar &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
-  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSyntacticDecl EvalGrammar)
-  current.synterms <~ (M.fromList . fmap (_name &&& id)) <$> many (parseSynTermDecl EvalGrammar)
+  current.params   <~ (M.fromList . fmap (_indexName &&& id))  <$> (option [] $ parseIndex EvalGrammar) <?> "global parameters"
+  current.synvars  <~ (M.fromList . fmap (_name &&& id)) <$> some (parseSyntacticDecl EvalSymb)
+  current.synterms <~ (M.fromList . fmap (_name &&& id)) <$> many (parseSynTermDecl EvalSymb)
   current.termvars <~ (M.fromList . fmap (_name &&& id)) <$> many parseTermDecl
+  current.indices  <~ (M.fromList . fmap (_indexName &&& id)) <$> setIndices
   -- TODO current.epsvars <~ ...
   current.start    <~ parseStartSym
-  current.rules    <~ S.fromList <$> some parseRule
+  current.rules    <~ (S.fromList . concat) <$> some parseRule
   reserve fgIdents "//"
   g <- use current
   v <- use verbose
   seq (unsafePerformIO $ if v then (printDoc . genGrammarDoc $ g) else return ())
     $ env %= M.insert n g
+
+-- | Collect all indices and set them as active
+
+setIndices :: Parse m [Index]
+setIndices = do
+  sv <- use (current . synvars  . folded . index)
+  st <- use (current . synterms . folded . index)
+  tv <- use (current . termvars . folded . index)
+  return $ nub $ sv ++ st ++ tv
 
 -- | Which of the intermediate grammar to actually emit as code or text in
 -- TeX. Single line: @Emit: KnownGrammarName@
@@ -169,7 +182,7 @@ parseCommands = help <|> vrbose
 
 fgIdents = set styleReserved rs emptyIdents
   where rs = H.fromList [ "Grammar:", "Outside:", "Source:", "NormStartEps:", "Emit:", "Help", "Verbose"
-                        , "N:", "Y:", "T:", "S:", "->", "<<<", "-", "e", "ε"
+                        , "N:", "Y:", "T:", "S:", "->", "=", "<<<", "-", "e", "ε"
                         ]
 
 -- |
@@ -219,12 +232,20 @@ parseTermDecl =
 
 parseStartSym :: Parse m Symbol
 parseStartSym
-  =  (runUnlined $ reserve fgIdents "S:" *> knownSynVar EvalGrammar)
+  =  (runUnlined $ reserve fgIdents "S:" *> knownSynVar EvalRule)
   <* someSpace
 
 -- |
 
-data EvalReq = EvalFull | EvalGrammar | EvalSymb
+data EvalReq
+  -- | Happens when we actually emit a grammar product (in development)
+  = EvalFull
+  -- | Happens when we work through the rules
+  | EvalRule
+  -- | Happens when we encounter @N: @ and define a symbol
+  | EvalSymb
+  -- | Happens when we define grammar-global parameters
+  | EvalGrammar
 
 -- |
 
@@ -248,11 +269,29 @@ knownSynTerm e = Symbol <$> do
                i <- option [] $ parseIndex e
                return $ SynVar s i
 
--- |
+-- | Parses indices @{ ... }@ within curly brackets (@braces@).
+--
+-- When parsing the @EvalSymb@ case, indexed symbols are being created.
+--
+-- Parsing in rules is handled via @EvalRule@ and actually requires us
+-- saying which explicit index we use.
 
 parseIndex :: EvalReq -> Stately m [Index]
+parseIndex e = concat <$> (braces . commaSep $ ix e) where
+  -- only declare that indices exist, but do not set ranges, etc
+  ix EvalGrammar = (\s -> [Index s 0 [] 1]) <$> ident fgIdents
+  -- TODO check if @n@ is globally known
+  ix EvalSymb = do s <- ident fgIdents
+                   reserve fgIdents "="
+                   n <- natural
+                   return [Index s 0 [1..n] 1]
+  ix EvalRule = do s <- ident fgIdents
+                   k <- option 0 $ (reserve fgIdents "+" *> natural)
+                   return [Index s 0 [] 1]
+{-
 parseIndex e = braces $ commaSep ix where
   ix = (\v -> Index v [] 0) <$> some alphaNum
+-}
 
 -- |
 
@@ -283,16 +322,37 @@ knownSymbol e = try (knownSynVar e) <|> try (knownSynTerm e) <|> knownTermVar e
 
 -- |
 
-parseRule :: Parse m Rule
-parseRule = (runUnlined rule) <* someSpace
+parseRule :: Parse m [Rule]
+parseRule = (expandIndexed =<< runUnlined rule) <* someSpace
   where rule  = Rule
-              <$> knownSynVar EvalGrammar
+              <$> knownSynVar EvalRule
               <*  reserve fgIdents "->"
               <*> afun
               <*  string "<<<" <* spaces
               <*> some syms
         afun = (:[]) <$> ident fgIdents
         syms = knownSymbol EvalSymb
+
+-- | Once we have parsed a rule, we still need to extract all active
+-- indices in the rule, and enumerate over them. This will finally generate
+-- the set of rules we are interested in.
+
+expandIndexed :: Rule -> Parse m [Rule]
+expandIndexed r = do
+  -- active index names
+  let is :: [IndexName] = nub $ r ^.. biplate . indexName
+  -- corresponding @Index@es
+  js :: [Index] <- catMaybes <$> mapM (\i -> use (current . indices . at i)) is
+  error $ show js
+  if null js
+    then return [r]
+    else mapM go $ sequence $ map expand js
+  where -- updates the indices in the rules accordingly
+        go :: [Index] -> Parse m Rule
+        go ixs = undefined
+        -- expands each index to all variants
+        expand :: Index -> [Index]
+        expand i = [ i & indexHere .~ j | j <- i^.indexRange ]
 
 -- |
 
