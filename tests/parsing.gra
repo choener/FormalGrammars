@@ -42,9 +42,10 @@ Emit: CPG
 -}
 
 Grammar: Two {i,j}
-N: A{i = 3}
+N: A{k = 3,l = 3}
 N: B
 S: B
-A{i} -> ff <<< B
+A{k} -> ff <<< A{l}
+A{k} -> ff <<< B
 //
 

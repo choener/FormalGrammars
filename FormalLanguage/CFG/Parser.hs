@@ -331,7 +331,7 @@ parseRule = (expandIndexed =<< runUnlined rule) <* someSpace
               <*  string "<<<" <* spaces
               <*> some syms
         afun = (:[]) <$> ident fgIdents
-        syms = knownSymbol EvalSymb
+        syms = knownSymbol EvalRule
 
 -- | Once we have parsed a rule, we still need to extract all active
 -- indices in the rule, and enumerate over them. This will finally generate
@@ -349,10 +349,14 @@ expandIndexed r = do
     else mapM go $ sequence $ map expand js
   where -- updates the indices in the rules accordingly
         go :: [Index] -> Parse m Rule
-        go ixs = undefined
+        go ixs = foldM (\b a -> return $ b & biplate.index.traverse %~ changeIndex a) r ixs
         -- expands each index to all variants
         expand :: Index -> [Index]
         expand i = [ i & indexHere .~ j | j <- i^.indexRange ]
+        changeIndex :: Index -> Index -> Index
+        changeIndex i o
+          | i^.indexName == o^.indexName = o & indexHere .~ i^.indexHere
+          | otherwise                    = o
 
 -- |
 
