@@ -32,12 +32,13 @@ genGrammarDoc g = runReader (grammarDoc g) g
 
 grammarDoc :: Grammar -> Reader Grammar Doc
 grammarDoc g = do
+  let numR = length $ g^..rules.folded
   ga <- indexDoc $ g^..params.folded
-  ss <- fmap (ind "syntactic symbols:"   2 . vcat) . mapM steDoc $ g^..synvars.folded
-  os <- fmap (ind "syntactic terminals:" 2 . vcat) . mapM steDoc $ g^..synterms.folded
-  ts <- fmap (ind "terminals:"           2 . vcat) . mapM steDoc $ g^..termvars.folded
-  s  <- fmap (ind "start symbol:"        2) $ symbolDoc (g^.start)
-  rs <- fmap (ind "rules:"               2 . vcat) . rulesDoc $ g^..rules.folded
+  ss <- fmap (ind "syntactic symbols:"             2 . vcat) . mapM steDoc $ g^..synvars.folded
+  os <- fmap (ind "syntactic terminals:"           2 . vcat) . mapM steDoc $ g^..synterms.folded
+  ts <- fmap (ind "terminals:"                     2 . vcat) . mapM steDoc $ g^..termvars.folded
+  s  <- fmap (ind "start symbol:"                  2) $ symbolDoc (g^.start)
+  rs <- fmap (ind ("rules (" ++ show numR ++ "):") 2 . vcat) . rulesDoc $ g^..rules.folded
   ind <- undefined
   return $ text "Grammar: " <+> (text $ g^.grammarName) <+> ga <$> indent 2 (vsep $ [ss] ++ [os | Outside _ <- [g^.outside]] ++ [ts, s, rs]) <$> line
   where ind s k d = text s <$> indent k d
