@@ -62,12 +62,12 @@ steDoc (Deletion   ) = return . red   . text $ "-"
 indexDoc :: [Index] -> Reader Grammar Doc
 indexDoc [] = return empty
 indexDoc xs = fmap (encloseSep lbrace rbrace comma) . mapM iDoc $ xs
-  where iDoc (Index n i is s) = do ps <- asks _params
-                                   return $ (if n `M.member` ps then red else id) $ if i == 0
-                                                                                      then text $ _getIndexName n ++ "∈" ++ show is
-                                                                                      else text $ _getIndexName n ++ "=" ++ show i 
+  where iDoc (Index n i _ is s) = do ps <- asks _params
+                                     return $ (if n `M.member` ps then red else id) $ if (not $ null is)
+                                                                                        then text $ _getIndexName n ++ "∈" ++ show is
+                                                                                        else text $ _getIndexName n ++ "=" ++ show i 
         sDoc s | s==0 = empty
-               | s> 0 = text $ "+" ++ show s
+               | s>=0 = text $ "+" ++ show s
                | s< 0 = text $        show s
 
 symbolDoc :: Symbol -> Reader Grammar Doc

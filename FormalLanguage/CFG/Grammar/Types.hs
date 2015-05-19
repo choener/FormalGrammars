@@ -20,6 +20,14 @@ newtype IndexName = IndexName { _getIndexName :: String }
 
 makeLenses ''IndexName
 
+data IOP
+  = IPlus     -- in rules
+  | IMinus    -- in rules
+  | IEq       -- in rules
+  | INone     -- grammar-global
+  | ISymbol   -- when creating the symbol, here @=n@ says to use @[0..n-1]@
+  deriving (Show,Eq,Ord,Data,Typeable)
+
 -- | Encode the index of the syntactic or terminal variable.
 --
 -- In case of grammar-based indexing, keep @indexRange@ empty. The
@@ -32,6 +40,7 @@ makeLenses ''IndexName
 data Index = Index
   { _indexName  :: IndexName
   , _indexHere  :: Integer
+  , _indexOp    :: IOP
   , _indexRange :: [Integer]
   , _indexStep  :: Integer
   }

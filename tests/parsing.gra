@@ -44,8 +44,9 @@ Emit: CPG
 Grammar: Two {i,j}
 N: A{k = 3,l = 3}
 N: B
-S: B
+S: A{k = 0}
 A{k} -> ff <<< A{l}
 A{k} -> ff <<< B
+A{k} -> ff <<< A{k + 0}
 //
 

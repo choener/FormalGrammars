@@ -34,7 +34,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as AL
 import           Data.Monoid
 import           Text.Trifecta.Delta (Delta (Directed))
 import           Data.ByteString.Char8 (pack)
-import           Data.List (nub)
+import           Data.List (nub,genericIndex)
 
 import Data.Data.Lens
 
@@ -279,15 +279,17 @@ knownSynTerm e = Symbol <$> do
 parseIndex :: EvalReq -> Stately m [Index]
 parseIndex e = concat <$> (braces . commaSep $ ix e) where
   -- only declare that indices exist, but do not set ranges, etc
-  ix EvalGrammar = (\s -> [Index s 0 [] 1]) <$> ident fgIdents
+  ix EvalGrammar = (\s -> [Index s 0 undefined [] 1]) <$> ident fgIdents
   -- TODO check if @n@ is globally known
   ix EvalSymb = do s <- ident fgIdents
                    reserve fgIdents "="
                    n <- natural
-                   return [Index s 0 [1..n] 1]
+                   return [Index s 0 ISymbol [0..n-1] 1]
   ix EvalRule = do s <- ident fgIdents
-                   k <- option 0 $ (reserve fgIdents "+" *> natural)
-                   return [Index s 0 [] 1]
+                   let req    = (\k -> [Index s k IEq    [] 1]) <$ reserve fgIdents "=" <*> natural
+                   let rminus = (\k -> [Index s k IMinus [] 1]) <$ reserve fgIdents "-" <*> natural
+                   let rplus  = (\k -> [Index s k IPlus  [] 1]) <$> (option 0 $ reserve fgIdents "+" *> natural)    -- the option here is for @+0@
+                   try req <|> try rminus <|> rplus
 {-
 parseIndex e = braces $ commaSep ix where
   ix = (\v -> Index v [] 0) <$> some alphaNum
@@ -355,8 +357,18 @@ expandIndexed r = do
         expand i = [ i & indexHere .~ j | j <- i^.indexRange ]
         changeIndex :: Index -> Index -> Index
         changeIndex i o
-          | i^.indexName == o^.indexName = o & indexHere .~ i^.indexHere
-          | otherwise                    = o
+          | iin /= oin = o
+          | o^.indexOp == IEq = o
+          | null otr   = error $ printf "index %s uses var %d that is not in range %s!\n" (oin^.getIndexName) oih (show rng)
+          | o^.indexOp == IPlus  = o & indexHere .~ ((otr ++ cycle rng)           `genericIndex` oih)
+          | o^.indexOp == IMinus = o & indexHere .~ ((tro ++ cycle (reverse rng)) `genericIndex` oih)
+          where rng = i^.indexRange
+                otr = dropWhile (/= i^.indexHere) rng
+                tro = dropWhile (/= i^.indexHere) $ reverse rng
+                iin = i^.indexName
+                iih = i^.indexHere
+                oin = o^.indexName
+                oih = o^.indexHere
 
 -- |
 
