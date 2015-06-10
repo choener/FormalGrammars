@@ -49,7 +49,7 @@ rulesDoc rs = mapM ruleDoc rs
 ruleDoc :: Rule -> Reader Grammar Doc
 ruleDoc (Rule lhs fun rhs)
   = do l  <- symbolDoc lhs
-       rs <- fmap (intersperse (text "   ")) . mapM symbolDoc $ rhs
+       rs <- fmap (intersperse (text "   ")) . mapM (fmap (fill 5) . symbolDoc) $ rhs
        return $ fill 10 l <+> text "->" <+> f <+> text "<<<" <+> hcat rs
   where f  = fill 10 . text . concat . (over (_tail.traverse._head) toUpper) $ fun^..folded.getAttr
 
