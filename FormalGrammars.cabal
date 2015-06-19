@@ -78,6 +78,8 @@ Extra-Source-Files:
   changelog.md
   tests/parsing.gra
 
+
+
 flag examples
   description:  build the examples
   default:      False
@@ -93,9 +95,7 @@ flag debug
   default:      False
   manual:       True
 
--- TODO relax parsers dependency once https://github.com/ekmett/parsers/issues/37 is dealt with
 
--- explicit dependency on PrimitiveArray to be able to load the examples
 
 library
   build-depends: base                  >= 4.7     && < 4.9
@@ -108,7 +108,7 @@ library
                , lens                  == 4.*
                , mtl                   == 2.*
                , parsers               >= 0.12    && < 0.13
-               , PrimitiveArray        == 0.6.0.*
+               , PrimitiveArray        >= 0.6.0   && < 0.6.2
                , semigroups            >= 0.16    && < 0.17
                , template-haskell
                , text                  == 1.*
