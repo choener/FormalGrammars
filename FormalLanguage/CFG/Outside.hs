@@ -36,9 +36,9 @@ outsideFromInside g
         _grammarName = "" -- will be set in the parser
         _params      = g^.params
         _indices     = g^.indices
-        _synvars     = M.fromList $ [ (n,v) | v@(SynVar  n _) <- (_rules^..folded.lhs.getSymbolList.folded) ]
-        _synterms    = M.fromList $ [ (n,v) | v@(SynTerm n _) <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]
-        _termvars    = M.fromList $ [ (n,t) | t@(Term    n _) <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]
+        _synvars     = M.fromList $ [ (n,v) | v@(SynVar  n _ _ _) <- (_rules^..folded.lhs.getSymbolList.folded) ]
+        _synterms    = M.fromList $ [ (n,v) | v@(SynTerm n _)     <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]
+        _termvars    = M.fromList $ [ (n,t) | t@(Term    n _)     <- (_rules^..folded.rhs.folded.getSymbolList.folded) ]
         _start       = case (findStartSymbols $ g^.rules) of
                          [s] -> s
                          xs  -> error $ "more than one epsilon rule in the source: " ++ show xs
@@ -72,7 +72,8 @@ genOutsideRules (Rule l f rs) = catMaybes $ zipWith go (inits rs) (init $ tails 
           | otherwise  = Just $ Rule (outsideSymb h) (outsideFun f) (map toSynTerm xs ++ [outsideSymb l] ++ map toSynTerm ys)
         outsideFun  = id
         toSynTerm s
-          | isSyntactic s = over (getSymbolList . traverse) (\(SynVar n i) -> SynTerm n i) s
+          -- TODO need to handle @SynVar n i s | s > 1@ !
+          | isSyntactic s = over (getSymbolList . traverse) (\(SynVar n i s k) -> SynTerm n i) s
           | otherwise     = s
 
 -- | Helper function that turns an inside symbol into an outside symbol.

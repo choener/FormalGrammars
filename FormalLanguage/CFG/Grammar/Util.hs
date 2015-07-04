@@ -14,7 +14,7 @@ import FormalLanguage.CFG.Grammar.Types
 -- | @Term@, @Deletion@, and @Epsilon@ all count as terminal symbols.
 
 isTerminal :: Symbol -> Bool
-isTerminal = allOf folded (\case (SynVar _ _) -> False; (SynTerm _ _) -> False; _ -> True) . _getSymbolList
+isTerminal = allOf folded (\case SynVar{} -> False; (SynTerm _ _) -> False; _ -> True) . _getSymbolList
 
 -- | @Term@, and @Epsilon@ are terminal symbols that can be bound.
 
@@ -24,7 +24,12 @@ isBindableTerminal = allOf folded (\case (Term _ _) -> True; _ -> False) . _getS
 -- | Only @SynVar@s are non-terminal.
 
 isSyntactic :: Symbol -> Bool
-isSyntactic = allOf folded (\case (SynVar _ _) -> True; _ -> False) . _getSymbolList
+isSyntactic = allOf folded (\case SynVar{} -> True; _ -> False) . _getSymbolList
+
+-- | true if we have a split synvar
+
+isAllSplit :: Symbol -> Bool
+isAllSplit = allOf folded (\case (SynVar _ _ n _) -> n>1 ; _ -> False) . _getSymbolList
 
 -- | Is this a syntactic terminal symbol?
 

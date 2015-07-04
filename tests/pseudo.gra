@@ -1,0 +1,21 @@
+Verbose
+
+Grammar: PKN
+N: S
+N: <U,2>
+N: <V,2>
+T: c
+S: S
+S -> unp <<< S c
+S -> jux <<< S c S c
+S -> nil <<< e
+S -> pse <<< U V U V
+
+<U,U> -> pk1 <<< [S,-] [c,-] <U,U> [-,S] [-,c]
+<U,U> -> nll <<< [e,e]
+
+<V,V> -> pk2 <<< [S,-] [c,-] <V,V> [-,S] [-,c]
+<V,V> -> nll <<< [e,e]
+//
+
+Emit: PKN

@@ -80,6 +80,8 @@ data SynTermEps
   = SynVar
     { _name   :: SymbolName
     , _index  :: [Index]
+    , _splitN :: Integer
+    , _splitK :: Integer
     }
   -- syntactic terminals. Inside-synvars used in an outside context.
   | SynTerm

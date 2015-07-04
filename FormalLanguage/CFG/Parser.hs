@@ -17,24 +17,24 @@ import           Control.Lens hiding (Index, outside, indices, index)
 import           Control.Monad
 import           Control.Monad.State.Class (MonadState (..))
 import           Control.Monad.Trans.State.Strict hiding (get)
+import           Data.ByteString.Char8 (pack)
 import           Data.Default
+import           Data.List (nub,genericIndex,mapAccumL)
 import           Data.Map.Strict (Map)
 import           Data.Maybe
+import           Data.Monoid
 import           Data.Sequence (Seq)
 import           Debug.Trace
 import qualified Data.HashSet as H
 import qualified Data.Map.Strict as M
 import qualified Data.Sequence as Seq
 import qualified Data.Set as S
+import qualified Text.PrettyPrint.ANSI.Leijen as AL
 import           System.IO.Unsafe (unsafePerformIO)
 import           Text.Parser.Token.Style
 import           Text.Printf
 import           Text.Trifecta
-import qualified Text.PrettyPrint.ANSI.Leijen as AL
-import           Data.Monoid
 import           Text.Trifecta.Delta (Delta (Directed))
-import           Data.ByteString.Char8 (pack)
-import           Data.List (nub,genericIndex)
 
 import Data.Data.Lens
 
@@ -66,7 +66,7 @@ instance Default GrammarEnv where
                    }
 
 
-test = parseFromFile ((evalStateT . runGrammarParser) (parseEverything empty) def{_verbose = True}) "tests/parsing.gra"
+test = parseFromFile ((evalStateT . runGrammarParser) (parseEverything empty) def{_verbose = True}) "tests/pseudo.gra"
 
 
 
@@ -205,12 +205,15 @@ knownGrammarName = try $ do
   when (isNothing g) $ unexpected "known source grammar"
   return $ fromJust g
 
--- | Parses a syntactic (or non-terminal) symbol (for the corresponding index type). Cf. 'parseSynTermDecl'.
+-- | Parses a syntactic (or non-terminal) symbol (for the corresponding
+-- index type). Cf. 'parseSynTermDecl'.
 
 parseSyntacticDecl :: EvalReq -> Parse m SynTermEps
 parseSyntacticDecl e = do
   reserve fgIdents "N:"
-  SynVar <$> (ident fgIdents <?> "syntactic variable name") <*> (option [] $ parseIndex e)
+  try split <|> normal
+  where split = angles (flip (set splitN) <$> normal <* string "," <*> integer)
+        normal = SynVar <$> (ident fgIdents <?> "syntactic variable name") <*> (option [] $ parseIndex e) <*> pure 1 <*> pure 0
 
 -- | Parses a syntactic terminal declaration; an inside syntactic variable in an outside context.
 
@@ -251,12 +254,15 @@ data EvalReq
 
 knownSynVar :: EvalReq -> Stately m Symbol
 knownSynVar e = Symbol <$> do
-  ((:[]) <$> sv) <|> (brackets $ commaSep sv)
+  ((:[]) <$> sv) <|> (brackets $ commaSep sv) <|> (angles $ commaSep sv)
   where sv = flip (<?>) "known syntactic variable" . try $ do
                s <- ident fgIdents
-               use (current . synvars . at s) >>= guard . isJust
-               i <- option [] $ parseIndex e
-               return $ SynVar s i
+               l <- use (current . synvars . at s)
+               case l of
+                Nothing -> fail "bla"
+                Just (SynVar s' i' n' _) ->
+                  do i <- option [] $ parseIndex e
+                     return $ SynVar s i n' 0
 
 -- |
 
@@ -267,7 +273,7 @@ knownSynTerm e = Symbol <$> do
                s <- ident fgIdents
                use (current . synterms . at s) >>= guard . isJust
                i <- option [] $ parseIndex e
-               return $ SynVar s i
+               return $ SynVar s i 0 0
 
 -- | Parses indices @{ ... }@ within curly brackets (@braces@).
 --
@@ -303,8 +309,9 @@ knownTermVar e = Symbol <$> do
   where tv = flip (<?>) "known terminal variable" . try $ do
                i <- ident fgIdents
                t <- use (current . termvars . at i)
+               s <- use (current . synvars  . at i)
 --               e <- use (current . epsvars  . at i)
-               guard . isJust $ t -- <|> e
+               guard . isJust $ t <|> s
                return $ Term i []
                {-
                if isJust t
@@ -331,9 +338,16 @@ parseRule = (expandIndexed =<< runUnlined rule) <* someSpace
               <*  reserve fgIdents "->"
               <*> afun
               <*  string "<<<" <* spaces
-              <*> some syms
+              <*> (updateSplitCounts <$> some syms)
         afun = (:[]) <$> ident fgIdents
         syms = knownSymbol EvalRule
+
+updateSplitCounts :: [Symbol] -> [Symbol]
+updateSplitCounts = snd . mapAccumL go M.empty where
+  go m (Symbol [SynVar s i n k])
+    | n > 1                      = let o = M.findWithDefault 0 (s,i) m + 1
+                                   in  (M.insert (s,i) o m, Symbol [SynVar s i n o])
+  go m s                         = (m,s)
 
 -- | Once we have parsed a rule, we still need to extract all active
 -- indices in the rule, and enumerate over them. This will finally generate

@@ -54,11 +54,11 @@ ruleDoc (Rule lhs fun rhs)
   where f  = fill 10 . text . concat . (over (_tail.traverse._head) toUpper) $ fun^..folded.getAttr
 
 steDoc :: SynTermEps -> Reader Grammar Doc
-steDoc (SynVar  n i) = indexDoc i >>= return . blue . (text (n^.getSteName) <+>)
-steDoc (SynTerm n i) = indexDoc i >>= return . magenta . (text (n^.getSteName) <+>)
-steDoc (Term    n i) = return . green . text $ n^.getSteName
-steDoc (Epsilon    ) = return . red   . text $ "ε"
-steDoc (Deletion   ) = return . red   . text $ "-"
+steDoc (SynVar  n i s k) = indexDoc i >>= return . blue . (text (n^.getSteName) <>)
+steDoc (SynTerm n i    ) = indexDoc i >>= return . magenta . (text (n^.getSteName) <>)
+steDoc (Term    n i    ) = return . green . text $ n^.getSteName
+steDoc (Epsilon        ) = return . red   . text $ "ε"
+steDoc (Deletion       ) = return . red   . text $ "-"
 
 indexDoc :: [Index] -> Reader Grammar Doc
 indexDoc [] = return empty
@@ -72,8 +72,13 @@ indexDoc xs = fmap (encloseSep lbrace rbrace comma) . mapM iDoc $ xs
                | s< 0 = text $        show s
 
 symbolDoc :: Symbol -> Reader Grammar Doc
-symbolDoc (Symbol [x]) = steDoc x
-symbolDoc (Symbol xs ) = fmap list . mapM steDoc $ xs
+symbolDoc (Symbol [x])
+  | SynVar _ _ n k <- x
+  , n > 1        = fmap (<> text "_" <> integer k) $ steDoc x
+  | otherwise    = steDoc x
+symbolDoc s@(Symbol xs )
+  | isAllSplit s = fmap (encloseSep langle rangle comma) . mapM steDoc $ xs
+  | otherwise    = fmap list . mapM steDoc $ xs
 
 printDoc :: Doc -> IO ()
 printDoc d = displayIO stdout (renderPretty 0.8 160 $ d <> linebreak)
