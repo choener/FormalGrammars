@@ -395,6 +395,10 @@ attributeFunctionType r = do
   terminal   <- use qTermSymbExp
   let argument :: Symbol -> TypeQ
       argument s
+        -- split stuff has @()@ arg type
+        | isSyntactic s
+        , (Symbol [SynVar _ _ n k]) <- s
+        , n>1 && k<n   = [t| () |]
         | isSyntactic s  = varT elemTyName
         | isSynTerm   s  = varT elemTyName
         | isTerminal  s  = return . fst $ terminal  M.! s
