@@ -46,3 +46,29 @@ S -> pse <<< U V U V
 Emit: PKN
 |]
 
+makeAlgebraProduct ''SigPKN
+
+{-
+bpmax :: Monad m => SigPKN m Int Int Char
+bpmax = SigPKN
+  { unp = \ x c     -> x
+  , jux = \ x c y d -> if c `pairs` d then x + y + 1 else -999999
+  , pse = \ () () x y -> x + y
+  , nil = \ ()      -> 0
+  , pk1 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if (a `pairs` b || a == 'N' && b == 'M') then x + y + z + 1 else -888888
+  , pk2 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if (a `pairs` b || a == 'N' && b == 'M') then x + y + z + 1 else -888888
+  , nll = \ (Z:.():.()) -> 0
+  , h   = SM.foldl' max (-999999)
+  }
+{-# INLINE bpmax #-}
+
+pairs !c !d
+  =  c=='A' && d=='U'
+  || c=='C' && d=='G'
+  || c=='G' && d=='C'
+  || c=='G' && d=='U'
+  || c=='U' && d=='A'
+  || c=='U' && d=='G'
+{-# INLINE pairs #-}
+-}
+

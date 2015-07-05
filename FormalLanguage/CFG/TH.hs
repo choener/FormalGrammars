@@ -14,12 +14,12 @@ module FormalLanguage.CFG.TH
   ( thCodeGen
   ) where
 
-import           Debug.Trace
 import           Control.Applicative
 import           Control.Arrow ((&&&))
 import           Control.Exception (assert)
 import           Control.Lens hiding (Strict, (...), outside)
 import           Control.Monad
+import           Control.Monad.Reader
 import           Control.Monad.State.Strict as M
 import           Control.Monad.Trans.Class
 import           Data.Char (toUpper,toLower)
@@ -28,6 +28,7 @@ import           Data.Function (on)
 import           Data.List (intersperse,nub,nubBy,groupBy)
 import           Data.Maybe
 import           Data.Vector.Fusion.Stream.Monadic (Stream)
+import           Debug.Trace
 import           GHC.Exts (the)
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax hiding (lift)
@@ -35,11 +36,11 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
-import           Control.Monad.Reader
+import qualified GHC.TypeLits as Kind
 
 import           ADP.Fusion ( (%), (|||), (...), (<<<) )
-import qualified ADP.Fusion as ADP
 import           Data.PrimitiveArray (Z(..), (:.)(..))
+import qualified ADP.Fusion as ADP
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.PrettyPrint.ANSI
@@ -123,11 +124,15 @@ thCodeGen prefixLen g = do
   _qElemTyName          <- newName "s"
   _qRetTyName           <- newName "r"
   _qTermAtomTyNames     <- M.fromList <$> (mapM (\t -> (t,) <$> newName ("t_" ++ t)) $ g^..termvars.folded.name.getSteName)
-  _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ (n^..getSymbolList.folded.name.getSteName.folded))) $ uniqueSyntacticSymbols g) -- g^..nsyms.folded) -- collectSymbN g)
+  _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ (n^..getSymbolList.folded.name.getSteName.folded))) $ uniqueSyntacticSymbols g)
   _qInsideSyntVarNames  <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("i_" ++ (n^..getSymbolList.folded.name.getSteName.folded))) $ uniqueSynTermSymbols   g)
   let _qPrefix          =  over _head toLower $ take prefixLen (g^.grammarName)
+  let ls = (nub . map _lhs . S.elems) $ g^.rules
+  let synKeys  = (filter (`elem` ls) . M.keys) _qPartialSyntVarNames
+  bodySynNames  <- sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..getSymbolList.folded.name.getSteName ]
+  let _qFullSyntVarNames = M.fromList bodySynNames
   -- TODO inside synvars in outside context
-  evalStateT codeGen def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermAtomTyNames, _qPartialSyntVarNames, _qInsideSyntVarNames, _qPrefix}
+  evalStateT codeGen def{_qGrammar, _qMTyName, _qElemTyName, _qRetTyName, _qTermAtomTyNames, _qPartialSyntVarNames, _qInsideSyntVarNames, _qPrefix, _qFullSyntVarNames}
 
 -- | Actually create signature, grammar, inline pragma.
 
@@ -219,10 +224,13 @@ grammarArguments = do
 
 grammarBodyWhere :: TQ [DecQ]
 grammarBodyWhere = do
+  {-
   ls <- (nub . map _lhs . S.elems) <$> use (qGrammar.rules)
   synKeys       <- (filter (`elem` ls) . M.keys) <$> use qPartialSyntVarNames
   bodySynNames  <- lift $ sequence [ (n,) <$> (newName $ "ss_" ++ concat k) | n <- synKeys, let k = n^..getSymbolList.folded.name.getSteName ]
   qFullSyntVarNames .= M.fromList bodySynNames
+  -}
+  bodySynNames <- M.toList <$> use qFullSyntVarNames
   -- TODO now we actually need to *ALSO* add symbols for the inside stuff,
   -- if this is an outside grammar.
   mapM grammarBodySyn bodySynNames
@@ -255,16 +263,34 @@ grammarBodyRHS (Rule _ f rs) = do
   terms        <- use qTermSymbExp
   synNames     <- use qFullSyntVarNames -- just the name of the fully applied symbol
   synTermNames <- use qInsideSyntVarNames
-  let genSymbol s
-        | Symbol [] <- s = error "empty genSymbol"
-        | isTerminal  s = return . snd  $ M.findWithDefault (error $ "grammarBodyRHS isTe: " ++ show (s,f,rs)) s terms
-        | isSyntactic s
-        , (Symbol [SynVar _ _ n _]) <- s
-        , n > 1         = do g <- genSymbol $ splitToFull s
-                             return $ traceShow ("sv",s,g) g
-        | isSyntactic s = return . VarE
-                        $ M.findWithDefault (error $ "grammarBodyRHS isSy: " ++ show (s,"XXX",M.keys synNames)) s (synNames)
-        | isSynTerm   s = return . VarE $ M.findWithDefault (error "grammarBodyRHS: isST") s (synTermNames)
+  let fragmentSynVar :: Symbol -> Maybe Name
+      fragmentSynVar s@(Symbol [SynVar _ _ n k]) | n>1 && k<n = M.lookup (splitToFull s) synNames
+      fragmentSynVar _ = Nothing
+  let finalSynVar :: Symbol -> Maybe Name
+      finalSynVar s@(Symbol [SynVar _ _ n k]) | n>1 && k==n = M.lookup (splitToFull s) synNames
+      finalSynVar _ = Nothing
+  let genSymbol :: Symbol -> ExpQ
+      -- | If, for whatever reason, we have an empty symbol
+      genSymbol (Symbol []) = error "empty genSymbol"
+      -- | if we deal with terminals
+      genSymbol ((`M.lookup` terms) -> Just (_,v)) = return v
+      -- | if we deal with usual syntactic vars
+      genSymbol ((`M.lookup` synNames) -> Just n) = varE n
+      -- | usual syntactic terminals
+      genSymbol ((`M.lookup` synTermNames) -> Just n) = varE n
+      -- | if we deal with split synvars and have a fragment
+      genSymbol (fragmentSynVar -> Just n) = let p = show n in [| ADP.split (ADP.Proxy :: ADP.Proxy ($(litT $ strTyLit p) :: Kind.Symbol)) (ADP.Proxy :: ADP.Proxy ADP.Fragment) $(varE n) |]
+      -- | if we deal with split synvars and have a final split
+      genSymbol (finalSynVar    -> Just n) = let p = show n in [| ADP.split (ADP.Proxy :: ADP.Proxy ($(litT $ strTyLit p) :: Kind.Symbol)) (ADP.Proxy :: ADP.Proxy ADP.Final   ) $(varE n) |]
+      -- | single-tape synvars in a multi-tape setting
+      genSymbol s
+        | isSynStacked s = foldl go [|ADP.M|] $ _getSymbolList s
+        where go acc Deletion = [| $(acc) ADP.:| ADP.Deletion |]
+              go acc sv
+                | Just n <- M.lookup (Symbol [sv]) synNames = [| $(acc) ADP.:| $(varE n) |]
+                | otherwise = error $ "genSymbol:stacked: " ++ show s
+      -- | catch-all error
+      genSymbol s = error $ "genSymbol: " ++ show s
   let rhs = assert (not $ null rs) $ foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
   -- apply evaluation function
   Just (fname,_,_) <- use (qAttribFuns . at f)
@@ -279,6 +305,7 @@ grammarTermExpression s = do
   ttypes <- use qTermAtomTyNames
   tavn <- use qTermAtomVarNames
   elemTyName <- use qElemTyName
+  synNames     <- use qFullSyntVarNames -- just the name of the fully applied symbol
   g <- use qGrammar
   let genType :: [SynTermEps] -> TypeQ
       genType z
@@ -290,6 +317,17 @@ grammarTermExpression s = do
         | [Term tnm tidx] <- z
         {- , Just v <- M.lookup (tnm^.getSteName) (error "bla") -} = varT elemTyName
         | xs              <- z = foldl (\acc z -> [t| $acc :. $(genType [z]) |]) [t| Z |] xs
+  let genSingleExp :: Int -> SynTermEps -> ExpQ
+      genSingleExp _ Deletion = [| ADP.Deletion |]
+      genSingleExp _ Epsilon  = [| ADP.Epsilon  |]
+      genSingleExp _ (((`M.lookup` synNames) . Symbol . (:[])) -> Just n) = error $ show n
+      genSingleExp k (Term tnm tidx)
+        | Just n <- M.lookup (tnm^.getSteName,k) tavn = varE n
+        -- TODO this one is dangerous but currently necessary for split
+        -- systems
+        | Just n <- M.lookup (tnm^.getSteName,0) tavn = varE n
+        | otherwise = error $ show ("genSingleExp:Term: ",k,tnm,tidx, tavn)
+      genSingleExp _ err      = error $ "genSingleExp: " ++ show (s,err)
   let genExp :: [SynTermEps] -> ExpQ
       genExp z
 --        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
@@ -297,11 +335,14 @@ grammarTermExpression s = do
         | [Epsilon ]      <- z = [| ADP.Epsilon  |]
         | [Term tnm tidx] <- z
         , Just v <- M.lookup (tnm^.getSteName,0) tavn = varE v
+        | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(genSingleExp k z) |])
+                                        [| ADP.M |] $ zip [0..] xs
+{-                                        
         | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Deletion -> [| ADP.Deletion |]
                                                                                  ; Epsilon  -> [| ADP.Epsilon  |]
                                                                                  ; Term tnm tidx -> varE $ M.findWithDefault (error $ "genExp: " ++ show (tnm^.getSteName,k)) (tnm^.getSteName,k) tavn
                                                                                  }) |])
-                                        [| ADP.M |] $ zip [0..] xs
+                                        [| ADP.M |] $ zip [0..] xs  -}
   ty <- lift . genType $ s^.getSymbolList
   ex <- lift . genExp  $ s^.getSymbolList
   return (s, (ty,ex))
@@ -352,17 +393,23 @@ attributeFunctionType r = do
   let (f:fs) = r^..attr.folded
   elemTyName <- use qElemTyName
   terminal   <- use qTermSymbExp
-  let argument :: Symbol -> Type
+  let argument :: Symbol -> TypeQ
       argument s
-        | isSyntactic s = VarT elemTyName
-        | isSynTerm   s = VarT elemTyName
-        | isTerminal  s = fst $ terminal  M.! s
+        | isSyntactic s  = varT elemTyName
+        | isSynTerm   s  = varT elemTyName
+        | isTerminal  s  = return . fst $ terminal  M.! s
+        | isSynStacked s = let go :: TypeQ -> SynTermEps -> TypeQ
+                               go t Deletion = [t| $(t) :. () |]
+                               go t SynVar{} = [t| $(t) :. $(varT elemTyName) |]
+                               go t sv = error $ show sv
+                           in  foldl go [t|Z|] $ _getSymbolList s
+        | otherwise     = error $ "argument: " ++ show s
   prefix <- use qPrefix
   let attrFun = over _head toLower (f^.getAttr) ++ concatMap (over _head toUpper) (fs^..folded.getAttr) -- TODO mkName ???
   nm <- lift $ (return . mkName) $ if null prefix
                                       then attrFun
                                       else prefix ++ over _head toUpper attrFun
-  let tp = foldr AppT (VarT elemTyName) $ map (AppT ArrowT . argument) $ r^.rhs
+  tp <- lift $ foldr appT (varT elemTyName) $ map (appT arrowT . argument) $ r^.rhs
   return (f:fs, (nm,NotStrict,tp))
 
 -- | Build the choice function. Basically @Stream m s -> m r@.

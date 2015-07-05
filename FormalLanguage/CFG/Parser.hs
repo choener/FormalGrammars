@@ -310,9 +310,11 @@ knownTermVar e = Symbol <$> do
                i <- ident fgIdents
                t <- use (current . termvars . at i)
                s <- use (current . synvars  . at i)
---               e <- use (current . epsvars  . at i)
                guard . isJust $ t <|> s
-               return $ Term i []
+               -- TODO this will produce bad @SynVar@ for indexed cases
+               -- (and probably for split cases, but these are even more
+               -- weird)
+               return $ if isJust t then Term i [] else SynVar i [] 1 0
                {-
                if isJust t
                 then return $ Term i []

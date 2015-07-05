@@ -26,6 +26,11 @@ isBindableTerminal = allOf folded (\case (Term _ _) -> True; _ -> False) . _getS
 isSyntactic :: Symbol -> Bool
 isSyntactic = allOf folded (\case SynVar{} -> True; _ -> False) . _getSymbolList
 
+-- | special case of single-tape synvar in multi-tape setting
+
+isSynStacked :: Symbol -> Bool
+isSynStacked = allOf folded (\case SynVar{} -> True; Deletion -> True; _ -> False) . _getSymbolList
+
 -- | true if we have a split synvar
 
 isAllSplit :: Symbol -> Bool
