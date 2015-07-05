@@ -342,6 +342,11 @@ parseRule = (expandIndexed =<< runUnlined rule) <* someSpace
         afun = (:[]) <$> ident fgIdents
         syms = knownSymbol EvalRule
 
+-- | For split syntactic variables used in split manner
+-- (i.e. @S -> X Y X Y)
+--
+-- TODO error control!
+
 updateSplitCounts :: [Symbol] -> [Symbol]
 updateSplitCounts = snd . mapAccumL go M.empty where
   go m (Symbol [SynVar s i n k])

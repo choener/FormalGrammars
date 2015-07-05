@@ -5,7 +5,7 @@ module FormalLanguage.CFG.Grammar.Util where
 
 import Control.Lens hiding (Index,index)
 import Data.Tuple (swap)
-import Data.List (sort,nub)
+import Data.List (sort,nub,genericReplicate)
 
 import FormalLanguage.CFG.Grammar.Types
 
@@ -30,6 +30,16 @@ isSyntactic = allOf folded (\case SynVar{} -> True; _ -> False) . _getSymbolList
 
 isAllSplit :: Symbol -> Bool
 isAllSplit = allOf folded (\case (SynVar _ _ n _) -> n>1 ; _ -> False) . _getSymbolList
+
+-- | Set all @splitK@ values to @0@ for lookups.
+
+splitK0 :: Symbol -> Symbol
+splitK0 = set (getSymbolList . traverse . splitK) 0
+
+-- | Take a split symbol and rewrite as full.
+
+splitToFull :: Symbol -> Symbol
+splitToFull (Symbol [SynVar s i n k]) = Symbol . genericReplicate n $ SynVar s i n 0
 
 -- | Is this a syntactic terminal symbol?
 

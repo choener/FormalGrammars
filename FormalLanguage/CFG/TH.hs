@@ -14,6 +14,7 @@ module FormalLanguage.CFG.TH
   ( thCodeGen
   ) where
 
+import           Debug.Trace
 import           Control.Applicative
 import           Control.Arrow ((&&&))
 import           Control.Exception (assert)
@@ -255,9 +256,15 @@ grammarBodyRHS (Rule _ f rs) = do
   synNames     <- use qFullSyntVarNames -- just the name of the fully applied symbol
   synTermNames <- use qInsideSyntVarNames
   let genSymbol s
-        | isTerminal  s = return . snd  $ M.findWithDefault (error "grammarBodyRHS") s terms
-        | isSyntactic s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synNames) -- `M.union` isnNames)
-        | isSynTerm   s = return . VarE $ M.findWithDefault (error "grammarBodyRHS") s (synTermNames)
+        | Symbol [] <- s = error "empty genSymbol"
+        | isTerminal  s = return . snd  $ M.findWithDefault (error $ "grammarBodyRHS isTe: " ++ show (s,f,rs)) s terms
+        | isSyntactic s
+        , (Symbol [SynVar _ _ n _]) <- s
+        , n > 1         = do g <- genSymbol $ splitToFull s
+                             return $ traceShow ("sv",s,g) g
+        | isSyntactic s = return . VarE
+                        $ M.findWithDefault (error $ "grammarBodyRHS isSy: " ++ show (s,"XXX",M.keys synNames)) s (synNames)
+        | isSynTerm   s = return . VarE $ M.findWithDefault (error "grammarBodyRHS: isST") s (synTermNames)
   let rhs = assert (not $ null rs) $ foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs
   -- apply evaluation function
   Just (fname,_,_) <- use (qAttribFuns . at f)
@@ -271,22 +278,28 @@ grammarTermExpression :: Symbol -> TQ (Symbol, (Type,Exp))
 grammarTermExpression s = do
   ttypes <- use qTermAtomTyNames
   tavn <- use qTermAtomVarNames
+  elemTyName <- use qElemTyName
+  g <- use qGrammar
   let genType :: [SynTermEps] -> TypeQ
       genType z
 --        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
         | [Deletion]      <- z = [t| () |]
         | [Epsilon ]      <- z = [t| () |]
-        | [Term tnm tidx] <- z = varT $ ttypes M.! (tnm^.getSteName)
+        | [Term tnm tidx] <- z
+        , Just v <- M.lookup (tnm^.getSteName) ttypes = varT v
+        | [Term tnm tidx] <- z
+        {- , Just v <- M.lookup (tnm^.getSteName) (error "bla") -} = varT elemTyName
         | xs              <- z = foldl (\acc z -> [t| $acc :. $(genType [z]) |]) [t| Z |] xs
   let genExp :: [SynTermEps] -> ExpQ
       genExp z
 --        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
         | [Deletion]      <- z = [| ADP.Deletion |] -- TODO ???
         | [Epsilon ]      <- z = [| ADP.Epsilon  |]
-        | [Term tnm tidx] <- z = varE $ tavn M.! (tnm^.getSteName,0)
+        | [Term tnm tidx] <- z
+        , Just v <- M.lookup (tnm^.getSteName,0) tavn = varE v
         | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Deletion -> [| ADP.Deletion |]
                                                                                  ; Epsilon  -> [| ADP.Epsilon  |]
-                                                                                 ; Term tnm tidx -> varE $ tavn M.! (tnm^.getSteName,k)
+                                                                                 ; Term tnm tidx -> varE $ M.findWithDefault (error $ "genExp: " ++ show (tnm^.getSteName,k)) (tnm^.getSteName,k) tavn
                                                                                  }) |])
                                         [| ADP.M |] $ zip [0..] xs
   ty <- lift . genType $ s^.getSymbolList
