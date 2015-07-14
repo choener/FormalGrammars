@@ -2,7 +2,6 @@ name:           FormalGrammars
 version:        0.2.1.0
 author:         Christian Hoener zu Siederdissen, 2013-2015
 copyright:      Christian Hoener zu Siederdissen, 2013-2015
-homepage:       http://www.bioinf.uni-leipzig.de/Software/gADP/
 homepage:       https://github.com/choener/FormalGrammars
 bug-reports:    https://github.com/choener/FormalGrammars/issues
 maintainer:     choener@bioinf.uni-leipzig.de
@@ -15,6 +14,8 @@ cabal-version:  >= 1.10.0
 tested-with:    GHC == 7.8.4, GHC == 7.10.1
 synopsis:       (Context-free) grammars in formal language theory
 description:
+                <http://www.bioinf.uni-leipzig.de/Software/gADP/ generalized Algebraic Dynamic Programming>
+                .
                 Context-free grammars in formal language theory are sets of
                 production rules, non-terminal and terminal symbols. This
                 library provides basic data types and functions to manipulate
@@ -28,6 +29,9 @@ description:
                 This library also provides the machinery that transforms an
                 Inside grammar into the corresponding Outside grammar.
                 .
+                Starting with version 0.2.1 it is possible to write multiple
+                context-free grammars within this framework.
+                .
                 In addition, TemplateHaskell and QuasiQuoting functionality
                 allow embedding thusly defined grammars in Haskell programs.
                 ADPfusion then turns such a grammar into an efficient dynamic
@@ -38,37 +42,8 @@ description:
                 that want to implement their CFG in another language than
                 Haskell.
                 .
-                .
-                .
-                .
-                Formal background can be found in these papers:
-                .
-                @
-                Christian Hoener zu Siederdissen
-                Sneaking Around ConcatMap: Efficient Combinators for Dynamic Programming
-                2012. Proceedings of the 17th ACM SIGPLAN international conference on Functional programming
-                <http://doi.acm.org/10.1145/2364527.2364559> preprint: <http://www.tbi.univie.ac.at/newpapers/pdfs/TBI-p-2012-2.pdf>
-                @
-                .
-                @
-                Andrew Farmer, Christian Höner zu Siederdissen, and Andy Gill.
-                The HERMIT in the stream: fusing stream fusion’s concatMap.
-                2014. Proceedings of the ACM SIGPLAN 2014 workshop on Partial evaluation and program manipulation.
-                <http://dl.acm.org/citation.cfm?doid=2543728.2543736>
-                @
-                .
-                @
-                Christian Höner zu Siederdissen, Ivo L. Hofacker, and Peter F. Stadler.
-                Product Grammars for Alignment and Folding.
-                2014. IEEE/ACM Transactions on Computational Biology and Bioinformatics. 99.
-                <http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=6819790>
-                @
-                .
-                @
-                Christian Höner zu Siederdissen, Sonja J. Prohaska, and Peter F. Stadler.
-                Algebraic Dynamic Programming over General Data Structures.
-                2015. submitted.
-                @
+                Formal background can be found in a number of papers which are
+                given in the README.
                 .
 
 
@@ -82,11 +57,6 @@ Extra-Source-Files:
 
 flag examples
   description:  build the examples
-  default:      False
-  manual:       True
-
-flag llvm
-  description:  build using LLVM
   default:      False
   manual:       True
 
@@ -215,11 +185,7 @@ executable NussinovFG
       -ddump-simpl
       -ddump-stg
       -dsuppress-all
-  if flag(llvm)
-    ghc-options:
-      -fllvm
-      -optlo-O3 -optlo-std-compile-opts
-      -fllvm-tbaa
+
 
 
 executable NeedlemanWunschFG
@@ -263,11 +229,6 @@ executable NeedlemanWunschFG
       -ddump-simpl
       -ddump-stg
       -dsuppress-all
-  if flag(llvm)
-    ghc-options:
-      -fllvm
-      -optlo-O3
-      -fllvm-tbaa
 
 
 

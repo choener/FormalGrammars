@@ -3,6 +3,7 @@
 
 - indexed rules and grammars (revamped system)
 - *multi*-context free grammars available!
+- new travis.yml
 
 0.2.0.0
 -------
