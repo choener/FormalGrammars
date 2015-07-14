@@ -2,7 +2,7 @@
 
 # FormalGrammars: A DSL for formal languages in Haskell
 
-[*generalized ADPfusion Homepage*](http://www.bioinf.uni-leipzig.de/Software/gADP/)
+[*generalized Algebraic Dynamic Programming Homepage*](http://www.bioinf.uni-leipzig.de/Software/gADP/)
 
 The gADP homepage has a tutorial and example on how to write algorithms /
 grammars.
