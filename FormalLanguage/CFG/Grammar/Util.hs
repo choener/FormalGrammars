@@ -134,3 +134,15 @@ isLeftLinear g = allOf folded isll $ g^.rules where
   isll (Rule l _ []) = isSyntactic l
   isll (Rule l _ rs) = isSyntactic l && (allOf folded (not . isSyntactic) $ tail rs) -- at most one non-terminal
 
+isRightLinear :: Grammar -> Bool
+isRightLinear g = allOf folded isrl $ g^.rules where
+  isrl :: Rule -> Bool
+  isrl (Rule l _ []) = isSyntactic l
+  isrl (Rule l _ rs) = isSyntactic l && (allOf folded (not . isSyntactic) $ init rs)
+
+isLinear :: Grammar -> Bool
+isLinear g = allOf folded isl $ g^.rules where
+  isl :: Rule -> Bool
+  isl (Rule l _ []) = isSyntactic l
+  isl (Rule l _ rs) = isSyntactic l && (1 >= (length . filter isSyntactic $ rs))
+
