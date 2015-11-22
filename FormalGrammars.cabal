@@ -11,7 +11,7 @@ license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
 cabal-version:  >= 1.10.0
-tested-with:    GHC == 7.8.4, GHC == 7.10.1
+tested-with:    GHC == 7.8.4, GHC == 7.10.2
 synopsis:       (Context-free) grammars in formal language theory
 description:
                 <http://www.bioinf.uni-leipzig.de/Software/gADP/ generalized Algebraic Dynamic Programming>
@@ -70,21 +70,21 @@ flag debug
 library
   build-depends: base                  >= 4.7     && < 4.9
                , ADPfusion             >= 0.4.1   && < 0.5.1
-               , ansi-wl-pprint        == 0.6.7.*
-               , bytestring            == 0.10.*
+               , ansi-wl-pprint        >= 0.6.7   && < 0.6.8
+               , bytestring            >= 0.10    && < 0.11
                , containers
-               , data-default          == 0.5.*
-               , HaTeX                 == 3.16.*
-               , lens                  == 4.*
-               , mtl                   == 2.*
+               , data-default          >= 0.5     && < 0.6
+               , HaTeX                 >= 3.16    && < 3.17
+               , lens                  >= 4.0     && < 5.0
+               , mtl                   >= 2.0     && < 3.0
                , parsers               >= 0.12    && < 0.13
                , PrimitiveArray        >= 0.6.0   && < 0.7.1
                , semigroups            >= 0.16    && < 0.17
                , template-haskell
-               , text                  == 1.*
+               , text                  >= 1.0     && < 1.3
                , transformers          >= 0.3     && < 0.5
-               , trifecta              == 1.5.*
-               , unordered-containers  == 0.2.*
+               , trifecta              >= 1.5     && < 1.6
+               , unordered-containers  >= 0.2     && < 0.3
                , vector                >= 0.10    && < 0.12
   exposed-modules:
     FormalLanguage
@@ -133,7 +133,7 @@ library
 executable GrammarPP
   build-depends: base
                , ansi-wl-pprint
-               , cmdargs          == 0.10.*
+               , cmdargs          >= 0.10   && < 0.11
                , FormalGrammars
   hs-source-dirs:
     src
