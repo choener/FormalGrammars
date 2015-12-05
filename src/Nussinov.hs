@@ -11,7 +11,6 @@ import           Data.List
 import           Data.Vector.Fusion.Util
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
-import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
@@ -92,7 +91,7 @@ runNussinov k inp = (d, take k . unId $ axiom b) where
           $ gNussinov bpmax
               (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
               (chr i)
-              :: Z:.ITbl Id Unboxed Subword Int
+              :: Z:.ITbl Id Unboxed (Subword I) Int
   d = unId $ axiom t
   !(Z:.b) = gNussinov (bpmax <|| pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i)
 {-# NoInline runNussinov #-}
@@ -103,10 +102,10 @@ runVonissun k inp = (d, []) where -- take k . unId $ axiom b) where
   n = VU.length i
   !(Z:.t) = mutateTablesDefault
           $ gVonissun bpmaxV
-              (ITbl 0 0 EmptyOk (PA.fromAssocs (O $ subword 0 0) (O $ subword 0 n) (-999999) []))
-              (undefined :: ITbl Id Unboxed Subword Int)
+              (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
+              (undefined :: ITbl Id Unboxed (Subword O) Int)
               (chr i)
-              :: Z:.ITbl Id Unboxed (Outside Subword) Int
+              :: Z:.ITbl Id Unboxed (Subword O) Int
   d = unId $ axiom t
 --  !(Z:.b) = gVonissun (bpmaxV <|| prettyV) (toBacktrack t (undefined :: Id a -> Id a)) (undefined :: Backtrack (ITbl Id Unboxed Subword Int) Id Id String) (chr i)
 {-# NoInline runVonissun #-}

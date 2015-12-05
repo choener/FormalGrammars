@@ -12,7 +12,6 @@ import           Data.Vector.Fusion.Util
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
-import qualified Data.Vector.Fusion.Stream as S
 import qualified Data.Vector.Unboxed as VU
 import           Data.Vector.Unboxed (Vector)
 import           Text.Printf
@@ -31,13 +30,12 @@ Verbose
 
 Grammar: Global
 N: X
-T: l
-T: u
+T: c      -- NOTE that each tape with a 'c' uses its own type!
 S: [X,X]
 [X,X] -> done  <<< [e,e]
-[X,X] -> align <<< [X,X] [l,u]
-[X,X] -> indel <<< [X,X] [-,u]
-[X,X] -> delin <<< [X,X] [l,-]
+[X,X] -> align <<< [X,X] [c,c]
+[X,X] -> indel <<< [X,X] [-,c]
+[X,X] -> delin <<< [X,X] [c,-]
 //
 
 Emit: Global
@@ -45,6 +43,7 @@ Emit: Global
 
 
 makeAlgebraProduct ''SigGlobal
+
 
 -- |
 
@@ -57,6 +56,7 @@ score = SigGlobal
   , h     = SM.foldl' max (-999999)
   }
 {-# INLINE score #-}
+
 
 -- | 
 --
@@ -83,7 +83,7 @@ runNeedlemanWunsch k i1' i2' = (d, take k . unId $ axiom b) where
 
 -- | Decoupling the forward phase for CORE observation.
 
-runNeedlemanWunschForward :: Vector Char -> Vector Char -> Z:.(ITbl Id Unboxed (Z:.PointL:.PointL) Int)
+runNeedlemanWunschForward :: Vector Char -> Vector Char -> Z:.(ITbl Id Unboxed (Z:.PointL I:.PointL I) Int)
 runNeedlemanWunschForward i1 i2 = let n1 = VU.length i1; n2 = VU.length i2 in mutateTablesDefault $
   gGlobal score
     (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.PointL 0:.PointL 0) (Z:.PointL n1:.PointL n2) (-999999) []))

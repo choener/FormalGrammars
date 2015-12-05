@@ -1,3 +1,13 @@
+0.3.0.0
+-------
+
+- Major change in terminal symbol handling: In 0.2.x.y versions, when you named
+  a terminal (say 'c') then each occurance of 'c' had the same type. This was
+  *independent* of the tape the symbol occured on. Starting with 0.3.0.0 if you
+  have a terminal with the same name on different tapes, then you will have to
+  give each type explicitly. This requires a bit more typing for homogenous
+  grammars, but makes heterogenous multi-tape grammars much more flexible.
+
 0.2.1.0
 -------
 

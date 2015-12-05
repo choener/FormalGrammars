@@ -78,7 +78,7 @@ data CfgState = CfgState
   , _qFullSyntVarNames    :: M.Map Symbol Name            -- ^ type variable names for the fully applied grammar body / where part
   -- everything on terminals
   , _qTermAtomVarNames    :: M.Map (String,Int) Name      -- ^ (Term-id,Dimension) to var name
-  , _qTermAtomTyNames     :: M.Map String Name            -- ^ the type name for each unique terminal symbol (that is: the scalar terminals in each dimension)
+  , _qTermAtomTyNames     :: M.Map (String,Int) Name      -- ^ the type name for each unique terminal symbol (that is: the scalar terminals in each dimension)
   , _qTermSymbExp         :: M.Map Symbol (Type,Exp)      -- ^ associate a terminal @Symb@ with a complete @Type@ and @Exp@
   , _qPrefix              :: String                       -- ^ prefix for attribute functions
   }
@@ -123,7 +123,7 @@ thCodeGen prefixLen g = do
   _qMTyName             <- newName "m"
   _qElemTyName          <- newName "s"
   _qRetTyName           <- newName "r"
-  _qTermAtomTyNames     <- M.fromList <$> (mapM (\t -> (t,) <$> newName ("t_" ++ t)) $ g^..termvars.folded.name.getSteName)
+  _qTermAtomTyNames     <- M.fromList <$> (mapM (\(name,tape) -> ((name,tape),) <$> newNameTerm "t" name tape) $ terminalsWithTape g) -- g^..termvars.folded.name.getSteName)
   _qPartialSyntVarNames <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("s_" ++ (n^..getSymbolList.folded.name.getSteName.folded))) $ uniqueSyntacticSymbols g)
   _qInsideSyntVarNames  <- M.fromList <$> (mapM (\n -> (n,) <$> newName ("i_" ++ (n^..getSymbolList.folded.name.getSteName.folded))) $ uniqueSynTermSymbols   g)
   let _qPrefix          =  over _head toLower $ take prefixLen (g^.grammarName)
@@ -307,16 +307,14 @@ grammarTermExpression s = do
   elemTyName <- use qElemTyName
   synNames     <- use qFullSyntVarNames -- just the name of the fully applied symbol
   g <- use qGrammar
-  let genType :: [SynTermEps] -> TypeQ
-      genType z
---        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
+  let genType :: Int -> [SynTermEps] -> TypeQ
+      genType tape z
         | [Deletion]      <- z = [t| () |]
         | [Epsilon ]      <- z = [t| () |]
         | [Term tnm tidx] <- z
-        , Just v <- M.lookup (tnm^.getSteName) ttypes = varT v
-        | [Term tnm tidx] <- z
-        {- , Just v <- M.lookup (tnm^.getSteName) (error "bla") -} = varT elemTyName
-        | xs              <- z = foldl (\acc z -> [t| $acc :. $(genType [z]) |]) [t| Z |] xs
+        , Just v <- M.lookup (tnm^.getSteName,tape) ttypes = varT v -- single dimension only, set dim to 0
+        | [Term tnm tidx] <- z = varT elemTyName
+        | xs              <- z = foldl (\acc (tape',z) -> [t| $acc :. $(genType tape' [z]) |]) [t| Z |] (zip [0..] xs)
   let genSingleExp :: Int -> SynTermEps -> ExpQ
       genSingleExp _ Deletion = [| ADP.Deletion |]
       genSingleExp _ Epsilon  = [| ADP.Epsilon  |]
@@ -325,27 +323,26 @@ grammarTermExpression s = do
         | Just n <- M.lookup (tnm^.getSteName,k) tavn = varE n
         -- TODO this one is dangerous but currently necessary for split
         -- systems
-        | Just n <- M.lookup (tnm^.getSteName,0) tavn = varE n
+        | Just n <- M.lookup (tnm^.getSteName,k) tavn = varE n
         | otherwise = error $ show ("genSingleExp:Term: ",k,tnm,tidx, tavn)
       genSingleExp _ err      = error $ "genSingleExp: " ++ show (s,err)
   let genExp :: [SynTermEps] -> ExpQ
       genExp z
---        | Symb Outside _ <- z = error $ printf "terminal symbol %s with OUTSIDE annotation!\n" (show z)
         | [Deletion]      <- z = [| ADP.Deletion |] -- TODO ???
         | [Epsilon ]      <- z = [| ADP.Epsilon  |]
         | [Term tnm tidx] <- z
         , Just v <- M.lookup (tnm^.getSteName,0) tavn = varE v
         | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(genSingleExp k z) |])
                                         [| ADP.M |] $ zip [0..] xs
-{-                                        
-        | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(case z of { Deletion -> [| ADP.Deletion |]
-                                                                                 ; Epsilon  -> [| ADP.Epsilon  |]
-                                                                                 ; Term tnm tidx -> varE $ M.findWithDefault (error $ "genExp: " ++ show (tnm^.getSteName,k)) (tnm^.getSteName,k) tavn
-                                                                                 }) |])
-                                        [| ADP.M |] $ zip [0..] xs  -}
-  ty <- lift . genType $ s^.getSymbolList
+  ty <- lift . genType 0 $ s^.getSymbolList
   ex <- lift . genExp  $ s^.getSymbolList
   return (s, (ty,ex))
+
+-- | Given a grammar, gives us each terminal on each tape.
+
+terminalsWithTape :: Grammar -> [(String,Int)]
+terminalsWithTape = map go . uniqueBindableTermsWithTape
+  where go (t,d) = (t^.name.getSteName,d^.getTape)
 
 -- | Each terminal symbol is bound to some input. Since we might have the
 -- same name in different dimensions, we now explicitly annotate with
@@ -355,11 +352,12 @@ grammarTermExpression s = do
 dimensionalTermSymbNames :: TQ [((String,Int),Name)]
 dimensionalTermSymbNames = do
   g <- use qGrammar
-  ys <- forM (uniqueBindableTermsWithTape g) $ \(t,d) -> do
-          let sn = t^.name.getSteName
-          let dm = d^.getTape
-          ( (sn,dm) , ) <$> (lift $ newName $ "term" ++ sn ++ show dm)
+  ys <- forM (terminalsWithTape g) $ \(name,tape) -> do
+          ( (name,tape) , ) <$> (lift $ newNameTerm "term" name tape)
   return ys
+
+--newNameTerm :: String -> Int -> TQ Name
+newNameTerm prefix name tape = newName $ prefix ++ "_" ++ name ++ "_" ++ show tape ++ "_"
 
 -- | Build the full grammar. Generate a name (the grammar name prefixed
 -- with a @"g"@), the arguments, and the body of the grammar.
