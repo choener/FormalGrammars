@@ -341,8 +341,10 @@ grammarTermExpression s = do
 -- | Given a grammar, gives us each terminal on each tape.
 
 terminalsWithTape :: Grammar -> [(String,Int)]
-terminalsWithTape = map go . uniqueBindableTermsWithTape
+terminalsWithTape = map go . filter isTerm . uniqueTermsWithTape -- uniqueBindableTermsWithTape
   where go (t,d) = (t^.name.getSteName,d^.getTape)
+        isTerm (Term{},_) = True
+        isTerm _          = False
 
 -- | Each terminal symbol is bound to some input. Since we might have the
 -- same name in different dimensions, we now explicitly annotate with
