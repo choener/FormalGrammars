@@ -69,7 +69,7 @@ flag debug
 
 library
   build-depends: base                  >= 4.7     && < 4.9
-               , ADPfusion             >= 0.4.1   && < 0.5.1
+               , ADPfusion             >= 0.5.1   && < 0.5.2
                , ansi-wl-pprint        >= 0.6.7   && < 0.6.8
                , bytestring            >= 0.10    && < 0.11
                , containers
