@@ -91,9 +91,10 @@ runNussinov k inp = (d, take k . unId $ axiom b) where
           $ gNussinov bpmax
               (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
               (chr i)
-              :: Z:.ITbl Id Unboxed (Subword I) Int
+              :: Z:.TwITbl Id Unboxed EmptyOk (Subword I) Int
   d = unId $ axiom t
   !(Z:.b) = gNussinov (bpmax <|| pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i)
+              :: Z:.TwITblBt Unboxed EmptyOk (Subword I) Int Id Id String
 {-# NoInline runNussinov #-}
 
 runVonissun :: Int -> String -> (Int,[String])
@@ -103,9 +104,9 @@ runVonissun k inp = (d, []) where -- take k . unId $ axiom b) where
   !(Z:.t) = mutateTablesDefault
           $ gVonissun bpmaxV
               (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-999999) []))
-              (undefined :: ITbl Id Unboxed (Subword O) Int)
+              (undefined :: TwITbl Id Unboxed EmptyOk (Subword I) Int)
               (chr i)
-              :: Z:.ITbl Id Unboxed (Subword O) Int
+              :: Z:.TwITbl Id Unboxed EmptyOk (Subword O) Int
   d = unId $ axiom t
 --  !(Z:.b) = gVonissun (bpmaxV <|| prettyV) (toBacktrack t (undefined :: Id a -> Id a)) (undefined :: Backtrack (ITbl Id Unboxed Subword Int) Id Id String) (chr i)
 {-# NoInline runVonissun #-}

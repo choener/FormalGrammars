@@ -195,7 +195,7 @@ grammarArguments = do
   -- bind algebra
   let alg = recP signame [ fieldPat n (varP n) | (n,_,_) <- h:(fs^..folded) ]
   -- bind partially applied non-terminals
-  let syn = [ varP s | s <- psyn^..folded ]
+  let syn = [ bangP $ varP s | s <- psyn^..folded ]
   -- bind fully applied non-terminals
   let isn = [ bangP $ varP s | s <- isyn^..folded ]
   -- bind terminals
@@ -251,7 +251,11 @@ grammarBodySyn (s,n) = do
                            (varE '(...))
                            (varE hname) )
                  (varE ix)
-  return $ valD (varP n) (normalB $ appE (varE $ M.findWithDefault (error "grammarBodySyn") s partial) (lamE [varP ix] rhs)) []
+  let sname = M.findWithDefault (error $ "grammarBodySyn: name not found for: " ++ show s) s partial
+  -- use @TW@ to combine the table @varE sname@ and the rule RHS @lamE...@
+  let bdy = [| ADP.TW $(varE sname) $(lamE [varP ix] rhs) |]
+  -- return $ valD (varP n) (normalB $ appE (varE $ M.findWithDefault (error "grammarBodySyn") s partial) (lamE [varP ix] rhs)) []
+  return $ valD (varP n) (normalB bdy) []
 
 -- | Build up the rhs for each rule.
 --

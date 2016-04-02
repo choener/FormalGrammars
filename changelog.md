@@ -1,3 +1,9 @@
+0.3.1.0
+-------
+
+- This version only works together with ADPfusion-0.5.2, this update improves
+  performance for all grammars.
+
 0.3.0.0
 -------
 
