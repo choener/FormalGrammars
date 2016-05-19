@@ -166,16 +166,29 @@ makeLenses ''DerivedGrammar
 -- TODO better way to handle indexed symbols?
 
 data Grammar = Grammar
-  { _synvars      :: Map SymbolName SynTermEps          -- ^ regular syntactic variables, without dimension
-  , _synterms     :: Map SymbolName SynTermEps          -- ^ Terminal synvars are somewhat weird. They are used in Outside grammars, and hold previously calculated inside values.
-  , _termvars     :: Map SymbolName SynTermEps  -- ^ regular terminal symbols
-  , _outside      :: DerivedGrammar                     -- ^ Is this an automatically derived outside grammar
-  , _rules        :: Set Rule                           -- ^ set of production rules
-  , _start        :: Symbol                             -- ^ start symbol
-  , _params       :: Map IndexName Index                -- ^ any global variables
-  , _indices      :: Map IndexName Index                -- ^ active indices
-  , _grammarName  :: String                             -- ^ grammar name
-  , _write        :: Bool                               -- ^ some grammar file requested this grammar to be expanded into code -- TODO remove, we have an emission queue
+  { _synvars      :: Map SymbolName SynTermEps
+    -- ^ regular syntactic variables, without dimension
+  , _synterms     :: Map SymbolName SynTermEps
+    -- ^ Terminal synvars are somewhat weird. They are used in Outside
+    -- grammars, and hold previously calculated inside values.
+  , _termvars     :: Map SymbolName SynTermEps
+    -- ^ regular terminal symbols
+  , _outside      :: DerivedGrammar
+    -- ^ Is this an automatically derived outside grammar
+  , _rules        :: Set Rule
+    -- ^ set of production rules
+  , _start        :: Symbol
+    -- ^ start symbol
+  , _params       :: Map IndexName Index
+    -- ^ any global variables
+  , _indices      :: Map IndexName Index
+    -- ^ active indices
+  , _grammarName  :: String
+    -- ^ grammar name
+  , _write        :: Bool
+    -- ^ some grammar file requested this grammar to be expanded into code
+    --
+    -- TODO remove, we have an emission queue
   }
   deriving (Show,Data,Typeable)
 
