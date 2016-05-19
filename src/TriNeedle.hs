@@ -43,6 +43,19 @@ S: [X,X,X]
 //
 
 Emit: Global
+
+-- SumOfPairs: Global has the following job: it takes the signature of the
+-- given grammar (here Global) and provides a second signature SopGlobal
+-- and a function of type @SopGlobal -> Global@. SopGlobal is special in
+-- that we need functions for combining two '-' characters, the actual
+-- 'sum' function in sum-of-pairs which is not really a monoid, since we
+-- have to take in all arguments and combine correctly.
+--
+-- Example (a,b,'-') yields (a,b) , (a,'-') , (b,'-') and produces either
+-- a score of a triple.
+--
+-- TODO use a function of arguments to Global directly?
+
 -- SumOfPairs: Global
 |]
 
