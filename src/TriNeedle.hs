@@ -63,6 +63,11 @@ Emit: Global
 makeAlgebraProduct ''SigGlobal
 
 
+
+data SopGlobal' m s r x y z = SopGlobal'
+  {
+  }
+
 -- |
 
 score :: Monad m => SigGlobal m Int Int Char Char Char
@@ -81,8 +86,6 @@ score = SigGlobal
 
 
 -- | 
---
--- NOTE The alignment needs to be reversed to print out.
 
 pretty :: Monad m => SigGlobal m (String,String,String) [(String,String,String)] Char Char Char
 pretty = SigGlobal
