@@ -1,0 +1,24 @@
+resolver: nightly-2016-06-21
+
+packages:
+- '.'
+- location: ../Lib-PrimitiveArray/
+  extra-dep: true
+- location: ../Lib-ADPfusion/
+  extra-dep: true
+- location: ../Lib-OrderedBits/
+  extra-dep: true
+- location:
+    git: https://github.com/ekmett/trifecta
+    commit: 53f76115ceba688fb0f5aef2fea5d085a1f813ec
+  extra-dep: true
+
+extra-deps:
+#- OneTuple-0.2.1
+#- OrderedBits-0.0.1.0
+#- tuple-0.3.0.2
+- cereal-vector-0.2.0.1
+- trifecta-1.5.2
+
+flags: {}
+
