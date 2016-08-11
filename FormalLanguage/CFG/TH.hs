@@ -38,9 +38,9 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 import qualified GHC.TypeLits as Kind
 
-import           ADP.Fusion ( (%), (|||), (...), (<<<) )
+import           ADP.Fusion.Core ( (%), (|||), (...), (<<<) )
 import           Data.PrimitiveArray (Z(..), (:.)(..))
-import qualified ADP.Fusion as ADP
+import qualified ADP.Fusion.Core as ADP
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.PrettyPrint.ANSI

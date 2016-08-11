@@ -2,9 +2,11 @@ resolver: lts-5.10
 
 packages:
 - '.'
-- location: ../Lib-PrimitiveArray/
+- location: ../Lib-PrimitiveArray
   extra-dep: true
-- location: ../Lib-ADPfusion/
+- location: ../Lib-ADPfusion
+  extra-dep: true
+- location: ../Lib-DPutils
   extra-dep: true
 
 extra-deps:
