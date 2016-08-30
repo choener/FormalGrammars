@@ -15,7 +15,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 import Text.Trifecta.Delta (Delta (Directed))
 import Text.Trifecta (parseString,Parser)
-import Text.Trifecta.Result (Result (..))
+import Text.Trifecta.Result (Result (..), ErrInfo (..))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Control.Lens
@@ -55,7 +55,7 @@ parseFormalLanguage ps s = do
   -- let r = parseString ((evalStateT . runGrammarP) grammar def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
   let r = parseString ((evalStateT . runGrammarParser) (parseEverything ps) def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
   case r of
-    (Failure f) -> do
+    (Failure (ErrInfo f _)) -> do
       runIO . printDoc $ f
       error "aborting parseFormalLanguage"
     (Success g) -> do
