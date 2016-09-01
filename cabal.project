@@ -1,5 +1,5 @@
 packages: .
           ../Lib-ADPfusion
-          ../Lib-DPutils
-          ../Lib-OrderedBits
-          ../Lib-PrimitiveArray
+--          ../Lib-DPutils
+--          ../Lib-OrderedBits
+--          ../Lib-PrimitiveArray

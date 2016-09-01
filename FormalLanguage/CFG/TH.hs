@@ -30,7 +30,7 @@ import           Data.Maybe
 import           Data.Vector.Fusion.Stream.Monadic (Stream)
 import           Debug.Trace
 import           GHC.Exts (the)
-import           Language.Haskell.TH
+import           Language.Haskell.TH hiding (dataD)
 import           Language.Haskell.TH.Syntax hiding (lift)
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -44,6 +44,7 @@ import qualified ADP.Fusion.Core as ADP
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.PrettyPrint.ANSI
+import           FormalLanguage.CFG.TH.Internal
 
 
 
@@ -173,7 +174,6 @@ signature = do
                sigName
                (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
                [recC sigName ((map return $ fs^..folded) ++ [return h])]
-               []
 
 -- | The grammar requires three types of arguments. First we need to bind
 -- an algebra. Then we bind a list of non-terminals. Finally we bind a list
@@ -418,7 +418,8 @@ attributeFunctionType r = do
                                       then attrFun
                                       else prefix ++ over _head toUpper attrFun
   tp <- lift $ foldr appT (varT elemTyName) $ map (appT arrowT . argument) $ r^.rhs
-  return (f:fs, (nm,NotStrict,tp))
+  ns <- lift notStrict
+  return (f:fs, (nm,ns,tp))
 
 -- | Build the choice function. Basically @Stream m s -> m r@.
 
@@ -431,5 +432,6 @@ choiceFunction = do
   let rtrn = AppT (VarT mTyName) (VarT retTyName)
   prefix <- use qPrefix
   let hFun = if null prefix then "h" else prefix ++ "H"
-  return (mkName hFun, NotStrict, AppT args rtrn)
+  ns <- lift notStrict
+  return (mkName hFun, ns, AppT args rtrn)
 
