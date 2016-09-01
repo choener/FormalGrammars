@@ -83,7 +83,7 @@ runNeedlemanWunsch k i1' i2' = (d, take k . unId $ axiom b) where
 
 -- | Decoupling the forward phase for CORE observation.
 
-runNeedlemanWunschForward :: Vector Char -> Vector Char -> Z:.(ITbl Id Unboxed (Z:.PointL I:.PointL I) Int)
+runNeedlemanWunschForward :: Vector Char -> Vector Char -> Z:.(TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.PointL I:.PointL I) Int)
 runNeedlemanWunschForward i1 i2 = let n1 = VU.length i1; n2 = VU.length i2 in mutateTablesDefault $
   gGlobal score
     (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.PointL 0:.PointL 0) (Z:.PointL n1:.PointL n2) (-999999) []))

@@ -30,7 +30,7 @@ import           Data.Maybe
 import           Data.Vector.Fusion.Stream.Monadic (Stream)
 import           Debug.Trace
 import           GHC.Exts (the)
-import           Language.Haskell.TH
+import           Language.Haskell.TH hiding (dataD)
 import           Language.Haskell.TH.Syntax hiding (lift)
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -38,12 +38,13 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 import qualified GHC.TypeLits as Kind
 
-import           ADP.Fusion ( (%), (|||), (...), (<<<) )
+import           ADP.Fusion.Core ( (%), (|||), (...), (<<<) )
 import           Data.PrimitiveArray (Z(..), (:.)(..))
-import qualified ADP.Fusion as ADP
+import qualified ADP.Fusion.Core as ADP
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.PrettyPrint.ANSI
+import           FormalLanguage.CFG.TH.Internal
 
 
 
@@ -173,7 +174,6 @@ signature = do
                sigName
                (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
                [recC sigName ((map return $ fs^..folded) ++ [return h])]
-               []
 
 -- | The grammar requires three types of arguments. First we need to bind
 -- an algebra. Then we bind a list of non-terminals. Finally we bind a list
@@ -195,7 +195,7 @@ grammarArguments = do
   -- bind algebra
   let alg = recP signame [ fieldPat n (varP n) | (n,_,_) <- h:(fs^..folded) ]
   -- bind partially applied non-terminals
-  let syn = [ varP s | s <- psyn^..folded ]
+  let syn = [ bangP $ varP s | s <- psyn^..folded ]
   -- bind fully applied non-terminals
   let isn = [ bangP $ varP s | s <- isyn^..folded ]
   -- bind terminals
@@ -251,7 +251,11 @@ grammarBodySyn (s,n) = do
                            (varE '(...))
                            (varE hname) )
                  (varE ix)
-  return $ valD (varP n) (normalB $ appE (varE $ M.findWithDefault (error "grammarBodySyn") s partial) (lamE [varP ix] rhs)) []
+  let sname = M.findWithDefault (error $ "grammarBodySyn: name not found for: " ++ show s) s partial
+  -- use @TW@ to combine the table @varE sname@ and the rule RHS @lamE...@
+  let bdy = [| ADP.TW $(varE sname) $(lamE [varP ix] rhs) |]
+  -- return $ valD (varP n) (normalB $ appE (varE $ M.findWithDefault (error "grammarBodySyn") s partial) (lamE [varP ix] rhs)) []
+  return $ valD (varP n) (normalB bdy) []
 
 -- | Build up the rhs for each rule.
 --
@@ -414,7 +418,8 @@ attributeFunctionType r = do
                                       then attrFun
                                       else prefix ++ over _head toUpper attrFun
   tp <- lift $ foldr appT (varT elemTyName) $ map (appT arrowT . argument) $ r^.rhs
-  return (f:fs, (nm,NotStrict,tp))
+  ns <- lift notStrict
+  return (f:fs, (nm,ns,tp))
 
 -- | Build the choice function. Basically @Stream m s -> m r@.
 
@@ -427,5 +432,6 @@ choiceFunction = do
   let rtrn = AppT (VarT mTyName) (VarT retTyName)
   prefix <- use qPrefix
   let hFun = if null prefix then "h" else prefix ++ "H"
-  return (mkName hFun, NotStrict, AppT args rtrn)
+  ns <- lift notStrict
+  return (mkName hFun, ns, AppT args rtrn)
 

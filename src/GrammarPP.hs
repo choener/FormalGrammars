@@ -8,6 +8,7 @@ import System.Console.CmdArgs
 import System.IO (openFile, hClose, IOMode (..))
 import Text.PrettyPrint.ANSI.Leijen (hPutDoc)
 import Data.Foldable (toList)
+import Text.Trifecta.Result (ErrInfo (..))
 
 import FormalLanguage.CFG.Grammar
 import FormalLanguage.CFG.Parser
@@ -52,7 +53,7 @@ main = do
           "" -> getContents >>= return . parse
           fn -> readFile fn >>= return . parse
   case pr of
-    Failure f -> printDoc f
+    Failure (ErrInfo f _) -> printDoc f
     Success s -> case o of
 --      LaTeX{..} -> case outFile of
 --        "" -> error "need to set output file name"
