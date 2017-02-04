@@ -86,7 +86,7 @@ library
                , vector                >= 0.10
                --
                , ADPfusion             == 0.5.2.*
-               , PrimitiveArray        == 0.7.2.*
+               , PrimitiveArray        == 0.8.0.*
   exposed-modules:
     FormalLanguage
     FormalLanguage.CFG
