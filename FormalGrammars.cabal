@@ -1,7 +1,7 @@
 name:           FormalGrammars
 version:        0.3.1.1
-author:         Christian Hoener zu Siederdissen, 2013-2016
-copyright:      Christian Hoener zu Siederdissen, 2013-2016
+author:         Christian Hoener zu Siederdissen, 2013-2017
+copyright:      Christian Hoener zu Siederdissen, 2013-2017
 homepage:       https://github.com/choener/FormalGrammars
 bug-reports:    https://github.com/choener/FormalGrammars/issues
 maintainer:     choener@bioinf.uni-leipzig.de
@@ -11,7 +11,7 @@ license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
 cabal-version:  >= 1.10.0
-tested-with:    GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.1
+tested-with:    GHC == 7.10.3, GHC == 8.0.1
 synopsis:       (Context-free) grammars in formal language theory
 description:
                 <http://www.bioinf.uni-leipzig.de/Software/gADP/ generalized Algebraic Dynamic Programming>
@@ -281,6 +281,31 @@ executable TriNeedleFG
       -ddump-simpl
       -ddump-stg
       -dsuppress-all
+
+
+
+test-suite properties
+  type:
+    exitcode-stdio-1.0
+  main-is:
+    properties.hs
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N
+  hs-source-dirs:
+    tests
+  default-language:
+    Haskell2010
+  default-extensions: CPP
+                    , TemplateHaskell
+  build-depends: base
+               , QuickCheck
+               , smallcheck
+               , tasty              >= 0.11
+               , tasty-quickcheck   >= 0.8
+               , tasty-smallcheck   >= 0.8
+               , tasty-th           >= 0.1
+               --
+               , FormalGrammars
 
 
 
