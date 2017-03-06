@@ -292,7 +292,7 @@ grammarBodyRHS (Rule _ f rs) = do
         where go acc Deletion = [| $(acc) ADP.:| ADP.Deletion |]
               go acc sv
                 | Just n <- M.lookup (Symbol [sv]) synNames = [| $(acc) ADP.:| $(varE n) |]
-                | otherwise = error $ "genSymbol:stacked: " ++ show s
+                | otherwise = error $ "genSymbol:stacked: " ++ show (s,synTermNames)
       -- | catch-all error
       genSymbol s = error $ "genSymbol: " ++ show s
   let rhs = assert (not $ null rs) $ foldl1 (\acc z -> uInfixE acc (varE '(%)) z) . map genSymbol $ rs

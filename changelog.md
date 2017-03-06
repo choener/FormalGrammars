@@ -1,3 +1,8 @@
+0.3.1.1
+-------
+
+- removed most upper bounds, and version bumped stuff
+
 0.3.1.0
 -------
 
