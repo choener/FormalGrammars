@@ -9,14 +9,15 @@ import           Control.Monad.ST
 import           Data.Char (toUpper,toLower)
 import           Data.List (take)
 import           Data.Vector.Fusion.Util
+import           Data.Vector.Unboxed (Vector)
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
-import           Data.Vector.Unboxed (Vector)
+import           System.Environment (getArgs)
 import           Text.Printf
 
-import           ADP.Fusion
+import           ADP.Fusion.Point
 import           Data.PrimitiveArray as PA hiding (map,toList)
 
 import           FormalLanguage.CFG
@@ -58,16 +59,19 @@ score = SigGlobal
 {-# INLINE score #-}
 
 
--- | 
+-- | Pretty-print the optimal alignment.
 --
--- NOTE The alignment needs to be reversed to print out.
+-- NOTE The alignment needs to be reversed to print out. @x ++ [a]@ is
+-- @O(n^2)@, while @reverse@ on the final string with @a:x@ is @O(n)@. For
+-- long inputs (say 1000nt) prettyprinting will otherwise take *longer*
+-- than scoring.
 
 pretty :: Monad m => SigGlobal m (String,String) [(String,String)] Char Char
 pretty = SigGlobal
-  { done  = \       (Z:.():.()) -> ("","")
-  , align = \ (x,y) (Z:.a :.b ) -> (x ++ [a] ,y ++ [b]) 
-  , indel = \ (x,y) (Z:.():.b ) -> (x ++ "-" ,y ++ [b]) 
-  , delin = \ (x,y) (Z:.a :.()) -> (x ++ [a] ,y ++ "-") 
+  { done  = \       (Z:.():.()) -> (""   ,""   )
+  , align = \ (x,y) (Z:.a :.b ) -> (a:x  , b:y )
+  , indel = \ (x,y) (Z:.():.b ) -> ('-':x, b:y )
+  , delin = \ (x,y) (Z:.a :.()) -> (a:x  ,'-':y)
   , h     = SM.toList
   }
 {-# Inline pretty #-}
@@ -91,14 +95,17 @@ runNeedlemanWunschForward i1 i2 = let n1 = VU.length i1; n2 = VU.length i2 in mu
 {-# NoInline runNeedlemanWunschForward #-}
 
 main = do
+  as <- getArgs
+  let k = if null as then 1 else read $ head as
   ls <- lines <$> getContents
   let eats [] = return ()
       eats [x] = return ()
       eats (a:b:xs) = do
         putStrLn a
         putStrLn b
-        let (k,ys) = runNeedlemanWunsch 1 a b
-        forM_ ys $ \(y1,y2) -> printf "%s %5d\n%s\n" y1 k y2
+        let (s,ys) = runNeedlemanWunsch k a b
+        forM_ ys $ \(y1,y2) -> printf "%s %5d\n%s\n" (reverse y1) s (reverse y2)
+        when (k==0) $ print s
         eats xs
   eats ls
 

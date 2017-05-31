@@ -60,8 +60,13 @@ flag examples
   default:      False
   manual:       True
 
-flag debug
+flag debugdump
   description:  dump intermediate Core files
+  default:      False
+  manual:       True
+
+flag llvm
+  description:  use llvm
   default:      False
   manual:       True
 
@@ -85,7 +90,7 @@ library
                , unordered-containers  >= 0.2
                , vector                >= 0.10
                --
-               , ADPfusion             == 0.5.2.*
+               , ADPfusion             == 0.5.3.*
                , PrimitiveArray        == 0.8.0.*
   exposed-modules:
     FormalLanguage
@@ -151,46 +156,53 @@ executable GrammarPP
 
 
 
-executable NussinovFG
-  if flag(examples)
-    buildable:
-      True
-    build-depends: base
-                 , template-haskell
-                 , vector
-                 --
-                 , ADPfusion
-                 , FormalGrammars
-                 , PrimitiveArray
-  else
-    buildable:
-      False
-  hs-source-dirs:
-    src
-  main-is:
-    Nussinov.hs
-  default-language:
-    Haskell2010
-  default-extensions: BangPatterns
-                    , FlexibleContexts
-                    , FlexibleInstances
-                    , MultiParamTypeClasses
-                    , QuasiQuotes
-                    , TemplateHaskell
-                    , TypeFamilies
-                    , TypeOperators
-  ghc-options:
-    -O2
-    -fcpr-off
-    -funbox-strict-fields
-    -funfolding-use-threshold1000
-    -funfolding-keeness-factor1000
-  if flag(debug)
-    ghc-options:
-      -ddump-to-file
-      -ddump-simpl
-      -ddump-stg
-      -dsuppress-all
+--executable NussinovFG
+--  if flag(examples)
+--    buildable:
+--      True
+--    build-depends: base
+--                 , template-haskell
+--                 , vector
+--                 --
+--                 , ADPfusion
+--                 , FormalGrammars
+--                 , PrimitiveArray
+--  else
+--    buildable:
+--      False
+--  hs-source-dirs:
+--    src
+--  main-is:
+--    Nussinov.hs
+--  default-language:
+--    Haskell2010
+--  default-extensions: BangPatterns
+--                    , FlexibleContexts
+--                    , FlexibleInstances
+--                    , MultiParamTypeClasses
+--                    , QuasiQuotes
+--                    , TemplateHaskell
+--                    , TypeFamilies
+--                    , TypeOperators
+--  ghc-options:
+--    -O2
+--    -funbox-strict-fields
+--    -funfolding-use-threshold1000
+--    -funfolding-keeness-factor1000
+--    -flate-dmd-anal
+--    -fspec-constr-count=100
+--  if flag(debugdump)
+--    ghc-options:
+--      -ddump-cmm
+--      -ddump-simpl
+--      -ddump-stg
+--      -ddump-to-file
+--      -dshow-passes
+--      -dsuppress-all
+--  if flag(llvm)
+--    ghc-options:
+--      -fllvm
+--      -optlo-O3
 
 
 
@@ -225,62 +237,67 @@ executable NeedlemanWunschFG
                     , TypeOperators
   ghc-options:
     -O2
-    -fcpr-off
     -funbox-strict-fields
     -funfolding-use-threshold1000
     -funfolding-keeness-factor1000
-    -rtsopts
-  if flag(debug)
+    -flate-dmd-anal
+    -fspec-constr-count=100
+  if flag(debugdump)
     ghc-options:
-      -ddump-to-file
+      -ddump-cmm
       -ddump-simpl
       -ddump-stg
-      -dsuppress-all
-
-
-
-executable TriNeedleFG
-  if flag(examples)
-    buildable:
-      True
-    build-depends: base
-                 , containers
-                 , template-haskell
-                 , vector
-                 --
-                 , ADPfusion
-                 , FormalGrammars
-                 , PrimitiveArray
-  else
-    buildable:
-      False
-  hs-source-dirs:
-    src
-  main-is:
-    TriNeedle.hs
-  default-language:
-    Haskell2010
-  default-extensions: BangPatterns
-                    , FlexibleContexts
-                    , FlexibleInstances
-                    , MultiParamTypeClasses
-                    , QuasiQuotes
-                    , TemplateHaskell
-                    , TypeFamilies
-                    , TypeOperators
-  ghc-options:
-    -O2
-    -fcpr-off
-    -funbox-strict-fields
-    -funfolding-use-threshold1000
-    -funfolding-keeness-factor1000
-    -rtsopts
-  if flag(debug)
-    ghc-options:
       -ddump-to-file
-      -ddump-simpl
-      -ddump-stg
+      -dshow-passes
       -dsuppress-all
+  if flag(llvm)
+    ghc-options:
+      -fllvm
+      -optlo-O3
+
+
+
+--executable TriNeedleFG
+--  if flag(examples)
+--    buildable:
+--      True
+--    build-depends: base
+--                 , containers
+--                 , template-haskell
+--                 , vector
+--                 --
+--                 , ADPfusion
+--                 , FormalGrammars
+--                 , PrimitiveArray
+--  else
+--    buildable:
+--      False
+--  hs-source-dirs:
+--    src
+--  main-is:
+--    TriNeedle.hs
+--  default-language:
+--    Haskell2010
+--  default-extensions: BangPatterns
+--                    , FlexibleContexts
+--                    , FlexibleInstances
+--                    , MultiParamTypeClasses
+--                    , QuasiQuotes
+--                    , TemplateHaskell
+--                    , TypeFamilies
+--                    , TypeOperators
+--  ghc-options:
+--    -O2
+--    -funbox-strict-fields
+--    -funfolding-use-threshold1000
+--    -funfolding-keeness-factor1000
+--    -rtsopts
+--  if flag(debugdump)
+--    ghc-options:
+--      -ddump-to-file
+--      -ddump-simpl
+--      -ddump-stg
+--      -dsuppress-all
 
 
 

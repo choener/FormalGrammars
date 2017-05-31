@@ -3,3 +3,5 @@ packages: .
 --          ../Lib-DPutils
 --          ../Lib-OrderedBits
 --          ../Lib-PrimitiveArray
+
+optional-packages: ./*/*.cabal
