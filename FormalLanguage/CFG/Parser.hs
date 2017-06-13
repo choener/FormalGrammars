@@ -70,7 +70,7 @@ instance Default GrammarEnv where
 
 
 
---parse = parseString ((evalStateT . runGrammarParser) (parseEverything empty) def) (Directed (pack "via QQ") (fromIntegral 0) 0 0 0)
+parse = parseString ((evalStateT . runGrammarParser) (parseEverything empty) def) (Directed (pack "via QQ") (fromIntegral 0) 0 0 0)
 
 -- | Parse everything in the grammar source. The additional argument, normally
 -- @empty :: Alternative f a@, allows for providing additional parsing
@@ -415,13 +415,7 @@ newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT GrammarEn
 instance (MonadPlus m, CharParsing m) => TokenParsing (GrammarParser m) where
   someSpace = buildSomeSpaceParser (() <$ space) haskellCommentStyle
 
--- TODO needs investigation for ghc 8.2. But the corresponding MonadState
--- instance seems to be about 7 lines up. ;-)
 
-#if MIN_VERSION_base(4,10,0)
-#else
-deriving instance MonadState GrammarEnv (Unlined (GrammarParser Parser))
-#endif
 
 
 

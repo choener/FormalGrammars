@@ -1,3 +1,9 @@
+0.3.2.0
+-------
+
+- parsers 0.12.5 added mtl instances for Unlined, etc. We remove our own
+  instances and require 0.12.5 as the new minimal version
+
 0.3.1.1
 -------
 

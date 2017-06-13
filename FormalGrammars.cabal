@@ -81,7 +81,7 @@ library
                , HaTeX                 >= 3.16
                , lens                  >= 4.0
                , mtl                   >= 2.0
-               , parsers               >= 0.12
+               , parsers               >= 0.12.5
                , semigroups            >= 0.16
                , template-haskell
                , text                  >= 1.0
