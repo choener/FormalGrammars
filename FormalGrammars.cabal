@@ -86,7 +86,7 @@ library
                , template-haskell
                , text                  >= 1.0
                , transformers          >= 0.3
-               , trifecta              >= 1.6
+               , trifecta              >= 1.7.1.1
                , unordered-containers  >= 0.2
                , vector                >= 0.10
                --
