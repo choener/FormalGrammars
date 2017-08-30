@@ -416,7 +416,7 @@ newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT GrammarEn
 instance (MonadPlus m, CharParsing m) => TokenParsing (GrammarParser m) where
   someSpace = buildSomeSpaceParser (() <$ space) haskellCommentStyle
 
-deriving instance MonadState GrammarEnv (Unlined (GrammarParser Parser))
+--deriving instance MonadState GrammarEnv (Unlined (GrammarParser Parser))
 
 
 
