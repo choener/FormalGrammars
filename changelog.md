@@ -1,3 +1,8 @@
+0.3.1.2
+-------
+
+- removed superfluous instance which prevents compilation
+
 0.3.1.1
 -------
 
