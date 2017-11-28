@@ -13,7 +13,7 @@ import           Language.Haskell.TH
 --
 -- NOTE the last argument would be @mapM conT xs@ if we actually had any
 -- @xs@ to work with.
-dataD ctxt tc tvs cons = TH.dataD ctxt tc tvs Nothing cons (return [])
+dataD ctxt tc tvs cons = TH.dataD ctxt tc tvs Nothing cons []
 #else
 dataD ctxt tc tvs cons = TH.dataD ctxt tc tvs cons []
 #endif

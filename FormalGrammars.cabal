@@ -181,7 +181,7 @@ executable NussinovFG
                     , TypeOperators
   ghc-options:
     -O2
-    -fcpr-off
+    -fno-cpr-anal
     -funbox-strict-fields
     -funfolding-use-threshold1000
     -funfolding-keeness-factor1000
@@ -225,7 +225,7 @@ executable NeedlemanWunschFG
                     , TypeOperators
   ghc-options:
     -O2
-    -fcpr-off
+    -fno-cpr-anal
     -funbox-strict-fields
     -funfolding-use-threshold1000
     -funfolding-keeness-factor1000
@@ -270,7 +270,7 @@ executable TriNeedleFG
                     , TypeOperators
   ghc-options:
     -O2
-    -fcpr-off
+    -fno-cpr-anal
     -funbox-strict-fields
     -funfolding-use-threshold1000
     -funfolding-keeness-factor1000
@@ -312,4 +312,3 @@ test-suite properties
 source-repository head
   type: git
   location: git://github.com/choener/FormalGrammars
-
