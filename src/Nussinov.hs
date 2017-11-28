@@ -16,7 +16,7 @@ import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
 import           Unsafe.Coerce (unsafeCoerce)
 
-import           ADP.Fusion
+import           ADP.Fusion.Point
 import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage
@@ -119,4 +119,3 @@ main = do
     putStrLn l
     let (k,[x]) = runNussinov 1 l
     printf "%s %5d\n" x k
-
