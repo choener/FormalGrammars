@@ -11,7 +11,7 @@ license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
 cabal-version:  >= 1.10.0
-tested-with:    GHC == 7.10.3, GHC == 8.0.1
+tested-with:    GHC == 8.0.2, GHC == 8.2.1
 synopsis:       (Context-free) grammars in formal language theory
 description:
                 <http://www.bioinf.uni-leipzig.de/Software/gADP/ generalized Algebraic Dynamic Programming>
@@ -90,8 +90,8 @@ library
                , unordered-containers  >= 0.2
                , vector                >= 0.10
                --
-               , ADPfusion             == 0.5.3.*
-               , PrimitiveArray        == 0.8.0.*
+               , ADPfusion             == 0.6.0.*
+               , PrimitiveArray        == 0.9.0.*
   exposed-modules:
     FormalLanguage
     FormalLanguage.CFG
