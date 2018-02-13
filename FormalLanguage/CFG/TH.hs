@@ -418,7 +418,7 @@ attributeFunctionType r = do
                                       then attrFun
                                       else prefix ++ over _head toUpper attrFun
   tp <- lift $ foldr appT (varT elemTyName) $ map (appT arrowT . argument) $ r^.rhs
-  ns <- lift notStrict
+  ns <- lift $ bang noSourceUnpackedness noSourceStrictness
   return (f:fs, (nm,ns,tp))
 
 -- | Build the choice function. Basically @Stream m s -> m r@.
@@ -432,6 +432,6 @@ choiceFunction = do
   let rtrn = AppT (VarT mTyName) (VarT retTyName)
   prefix <- use qPrefix
   let hFun = if null prefix then "h" else prefix ++ "H"
-  ns <- lift notStrict
+  ns <- lift $ bang noSourceUnpackedness noSourceStrictness
   return (mkName hFun, ns, AppT args rtrn)
 

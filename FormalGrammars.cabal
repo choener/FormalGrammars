@@ -1,7 +1,7 @@
 name:           FormalGrammars
 version:        0.3.1.1
-author:         Christian Hoener zu Siederdissen, 2013-2017
-copyright:      Christian Hoener zu Siederdissen, 2013-2017
+author:         Christian Hoener zu Siederdissen, 2013-2018
+copyright:      Christian Hoener zu Siederdissen, 2013-2018
 homepage:       https://github.com/choener/FormalGrammars
 bug-reports:    https://github.com/choener/FormalGrammars/issues
 maintainer:     choener@bioinf.uni-leipzig.de
@@ -11,7 +11,7 @@ license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
 cabal-version:  >= 1.10.0
-tested-with:    GHC == 8.0.2, GHC == 8.2.1
+tested-with:    GHC == 8.0.2, GHC == 8.2.2
 synopsis:       (Context-free) grammars in formal language theory
 description:
                 <http://www.bioinf.uni-leipzig.de/Software/gADP/ generalized Algebraic Dynamic Programming>

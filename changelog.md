@@ -3,6 +3,7 @@
 
 - parsers 0.12.5 added mtl instances for Unlined, etc. We remove our own
   instances and require 0.12.5 as the new minimal version
+- bang -> notStrict (GHC 8 only)
 
 0.3.1.1
 -------
