@@ -1,9 +1,23 @@
-with import <nixpkgs> {};
-haskellPackages.extend (haskell.lib.packageSourceOverrides {
-  DPutils = ../Lib-DPutils;
-  OrderedBits = ../Lib-OrderedBits;
-  PrimitiveArray = ../Lib-PrimitiveArray;
-  ADPfusion = ../Lib-ADPfusion;
-#  doctest = "0.12.0";
-})
+with (import <nixpkgs> {});
+with haskell.lib;
 
+rec {
+  hsPkgs = haskellPackages.extend (packageSourceOverrides {
+    ADPfusion = ../Lib-ADPfusion;
+    DPutils = ../Lib-DPutils;
+    FormalGrammars = ./.;
+    OrderedBits = ../Lib-OrderedBits;
+    PrimitiveArray = ../Lib-PrimitiveArray;
+  });
+  hsShell = with hsPkgs; shellFor {
+    packages = p: [ p.FormalGrammars ];
+    withHoogle = true;
+    buildInputs = [
+      cabal-install ghc
+      ADPfusion
+      DPutils
+      OrderedBits
+      PrimitiveArray
+    ];
+  };
+}
