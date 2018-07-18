@@ -76,22 +76,29 @@ pretty = SigGlobal
   }
 {-# Inline pretty #-}
 
-runNeedlemanWunsch :: Int -> String -> String -> (Int,[(String,String)])
-runNeedlemanWunsch k i1' i2' = (d, take k . unId $ axiom b) where
+runNeedlemanWunsch :: Int -> String -> String -> (Int,[(String,String)],PerfCounter)
+runNeedlemanWunsch k i1' i2' = (d, take k . unId $ axiom b, perf) where
   i1 = VU.fromList i1'
   i2 = VU.fromList i2'
-  !(Z:.t) = runNeedlemanWunschForward i1 i2
+  Mutated (Z:.t) perf eachPerf = runNeedlemanWunschForward i1 i2
   d = unId $ axiom t
   !(Z:.b) = gGlobal (score <|| pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i1) (chr i2)
 {-# NoInline runNeedlemanWunsch #-}
 
 -- | Decoupling the forward phase for CORE observation.
 
-runNeedlemanWunschForward :: Vector Char -> Vector Char -> Z:.(TwITbl Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.PointL I:.PointL I) Int)
-runNeedlemanWunschForward i1 i2 = let n1 = VU.length i1; n2 = VU.length i2 in mutateTablesDefault $
-  gGlobal score
-    (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.PointL 0:.PointL 0) (Z:.PointL n1:.PointL n2) (-999999) []))
+runNeedlemanWunschForward
+  ∷ Vector Char
+  → Vector Char
+  → Mutated (Z:.TwITbl _ _ Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.PointL I:.PointL I) Int)
+runNeedlemanWunschForward i1 i2 = runST $ do
+  arr ← newWithPA (ZZ:..LtPointL n1:..LtPointL n2) (-999999)
+  ts ← fillTables $ gGlobal score
+    (ITbl @0 @0 (Z:.EmptyOk:.EmptyOk) arr)
     (chr i1) (chr i2)
+  return ts
+  where n1 = VU.length i1
+        n2 = VU.length i2
 {-# NoInline runNeedlemanWunschForward #-}
 
 main = do
@@ -103,9 +110,10 @@ main = do
       eats (a:b:xs) = do
         putStrLn a
         putStrLn b
-        let (s,ys) = runNeedlemanWunsch k a b
+        let (s,ys,perf) = runNeedlemanWunsch k a b
         forM_ ys $ \(y1,y2) -> printf "%s %5d\n%s\n" (reverse y1) s (reverse y2)
         when (k==0) $ print s
+        print perf
         eats xs
   eats ls
 

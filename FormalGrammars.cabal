@@ -228,13 +228,18 @@ executable NeedlemanWunschFG
   default-language:
     Haskell2010
   default-extensions: BangPatterns
+                    , DataKinds
                     , FlexibleContexts
                     , FlexibleInstances
                     , MultiParamTypeClasses
+                    , PartialTypeSignatures
+                    , PolyKinds
                     , QuasiQuotes
                     , TemplateHaskell
+                    , TypeApplications
                     , TypeFamilies
                     , TypeOperators
+                    , UnicodeSyntax
   ghc-options:
     -O2
     -funbox-strict-fields
