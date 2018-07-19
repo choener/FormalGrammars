@@ -150,6 +150,12 @@ data DerivedGrammar
   -- ^ Indicates being Outside, with original Inside
   deriving (Show,Data,Typeable)
 
+instance Eq DerivedGrammar where
+  Inside == Inside = True
+  Inside == Outside _ = False
+  Outside _ == Inside = False
+  Outside x == Outside y = _grammarName x == _grammarName y
+
 isOutside (Outside _) = True
 isOutside _           = False
 
