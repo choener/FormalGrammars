@@ -37,6 +37,7 @@ import qualified Data.Set as S
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 import qualified GHC.TypeLits as Kind
+import           Data.Foldable (toList)
 
 import           ADP.Fusion.Core ( (%), (|||), (...), (<<<) )
 import           Data.PrimitiveArray (Z(..), (:.)(..))
@@ -139,6 +140,7 @@ thCodeGen prefixLen g = do
 
 codeGen :: TQ [Dec]
 codeGen = do
+  g ← use qGrammar
   -- build up the terminal symbol lookup
   qTermAtomVarNames <~ M.fromList <$> dimensionalTermSymbNames
   qTermSymbExp      <~ M.fromList <$> (mapM grammarTermExpression =<< uniqueTerminalSymbols <$> use qGrammar)
@@ -152,28 +154,47 @@ codeGen = do
   gra <- grammar
   -- create inlining code
   inl <- use qGrammarName >>= \gname -> lift $ pragInlD gname Inline FunLike AllPhases
-  -- outside grammars use the inside signature?!
-  g <- use qGrammar
-  if False -- isOutside $ g^.outside -- considering to just use unsafeCoerce on inside algebras
-    then return [gra,inl]
-    else return [sig,gra,inl]
+  return $ toList sig ++ [gra,inl]
 
 -- | Create the signature. Will also set the signature name.
+--
+-- TODO check if signature has already been emitted (from inside, say). If so,
+-- don't do anything. This goes by signature name.
 
-signature :: TQ Dec
+signature :: TQ (Maybe Dec)
 signature = do
-  m         <- use qMTyName
-  x         <- use qElemTyName
-  r         <- use qRetTyName
-  termNames <- use qTermAtomTyNames
-  sigName   <- (mkName . ("Sig" ++)) <$> use (qGrammar.grammarName)
-  fs        <- use qAttribFuns
-  h         <- use qChoiceFun
-  qSigName .= sigName
-  lift $ dataD (cxt [])
-               sigName
-               (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
-               [recC sigName ((map return $ fs^..folded) ++ [return h])]
+  g ← use qGrammar
+  let gName = case g^.outside of
+                Inside → g^.grammarName
+                Outside gI → gI^.grammarName
+  -- we can not lookup signatures in the environment, because everything is emitted in one go...
+  -- hence we query the environment if such a signature has already been emitted...
+  -- lkupName ← lift $ lookupValueName ("Sig" ++ gName)
+  -- lift . runIO $ print (gName, lkupName)
+  -- case lkupName of
+  --   Just theName → do
+  --     qSigName .= theName
+  --     return Nothing
+  --   Nothing → do
+  case g^.outside of
+    Outside gI → do
+      lift . runIO $ putStrLn "WARNING: using workaround for Inside/Outside sharing which REQUIRES emitting the inside grammar!"
+      qSigName .= (mkName $ "Sig" ++ gI^.grammarName)
+      return Nothing
+    Inside → do
+      gType     ← use (qGrammar.outside)
+      m         <- use qMTyName
+      x         <- use qElemTyName
+      r         <- use qRetTyName
+      termNames <- use qTermAtomTyNames
+      sigName   <- (mkName . ("Sig" ++)) <$> use (qGrammar.grammarName)
+      fs        <- use qAttribFuns
+      h         <- use qChoiceFun
+      qSigName .= sigName
+      lift $ Just <$> dataD (cxt [])
+                   sigName
+                   (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
+                   [recC sigName ((map return $ fs^..folded) ++ [return h])]
 
 -- | The grammar requires three types of arguments. First we need to bind
 -- an algebra. Then we bind a list of non-terminals. Finally we bind a list

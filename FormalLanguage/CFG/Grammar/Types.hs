@@ -140,10 +140,15 @@ makeLenses ''Rule
 
 
 
+-- | Indicate wether we are a handwritten @Inside@ grammar, or an @Outside@
+-- grammar derived @fromInside@.
+
 data DerivedGrammar
   = Inside
-  | Outside String
-  deriving (Show,Eq,Data,Typeable)
+  -- ^ Indicates being Inside
+  | Outside { _fromInside ∷ Grammar }
+  -- ^ Indicates being Outside, with original Inside
+  deriving (Show,Data,Typeable)
 
 isOutside (Outside _) = True
 isOutside _           = False
@@ -151,7 +156,7 @@ isOutside _           = False
 instance Default DerivedGrammar where
   def = Inside
 
-makeLenses ''DerivedGrammar
+
 
 -- | Complete descrition of a grammar. In principle it would be enough to hold
 -- @_rules@ and the @_start@ symbol name. We also store dimensionless names for
@@ -164,6 +169,10 @@ makeLenses ''DerivedGrammar
 -- can easily rename terminals.
 --
 -- TODO better way to handle indexed symbols?
+--
+-- TODO include "String" name to handle sharing signatures (and thereby
+-- algebras!). This makes sense only when sharing the more complex signature,
+-- until I start allowing signature merges.
 
 data Grammar = Grammar
   { _synvars      :: Map SymbolName SynTermEps
@@ -174,7 +183,7 @@ data Grammar = Grammar
   , _termvars     :: Map SymbolName SynTermEps
     -- ^ regular terminal symbols
   , _outside      :: DerivedGrammar
-    -- ^ Is this an automatically derived outside grammar
+    -- ^ Is this an automatically derived outside grammar, if so provide @fromInside@.
   , _rules        :: Set Rule
     -- ^ set of production rules
   , _start        :: Symbol
@@ -206,5 +215,6 @@ instance Default Grammar where
     , _write        = False
     }
 
+makeLenses ''DerivedGrammar
 makeLenses ''Grammar
 

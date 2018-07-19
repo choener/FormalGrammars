@@ -31,7 +31,7 @@ outsideFromInside g
   -- (linear grammars are context-free as well).
   -- not $ isContextFree g = Nothing
   | otherwise = Just $ Grammar {..}
-  where _outside     = Outside (g^.grammarName)
+  where _outside     = Outside g
         _rules       = S.fromList $ epsrule : (concatMap genOutsideRules $ g^..rules.folded)
         _grammarName = "" -- will be set in the parser
         _params      = g^.params

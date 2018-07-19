@@ -120,6 +120,7 @@ library
                     , MultiParamTypeClasses
                     , NamedFieldPuns
                     , NoMonomorphismRestriction
+                    , PartialTypeSignatures
                     , PatternGuards
                     , QuasiQuotes
                     , RankNTypes
@@ -128,9 +129,11 @@ library
                     , StandaloneDeriving
                     , TemplateHaskell
                     , TupleSections
+                    , TypeApplications
                     , TypeFamilies
                     , TypeOperators
                     , ViewPatterns
+                    , UnicodeSyntax
   ghc-options:
     -O2 -funbox-strict-fields
 

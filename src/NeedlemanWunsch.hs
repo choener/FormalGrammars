@@ -39,7 +39,12 @@ S: [X,X]
 [X,X] -> delin <<< [X,X] [c,-]
 //
 
+Outside: Labolg
+Source: Global
+//
+
 Emit: Global
+Emit: Labolg
 |]
 
 
@@ -76,14 +81,23 @@ pretty = SigGlobal
   }
 {-# Inline pretty #-}
 
-runNeedlemanWunsch :: Int -> String -> String -> (Int,[(String,String)],PerfCounter)
-runNeedlemanWunsch k i1' i2' = (d, take k . unId $ axiom b, perf) where
+runNeedlemanWunschF :: Int -> String -> String -> (Int,[(String,String)],PerfCounter)
+runNeedlemanWunschF k i1' i2' = (d, take k . unId $ axiom b, perf) where
   i1 = VU.fromList i1'
   i2 = VU.fromList i2'
   Mutated (Z:.t) perf eachPerf = runNeedlemanWunschForward i1 i2
   d = unId $ axiom t
   !(Z:.b) = gGlobal (score <|| pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i1) (chr i2)
-{-# NoInline runNeedlemanWunsch #-}
+{-# NoInline runNeedlemanWunschF #-}
+
+runNeedlemanWunschB :: Int -> String -> String -> (Int,[(String,String)],PerfCounter)
+runNeedlemanWunschB k i1' i2' = (d, take k . unId $ axiom b, perf) where
+  i1 = VU.fromList i1'
+  i2 = VU.fromList i2'
+  Mutated (Z:.t) perf eachPerf = runNeedlemanWunschBackward i1 i2
+  d = unId $ axiom t
+  !(Z:.b) = gGlobal (score <|| pretty) (toBacktrack t (undefined :: Id a -> Id a)) (chr i1) (chr i2)
+{-# NoInline runNeedlemanWunschB #-}
 
 -- | Decoupling the forward phase for CORE observation.
 
@@ -101,6 +115,24 @@ runNeedlemanWunschForward i1 i2 = runST $ do
         n2 = VU.length i2
 {-# NoInline runNeedlemanWunschForward #-}
 
+-- | Decoupling the forward phase for CORE observation.
+
+runNeedlemanWunschBackward
+  ∷ Vector Char
+  → Vector Char
+  → Mutated (Z:.TwITbl _ _ Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.PointL O:.PointL O) Int)
+runNeedlemanWunschBackward i1 i2 = runST $ do
+  arr ← newWithPA (ZZ:..LtPointL n1:..LtPointL n2) (-999999)
+  ts ← fillTables $ gLabolg score
+    (ITbl @0 @0 (Z:.EmptyOk:.EmptyOk) arr)
+    (chr i1) (chr i2)
+  return ts
+  where n1 = VU.length i1
+        n2 = VU.length i2
+{-# NoInline runNeedlemanWunschBackward #-}
+
+
+
 main = do
   as <- getArgs
   let k = if null as then 1 else read $ head as
@@ -110,10 +142,12 @@ main = do
       eats (a:b:xs) = do
         putStrLn a
         putStrLn b
-        let (s,ys,perf) = runNeedlemanWunsch k a b
-        forM_ ys $ \(y1,y2) -> printf "%s %5d\n%s\n" (reverse y1) s (reverse y2)
-        when (k==0) $ print s
-        print perf
+        let (sF,ysF,perfF) = runNeedlemanWunschF k a b
+        let (sB,ysB,perfB) = runNeedlemanWunschB k a b
+        forM_ ysF $ \(y1,y2) -> printf "%s\n%s\n%5d (backward: %5d)\n" (reverse y1) (reverse y2) sF sB
+        when (k==0) $ print sF
+        print perfF
+        print perfB
         eats xs
   eats ls
 

@@ -7,19 +7,20 @@
 module FormalLanguage.CFG.QQ where
 
 import Control.Applicative ((<$>),(<*>),empty)
+import Control.Lens hiding (outside)
 import Control.Monad hiding (mapM)
 import Control.Monad.Trans.State.Strict (evalStateT)
 import Data.ByteString.Char8 (pack)
 import Data.Default (def)
+import Data.List (nub)
+import Data.List (transpose,sort,group)
+import Data.Sequence (Seq)
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
+import qualified Data.Sequence as Seq
 import Text.Trifecta.Delta (Delta (Directed))
 import Text.Trifecta (parseString,Parser)
 import Text.Trifecta.Result (Result (..), ErrInfo (..))
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Control.Lens
-import Data.List (transpose,sort,group)
 
 -- ghc 7.8 / 7.10 split
 
@@ -77,14 +78,20 @@ trim xs = xs
 
 -- | Determine the length of the unique prefix we need for algebra
 -- functions.
+--
+-- TODO only go over inside grammars! unless the inside grammar for an outside
+-- grammar has not been emitted.
 
 uniquePrefixLength :: Seq Grammar -> Int
 uniquePrefixLength xs
-  | l == 0    = 0
-  | l == 1    = 0
-  | otherwise = go 1 . transpose $ xs^..folded.grammarName
+--  | l == 0    = 0
+--  | l == 1    = 0
+  | otherwise = go 0 . transpose $ nub [ getName x | x ← xs^..folded ]
   where l = Seq.length xs
         go :: Int -> [String] -> Int
         go acc []       = error $ "for whatever reason, there are two grammars with the same name!" ++ show xs
         go acc (xs:xss) = if (maximum . map length . group $ sort xs) > 1 then go (acc+1) xss else acc
+        getName x
+          | Outside gI ← x^.outside = gI^.grammarName
+          | otherwise               = x^.grammarName
 
