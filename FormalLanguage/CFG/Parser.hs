@@ -304,7 +304,7 @@ parseIndex e = braces $ commaSep ix where
 
 knownTermVar :: EvalReq -> Stately m Symbol
 knownTermVar e = Symbol <$> do
-  ((:[]) <$> (eps <|> tv)) <|> (brackets $ commaSep (del <|> eps <|> tv))
+  ((:[]) <$> (eps <|> tv)) <|> (brackets $ commaSep (del <|> eps <|> loc <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
                i <- ident fgIdents
                t <- use (current . termvars . at i)
@@ -320,7 +320,8 @@ knownTermVar e = Symbol <$> do
                 else return $ Epsilon
                 -}
         del = Deletion <$ reserve fgIdents "-"
-        eps = Epsilon  <$ (reserve fgIdents "e" <|> reserve fgIdents "ε")
+        eps = Epsilon Global  <$ (reserve fgIdents "e" <|> reserve fgIdents "ε")
+        loc = Epsilon Local   <$ (reserve fgIdents "l" <|> reserve fgIdents "λ")
 
 -- | Parses an already known symbol, either syntactic or terminal.
 --

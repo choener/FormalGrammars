@@ -85,7 +85,7 @@ outsideSymb = over (getSymbolList . traverse . name . getSteName) (++"'")
 -- | 
 
 genEpsilonRule :: [AttributeFunction] -> Symbol -> Rule
-genEpsilonRule epsfun s = Rule (outsideSymb s) epsfun [(Symbol $ replicate (length $ s^.getSymbolList) Epsilon)]
+genEpsilonRule epsfun s = Rule (outsideSymb s) epsfun [(Symbol $ replicate (length $ s^.getSymbolList) $ Epsilon Global)]
 
 -- | 
 

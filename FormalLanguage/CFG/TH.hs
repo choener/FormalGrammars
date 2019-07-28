@@ -335,14 +335,15 @@ grammarTermExpression s = do
   let genType :: Int -> [SynTermEps] -> TypeQ
       genType tape z
         | [Deletion]      <- z = [t| () |]
-        | [Epsilon ]      <- z = [t| () |]
+        | [Epsilon _]     <- z = [t| () |]
         | [Term tnm tidx] <- z
         , Just v <- M.lookup (tnm^.getSteName,tape) ttypes = varT v -- single dimension only, set dim to 0
         | [Term tnm tidx] <- z = varT elemTyName
         | xs              <- z = foldl (\acc (tape',z) -> [t| $acc :. $(genType tape' [z]) |]) [t| Z |] (zip [0..] xs)
   let genSingleExp :: Int -> SynTermEps -> ExpQ
       genSingleExp _ Deletion = [| ADP.Deletion |]
-      genSingleExp _ Epsilon  = [| ADP.Epsilon  |]
+      genSingleExp _ (Epsilon Global) = [| ADP.Epsilon @Global |]
+      genSingleExp _ (Epsilon Local) = [| ADP.Epsilon @Local |]
       genSingleExp _ (((`M.lookup` synNames) . Symbol . (:[])) -> Just n) = error $ show n
       genSingleExp k (Term tnm tidx)
         | Just n <- M.lookup (tnm^.getSteName,k) tavn = varE n
@@ -354,7 +355,8 @@ grammarTermExpression s = do
   let genExp :: [SynTermEps] -> ExpQ
       genExp z
         | [Deletion]      <- z = [| ADP.Deletion |] -- TODO ???
-        | [Epsilon ]      <- z = [| ADP.Epsilon  |]
+        | [Epsilon Global]      <- z = [| ADP.Epsilon @Global |]
+        | [Epsilon Local]      <- z = [| ADP.Epsilon @Local |]
         | [Term tnm tidx] <- z
         , Just v <- M.lookup (tnm^.getSteName,0) tavn = varE v
         | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(genSingleExp k z) |])

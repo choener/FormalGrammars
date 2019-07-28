@@ -1,7 +1,10 @@
 
 -- | The data types that define a CFG.
 
-module FormalLanguage.CFG.Grammar.Types where
+module FormalLanguage.CFG.Grammar.Types
+  ( module FormalLanguage.CFG.Grammar.Types
+  , LocalGlobal(..)
+  ) where
 
 import           Control.Lens hiding (Index,index)
 import           Data.Default
@@ -12,6 +15,8 @@ import           Data.String
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import           Data.Data (Data,Typeable)
+
+import           ADP.Fusion.Core.Term.Epsilon (LocalGlobal(..))
 
 
 
@@ -100,7 +105,7 @@ data SynTermEps
   -- | Finally, a real epsilon. Again, these are somewhat regular terminal
   -- symbols, but it is important to be able to recognize these, when
   -- trying to create outside variants of our algorithms.
-  | Epsilon
+  | Epsilon LocalGlobal
   deriving (Show,Eq,Ord,Data,Typeable)
 
 makeLenses ''SynTermEps

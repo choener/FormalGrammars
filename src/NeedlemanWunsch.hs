@@ -17,7 +17,7 @@ import qualified Data.Vector.Unboxed as VU
 import           System.Environment (getArgs)
 import           Text.Printf
 
-import           ADP.Fusion.Point
+import           ADP.Fusion.PointL
 import           Data.PrimitiveArray as PA hiding (map,toList)
 
 import           FormalLanguage.CFG

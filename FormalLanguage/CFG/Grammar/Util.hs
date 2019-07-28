@@ -54,7 +54,7 @@ isSynTerm = allOf folded (\case (SynTerm _ _) -> True; _ -> False) . _getSymbolL
 -- | Epsilon-only symbols.
 
 isEpsilon :: Symbol -> Bool
-isEpsilon = allOf folded (\case Epsilon -> True; _ -> False) . _getSymbolList
+isEpsilon = allOf folded (\case Epsilon _ -> True; _ -> False) . _getSymbolList
 
 -- | Dimension of the grammar. Rather costly, because we check for dimensional
 -- consistency.

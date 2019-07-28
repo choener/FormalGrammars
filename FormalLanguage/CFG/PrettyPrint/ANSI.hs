@@ -57,7 +57,7 @@ steDoc :: SynTermEps -> Reader Grammar Doc
 steDoc (SynVar  n i s k) = indexDoc i >>= return . blue . (text (n^.getSteName) <>)
 steDoc (SynTerm n i    ) = indexDoc i >>= return . magenta . (text (n^.getSteName) <>)
 steDoc (Term    n i    ) = return . green . text $ n^.getSteName
-steDoc (Epsilon        ) = return . red   . text $ "ε"
+steDoc (Epsilon _      ) = return . red   . text $ "ε"
 steDoc (Deletion       ) = return . red   . text $ "-"
 
 indexDoc :: [Index] -> Reader Grammar Doc
