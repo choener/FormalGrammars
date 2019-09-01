@@ -17,6 +17,7 @@ import           Control.Lens hiding (Index, outside, indices, index)
 import           Control.Monad
 import           Control.Monad.State.Class (MonadState (..))
 import           Control.Monad.Trans.State.Strict hiding (get)
+import           Control.Monad.Trans.Class
 import           Data.ByteString.Char8 (pack)
 import           Data.Default
 import           Data.List (nub,genericIndex,mapAccumL)
@@ -405,12 +406,13 @@ newtype GrammarParser m a = GrammarParser { runGrammarParser :: StateT GrammarEn
   deriving
   ( Alternative
   , Applicative
+  , Monad
   , Functor
   , MonadPlus
-  , Monad
   , CharParsing
   , Parsing
   , MonadState GrammarEnv
+  , MonadTrans
   )
 
 instance (MonadPlus m, CharParsing m) => TokenParsing (GrammarParser m) where
