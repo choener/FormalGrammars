@@ -7,6 +7,7 @@ module FormalLanguage.CFG.Grammar.Types
   ) where
 
 import           Control.Lens hiding (Index,index)
+import           Data.Data (Data,Typeable)
 import           Data.Default
 import           Data.Map.Strict (Map)
 import           Data.Semigroup
@@ -14,14 +15,14 @@ import           Data.Set (Set)
 import           Data.String
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-import           Data.Data (Data,Typeable)
 
 import           ADP.Fusion.Core.Term.Epsilon (LocalGlobal(..))
 
 
 
 newtype IndexName = IndexName { _getIndexName :: String }
-  deriving (Show,Eq,Ord,IsString,Data,Typeable)
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (IsString)
 
 makeLenses ''IndexName
 
@@ -61,8 +62,9 @@ makeLenses ''Index
 
 -- | Newtype wrapper for symbol names.
 
-newtype SymbolName = SymbolName { _getSteName :: String }
-  deriving (Show,Eq,Ord,IsString,Data,Typeable)
+newtype SymbolName = SymbolName { _getSteName ∷ String }
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (IsString)
 
 makeLenses ''SymbolName
 
@@ -72,7 +74,8 @@ makeLenses ''SymbolName
 -- still have the same @SymbolName@ but different type and input!
 
 newtype Tape = Tape { _getTape :: Int }
-  deriving (Show,Eq,Ord,Enum,Num,Data,Typeable)
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (Enum,Num)
 
 makeLenses ''Tape
 
@@ -117,7 +120,8 @@ makePrisms ''SynTermEps
 -- over dimensional concatenation.
 
 newtype Symbol = Symbol { _getSymbolList :: [SynTermEps] }
-  deriving (Show,Eq,Ord,Monoid,Semigroup,Data,Typeable)
+  deriving stock (Show,Eq,Data,Typeable)
+  deriving newtype (Ord,Semigroup,Monoid)
 
 makeLenses ''Symbol
 
@@ -126,7 +130,8 @@ makeLenses ''Symbol
 -- | The name of an attribute function
 
 newtype AttributeFunction = Attr { _getAttr :: String }
-  deriving (Show,Eq,Ord,IsString,Data,Typeable)
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (IsString)
 
 makeLenses ''AttributeFunction
 

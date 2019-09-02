@@ -49,12 +49,12 @@ formalLanguage = QuasiQuoter
 
 -- |
 
-parseFormalLanguage :: GrammarParser Parser () -> String -> Q [Dec]
+parseFormalLanguage ∷ Parse' () -> String -> Q [Dec]
 parseFormalLanguage ps s = do
   loc <- location
   let (lpos,cpos) = loc_start loc
   -- let r = parseString ((evalStateT . runGrammarP) grammar def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
-  let r = parseString ((evalStateT . runGrammarParser) (parseEverything ps) def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
+  let r = parseString (evalStateT (parseEverything ps) def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
   case r of
     (Failure (ErrInfo f _)) -> do
       runIO . printDoc $ f

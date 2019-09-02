@@ -11,7 +11,7 @@ license:        GPL-3.0-only
 license-file:   LICENSE
 build-type:     Simple
 stability:      experimental
-tested-with:    GHC == 8.4.4
+tested-with:    GHC == 8.6.4
 synopsis:       (Context-free) grammars in formal language theory
 description:
                 <http://www.bioinf.uni-leipzig.de/Software/gADP/ generalized Algebraic Dynamic Programming>
@@ -98,6 +98,8 @@ common deps
                     , CPP
                     , DataKinds
                     , DeriveDataTypeable
+                    , DerivingStrategies
+                    , DerivingVia
                     , FlexibleContexts
                     , FlexibleInstances
                     , GeneralizedNewtypeDeriving
