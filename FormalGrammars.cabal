@@ -99,7 +99,6 @@ common deps
                     , DataKinds
                     , DeriveDataTypeable
                     , DerivingStrategies
-                    , DerivingVia
                     , FlexibleContexts
                     , FlexibleInstances
                     , GeneralizedNewtypeDeriving
