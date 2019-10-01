@@ -78,7 +78,7 @@ common deps
                , bytestring            >= 0.10
                , containers
                , data-default          >= 0.5
-               , HaTeX                 >= 3.16
+--               , HaTeX                 >= 3.16
                , lens                  >= 4.0
                , mtl                   >= 2.0
                , parsers               >= 0.12.5
@@ -140,7 +140,7 @@ library
     FormalLanguage.CFG.PrettyPrint
     FormalLanguage.CFG.PrettyPrint.ANSI
     FormalLanguage.CFG.PrettyPrint.Haskell
-    FormalLanguage.CFG.PrettyPrint.LaTeX
+--    FormalLanguage.CFG.PrettyPrint.LaTeX
     FormalLanguage.CFG.QQ
     FormalLanguage.CFG.TH
     FormalLanguage.CFG.TH.Internal
@@ -149,17 +149,17 @@ library
 
 -- A Simple pretty-printer for formal grammars.
 
-executable GrammarPP
-  import:
-    deps
-  build-depends: base
-               , cmdargs          >= 0.10
-               --
-               , FormalGrammars
-  hs-source-dirs:
-    src
-  main-is:
-    GrammarPP.hs
+--executable GrammarPP
+--  import:
+--    deps
+--  build-depends: base
+--               , cmdargs          >= 0.10
+--               --
+--               , FormalGrammars
+--  hs-source-dirs:
+--    src
+--  main-is:
+--    GrammarPP.hs
 
 
 
