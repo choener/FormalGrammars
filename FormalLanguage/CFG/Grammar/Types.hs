@@ -1,9 +1,13 @@
 
 -- | The data types that define a CFG.
 
-module FormalLanguage.CFG.Grammar.Types where
+module FormalLanguage.CFG.Grammar.Types
+  ( module FormalLanguage.CFG.Grammar.Types
+  , LocalGlobal(..)
+  ) where
 
 import           Control.Lens hiding (Index,index)
+import           Data.Data (Data,Typeable)
 import           Data.Default
 import           Data.Map.Strict (Map)
 import           Data.Semigroup
@@ -11,12 +15,14 @@ import           Data.Set (Set)
 import           Data.String
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-import           Data.Data (Data,Typeable)
+
+import           ADP.Fusion.Core.Term.Epsilon (LocalGlobal(..))
 
 
 
 newtype IndexName = IndexName { _getIndexName :: String }
-  deriving (Show,Eq,Ord,IsString,Data,Typeable)
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (IsString)
 
 makeLenses ''IndexName
 
@@ -56,8 +62,9 @@ makeLenses ''Index
 
 -- | Newtype wrapper for symbol names.
 
-newtype SymbolName = SymbolName { _getSteName :: String }
-  deriving (Show,Eq,Ord,IsString,Data,Typeable)
+newtype SymbolName = SymbolName { _getSteName ∷ String }
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (IsString)
 
 makeLenses ''SymbolName
 
@@ -67,7 +74,8 @@ makeLenses ''SymbolName
 -- still have the same @SymbolName@ but different type and input!
 
 newtype Tape = Tape { _getTape :: Int }
-  deriving (Show,Eq,Ord,Enum,Num,Data,Typeable)
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (Enum,Num)
 
 makeLenses ''Tape
 
@@ -100,7 +108,7 @@ data SynTermEps
   -- | Finally, a real epsilon. Again, these are somewhat regular terminal
   -- symbols, but it is important to be able to recognize these, when
   -- trying to create outside variants of our algorithms.
-  | Epsilon
+  | Epsilon LocalGlobal
   deriving (Show,Eq,Ord,Data,Typeable)
 
 makeLenses ''SynTermEps
@@ -112,7 +120,8 @@ makePrisms ''SynTermEps
 -- over dimensional concatenation.
 
 newtype Symbol = Symbol { _getSymbolList :: [SynTermEps] }
-  deriving (Show,Eq,Ord,Monoid,Semigroup,Data,Typeable)
+  deriving stock (Show,Eq,Data,Typeable)
+  deriving newtype (Ord,Semigroup,Monoid)
 
 makeLenses ''Symbol
 
@@ -121,7 +130,8 @@ makeLenses ''Symbol
 -- | The name of an attribute function
 
 newtype AttributeFunction = Attr { _getAttr :: String }
-  deriving (Show,Eq,Ord,IsString,Data,Typeable)
+  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving newtype (IsString)
 
 makeLenses ''AttributeFunction
 
@@ -140,10 +150,21 @@ makeLenses ''Rule
 
 
 
+-- | Indicate wether we are a handwritten @Inside@ grammar, or an @Outside@
+-- grammar derived @fromInside@.
+
 data DerivedGrammar
   = Inside
-  | Outside String
-  deriving (Show,Eq,Data,Typeable)
+  -- ^ Indicates being Inside
+  | Outside { _fromInside ∷ Grammar }
+  -- ^ Indicates being Outside, with original Inside
+  deriving (Show,Data,Typeable)
+
+instance Eq DerivedGrammar where
+  Inside == Inside = True
+  Inside == Outside _ = False
+  Outside _ == Inside = False
+  Outside x == Outside y = _grammarName x == _grammarName y
 
 isOutside (Outside _) = True
 isOutside _           = False
@@ -151,7 +172,7 @@ isOutside _           = False
 instance Default DerivedGrammar where
   def = Inside
 
-makeLenses ''DerivedGrammar
+
 
 -- | Complete descrition of a grammar. In principle it would be enough to hold
 -- @_rules@ and the @_start@ symbol name. We also store dimensionless names for
@@ -164,6 +185,10 @@ makeLenses ''DerivedGrammar
 -- can easily rename terminals.
 --
 -- TODO better way to handle indexed symbols?
+--
+-- TODO include "String" name to handle sharing signatures (and thereby
+-- algebras!). This makes sense only when sharing the more complex signature,
+-- until I start allowing signature merges.
 
 data Grammar = Grammar
   { _synvars      :: Map SymbolName SynTermEps
@@ -174,7 +199,7 @@ data Grammar = Grammar
   , _termvars     :: Map SymbolName SynTermEps
     -- ^ regular terminal symbols
   , _outside      :: DerivedGrammar
-    -- ^ Is this an automatically derived outside grammar
+    -- ^ Is this an automatically derived outside grammar, if so provide @fromInside@.
   , _rules        :: Set Rule
     -- ^ set of production rules
   , _start        :: Symbol
@@ -206,5 +231,6 @@ instance Default Grammar where
     , _write        = False
     }
 
+makeLenses ''DerivedGrammar
 makeLenses ''Grammar
 

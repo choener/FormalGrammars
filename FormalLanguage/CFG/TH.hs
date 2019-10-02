@@ -37,6 +37,7 @@ import qualified Data.Set as S
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 import qualified GHC.TypeLits as Kind
+import           Data.Foldable (toList)
 
 import           ADP.Fusion.Core ( (%), (|||), (...), (<<<) )
 import           Data.PrimitiveArray (Z(..), (:.)(..))
@@ -139,6 +140,7 @@ thCodeGen prefixLen g = do
 
 codeGen :: TQ [Dec]
 codeGen = do
+  g ← use qGrammar
   -- build up the terminal symbol lookup
   qTermAtomVarNames <~ M.fromList <$> dimensionalTermSymbNames
   qTermSymbExp      <~ M.fromList <$> (mapM grammarTermExpression =<< uniqueTerminalSymbols <$> use qGrammar)
@@ -152,28 +154,47 @@ codeGen = do
   gra <- grammar
   -- create inlining code
   inl <- use qGrammarName >>= \gname -> lift $ pragInlD gname Inline FunLike AllPhases
-  -- outside grammars use the inside signature?!
-  g <- use qGrammar
-  if False -- isOutside $ g^.outside -- considering to just use unsafeCoerce on inside algebras
-    then return [gra,inl]
-    else return [sig,gra,inl]
+  return $ toList sig ++ [gra,inl]
 
 -- | Create the signature. Will also set the signature name.
+--
+-- TODO check if signature has already been emitted (from inside, say). If so,
+-- don't do anything. This goes by signature name.
 
-signature :: TQ Dec
+signature :: TQ (Maybe Dec)
 signature = do
-  m         <- use qMTyName
-  x         <- use qElemTyName
-  r         <- use qRetTyName
-  termNames <- use qTermAtomTyNames
-  sigName   <- (mkName . ("Sig" ++)) <$> use (qGrammar.grammarName)
-  fs        <- use qAttribFuns
-  h         <- use qChoiceFun
-  qSigName .= sigName
-  lift $ dataD (cxt [])
-               sigName
-               (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
-               [recC sigName ((map return $ fs^..folded) ++ [return h])]
+  g ← use qGrammar
+  let gName = case g^.outside of
+                Inside → g^.grammarName
+                Outside gI → gI^.grammarName
+  -- we can not lookup signatures in the environment, because everything is emitted in one go...
+  -- hence we query the environment if such a signature has already been emitted...
+  -- lkupName ← lift $ lookupValueName ("Sig" ++ gName)
+  -- lift . runIO $ print (gName, lkupName)
+  -- case lkupName of
+  --   Just theName → do
+  --     qSigName .= theName
+  --     return Nothing
+  --   Nothing → do
+  case g^.outside of
+    Outside gI → do
+      lift . runIO $ putStrLn "WARNING: using workaround for Inside/Outside sharing which REQUIRES emitting the inside grammar!"
+      qSigName .= (mkName $ "Sig" ++ gI^.grammarName)
+      return Nothing
+    Inside → do
+      gType     ← use (qGrammar.outside)
+      m         <- use qMTyName
+      x         <- use qElemTyName
+      r         <- use qRetTyName
+      termNames <- use qTermAtomTyNames
+      sigName   <- (mkName . ("Sig" ++)) <$> use (qGrammar.grammarName)
+      fs        <- use qAttribFuns
+      h         <- use qChoiceFun
+      qSigName .= sigName
+      lift $ Just <$> dataD (cxt [])
+                   sigName
+                   (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
+                   [recC sigName ((map return $ fs^..folded) ++ [return h])]
 
 -- | The grammar requires three types of arguments. First we need to bind
 -- an algebra. Then we bind a list of non-terminals. Finally we bind a list
@@ -314,14 +335,15 @@ grammarTermExpression s = do
   let genType :: Int -> [SynTermEps] -> TypeQ
       genType tape z
         | [Deletion]      <- z = [t| () |]
-        | [Epsilon ]      <- z = [t| () |]
+        | [Epsilon _]     <- z = [t| () |]
         | [Term tnm tidx] <- z
         , Just v <- M.lookup (tnm^.getSteName,tape) ttypes = varT v -- single dimension only, set dim to 0
         | [Term tnm tidx] <- z = varT elemTyName
         | xs              <- z = foldl (\acc (tape',z) -> [t| $acc :. $(genType tape' [z]) |]) [t| Z |] (zip [0..] xs)
   let genSingleExp :: Int -> SynTermEps -> ExpQ
       genSingleExp _ Deletion = [| ADP.Deletion |]
-      genSingleExp _ Epsilon  = [| ADP.Epsilon  |]
+      genSingleExp _ (Epsilon Global) = [| ADP.Epsilon @Global |]
+      genSingleExp _ (Epsilon Local) = [| ADP.Epsilon @Local |]
       genSingleExp _ (((`M.lookup` synNames) . Symbol . (:[])) -> Just n) = error $ show n
       genSingleExp k (Term tnm tidx)
         | Just n <- M.lookup (tnm^.getSteName,k) tavn = varE n
@@ -333,7 +355,8 @@ grammarTermExpression s = do
   let genExp :: [SynTermEps] -> ExpQ
       genExp z
         | [Deletion]      <- z = [| ADP.Deletion |] -- TODO ???
-        | [Epsilon ]      <- z = [| ADP.Epsilon  |]
+        | [Epsilon Global]      <- z = [| ADP.Epsilon @Global |]
+        | [Epsilon Local]      <- z = [| ADP.Epsilon @Local |]
         | [Term tnm tidx] <- z
         , Just v <- M.lookup (tnm^.getSteName,0) tavn = varE v
         | xs              <- z = foldl (\acc (k,z) -> [| $acc ADP.:| $(genSingleExp k z) |])
@@ -418,7 +441,7 @@ attributeFunctionType r = do
                                       then attrFun
                                       else prefix ++ over _head toUpper attrFun
   tp <- lift $ foldr appT (varT elemTyName) $ map (appT arrowT . argument) $ r^.rhs
-  ns <- lift notStrict
+  ns <- lift $ bang noSourceUnpackedness noSourceStrictness
   return (f:fs, (nm,ns,tp))
 
 -- | Build the choice function. Basically @Stream m s -> m r@.
@@ -432,6 +455,6 @@ choiceFunction = do
   let rtrn = AppT (VarT mTyName) (VarT retTyName)
   prefix <- use qPrefix
   let hFun = if null prefix then "h" else prefix ++ "H"
-  ns <- lift notStrict
+  ns <- lift $ bang noSourceUnpackedness noSourceStrictness
   return (mkName hFun, ns, AppT args rtrn)
 
