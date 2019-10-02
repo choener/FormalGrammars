@@ -81,7 +81,8 @@ common deps
                , template-haskell
                , text                  >= 1.0
                , transformers          >= 0.3
-               , trifecta              >= 1.7.1.1
+-- trifecta switches from ansi-wl-pprint to pretty in v.2.1
+               , trifecta              >= 1.7.1.1   && < 2.1
                , unordered-containers  >= 0.2
                , vector                >= 0.10
                --
