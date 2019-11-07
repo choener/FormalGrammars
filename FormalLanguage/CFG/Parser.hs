@@ -387,7 +387,7 @@ expandIndexed r = do
 -- |
 
 type Parse m a = (TokenParsing m, MonadState GrammarEnv m, MonadPlus m) => m a
-type Parse' a = StateT GrammarEnv Parser a
+type Parse' a = StateT GrammarEnv P a
 
 -- |
 
