@@ -19,6 +19,7 @@ import           Control.Monad.State.Class (MonadState (..))
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State.Strict hiding (get)
 import           Data.ByteString.Char8 (pack)
+import           Data.Char (isSpace)
 import           Data.Data.Lens
 import           Data.Default
 import           Data.List (nub,genericIndex,mapAccumL)
@@ -67,11 +68,11 @@ instance Default GrammarEnv where
 
 test ∷ IO ()
 test = do
-  p ← parseFromFile (evalStateT (parseEverything empty) def{_verbose = True}) "./deps/FormalGrammars/tests/pseudo.gra"
+  p ← parseFromFile (runP $ evalStateT (parseEverything empty) def{_verbose = True}) "./deps/FormalGrammars/tests/pseudo.gra"
   print p
 
 
-parse = parseString (evalStateT (parseEverything empty) def) (Directed (pack "via QQ") (fromIntegral 0) 0 0 0)
+parse = parseString (runP $ evalStateT (parseEverything empty) def) (Directed (pack "via QQ") (fromIntegral 0) 0 0 0)
 
 -- | Parse everything in the grammar source. The additional argument, normally
 -- @empty :: Alternative f a@, allows for providing additional parsing
@@ -391,4 +392,19 @@ type Parse' a = StateT GrammarEnv Parser a
 -- |
 
 type Stately m a = (TokenParsing m, MonadState GrammarEnv m, MonadPlus m) => m a
+
+-- | This newtype wrapper around 'Parser' is only used so that we can have @TokenParsing P@ with
+-- Haskell-style comments.
+
+newtype P a = P { runP :: Parser a }
+  deriving newtype ( Functor, Applicative, Monad, MonadPlus, Alternative
+                   , Parsing, CharParsing, DeltaParsing
+                   )
+
+-- | This enables the haskell-style comments.
+
+instance TokenParsing P where
+  someSpace = buildSomeSpaceParser
+    (skipSome (satisfy isSpace))
+    haskellCommentStyle
 
