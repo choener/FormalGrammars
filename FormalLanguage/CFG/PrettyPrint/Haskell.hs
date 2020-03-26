@@ -11,10 +11,10 @@ import           Data.Function (on)
 import           Data.List (nub,sort,intersperse,nubBy,groupBy,foldl')
 import qualified Data.Set as S
 import           System.IO (stdout)
-import           Text.PrettyPrint.ANSI.Leijen
 import           Text.Printf
 import           Control.Arrow hiding ((<+>))
 import           Prelude hiding ((<$>))
+import           Data.Text.Prettyprint.Doc
 
 import FormalLanguage.CFG.Grammar
 import FormalLanguage.CFG.Parser
@@ -23,7 +23,7 @@ import FormalLanguage.CFG.Parser
 
 -- | Render grammar
 
-grammarHaskell :: Grammar -> Doc
+grammarHaskell :: Grammar -> Doc a
 grammarHaskell g = error "grammarHaskell" -- signatureD g <$> empty <$> grammarD g <$> empty <$> productD g
 
 

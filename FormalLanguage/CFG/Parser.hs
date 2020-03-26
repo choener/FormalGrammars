@@ -32,7 +32,6 @@ import qualified Data.HashSet as H
 import qualified Data.Map.Strict as M
 import qualified Data.Sequence as Seq
 import qualified Data.Set as S
-import qualified Text.PrettyPrint.ANSI.Leijen as AL
 import           System.IO.Unsafe (unsafePerformIO)
 import           Text.Parser.Token.Style
 import           Text.Printf
@@ -259,8 +258,9 @@ knownSynVar e = Symbol <$> do
   where sv = flip (<?>) "known syntactic variable" . try $ do
                s <- ident fgIdents
                l <- use (current . synvars . at s)
+               r <- use (current . synvars)
                case l of
-                Nothing -> fail "bla"
+                Nothing -> unexpected $ "Unknown SynVar! " ++ show (s,r)
                 Just (SynVar s' i' n' _) ->
                   do i <- option [] $ parseIndex e
                      return $ SynVar s i n' 0

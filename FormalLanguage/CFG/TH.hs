@@ -34,10 +34,11 @@ import           Language.Haskell.TH hiding (dataD)
 import           Language.Haskell.TH.Syntax hiding (lift)
 import qualified Data.Map as M
 import qualified Data.Set as S
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import           Text.Printf
 import qualified GHC.TypeLits as Kind
 import           Data.Foldable (toList)
+import Data.Text.Prettyprint.Doc.Render.Terminal
+import Data.Text.Prettyprint.Doc
 
 import           ADP.Fusion.Core ( (%), (|||), (...), (<<<) )
 import           Data.PrimitiveArray (Z(..), (:.)(..))
@@ -223,14 +224,14 @@ grammarArguments = do
   let ter = [ bangP $ varP t | t <- tavn^..folded ]
   --
   gname <- showName <$> use qGrammarName
-  let ppSynt [x] = PP.red $ PP.text x
-      ppSynt xs  = PP.list $ map (ppSynt . (:[])) xs
-      ppTerm (n,k) = PP.yellow . PP.text $ printf "%s,%d" n k
-      pp = PP.dullgreen $ PP.text (printf "%s $ALGEBRA" gname)
-      sy = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (runReader (mapM symbolDoc $ M.keys psyn) g)
-      iy = if M.null isyn then PP.text "" else PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (runReader (mapM symbolDoc $ M.keys isyn) g)
-      te = PP.encloseSep (PP.text "   ") (PP.empty) (PP.text "  ") (map (\s -> ppTerm $ s)                      $ M.keys tavn)
-  lift . runIO . printDoc $ pp PP.<> sy PP.<> iy PP.<> te PP.<> PP.hardline
+  let ppSynt [x] = annotate (color Red) $ pretty x
+      ppSynt xs  = list $ map (ppSynt . (:[])) xs
+      ppTerm (n,k) = annotate (color Yellow) . pretty $ (printf "%s,%d" n k :: String)
+      pp = annotate (colorDull Green) $ pretty (printf "%s $ALGEBRA" gname :: String)
+      sy = encloseSep "   " mempty "  " (runReader (mapM symbolDoc $ M.keys psyn) g)
+      iy = if M.null isyn then "" else encloseSep "   " mempty "  " (runReader (mapM symbolDoc $ M.keys isyn) g)
+      te = encloseSep "   " mempty "  " (map (\s -> ppTerm $ s)                      $ M.keys tavn)
+  lift . runIO . printDoc $ pp <> sy <> iy <> te <> hardline
   return $ alg : syn ++ isn ++ ter
 
 -- | Fully apply each partial syntactic variable to the corresponding
