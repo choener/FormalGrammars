@@ -226,7 +226,7 @@ grammarArguments = do
   gname <- showName <$> use qGrammarName
   let ppSynt [x] = annotate (color Red) $ pretty x
       ppSynt xs  = list $ map (ppSynt . (:[])) xs
-      ppTerm (n,k) = annotate (color Yellow) . pretty $ (printf "%s,%d" n k :: String)
+      ppTerm (n,k) = {- annotate (color Yellow) . -} pretty $ (printf "%s,%d" n k :: String)
       pp = annotate (colorDull Green) $ pretty (printf "%s $ALGEBRA" gname :: String)
       sy = encloseSep "   " mempty "  " (runReader (mapM symbolDoc $ M.keys psyn) g)
       iy = if M.null isyn then "" else encloseSep "   " mempty "  " (runReader (mapM symbolDoc $ M.keys isyn) g)
