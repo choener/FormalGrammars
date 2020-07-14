@@ -14,39 +14,39 @@ module FormalLanguage.CFG.TH
   ( thCodeGen
   ) where
 
-import           Control.Applicative
-import           Control.Arrow ((&&&))
-import           Control.Exception (assert)
-import           Control.Lens hiding (Strict, (...), outside)
-import           Control.Monad
-import           Control.Monad.Reader
-import           Control.Monad.State.Strict as M
-import           Control.Monad.Trans.Class
-import           Data.Char (toUpper,toLower)
-import           Data.Default
-import           Data.Function (on)
-import           Data.List (intersperse,nub,nubBy,groupBy)
-import           Data.Maybe
-import           Data.Vector.Fusion.Stream.Monadic (Stream)
-import           Debug.Trace
-import           GHC.Exts (the)
-import           Language.Haskell.TH hiding (dataD)
-import           Language.Haskell.TH.Syntax hiding (lift)
+import Control.Applicative
+import Control.Arrow ((&&&))
+import Control.Exception (assert)
+import Control.Lens hiding (Strict, (...), outside)
+import Control.Monad
+import Control.Monad.Reader
+import Control.Monad.State.Strict as M
+import Control.Monad.Trans.Class
+import Data.Char (toUpper,toLower)
+import Data.Default
+import Data.Foldable (toList)
+import Data.Function (on)
+import Data.List (intersperse,nub,nubBy,groupBy)
+import Data.Maybe
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Terminal
+import Data.Vector.Fusion.Stream.Monadic (Stream)
+import Debug.Trace
+import GHC.Exts (the)
+import Language.Haskell.TH hiding (dataD)
+import Language.Haskell.TH.Syntax hiding (lift)
 import qualified Data.Map as M
 import qualified Data.Set as S
-import           Text.Printf
 import qualified GHC.TypeLits as Kind
-import           Data.Foldable (toList)
-import Data.Text.Prettyprint.Doc.Render.Terminal
-import Data.Text.Prettyprint.Doc
+import Text.Printf
 
-import           ADP.Fusion.Core ( (%), (|||), (...), (<<<) )
-import           Data.PrimitiveArray (Z(..), (:.)(..))
-import qualified ADP.Fusion.Core as ADP
+import ADPfusion.Core ( (%), (|||), (...), (<<<) )
+import Data.PrimitiveArray (Z(..), (:.)(..))
+import qualified ADPfusion.Core as ADP
 
-import           FormalLanguage.CFG.Grammar
-import           FormalLanguage.CFG.PrettyPrint.ANSI
-import           FormalLanguage.CFG.TH.Internal
+import FormalLanguage.CFG.Grammar
+import FormalLanguage.CFG.PrettyPrint.ANSI
+import FormalLanguage.CFG.TH.Internal
 
 
 

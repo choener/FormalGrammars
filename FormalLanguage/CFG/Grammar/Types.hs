@@ -16,7 +16,7 @@ import           Data.String
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
-import           ADP.Fusion.Core.Term.Epsilon (LocalGlobal(..))
+import           ADPfusion.Core.Term.Epsilon (LocalGlobal(..))
 
 
 

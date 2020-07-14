@@ -12,21 +12,18 @@ import Control.Monad hiding (mapM)
 import Control.Monad.Trans.State.Strict (evalStateT)
 import Data.ByteString.Char8 (pack)
 import Data.Default (def)
+import Data.Foldable (concat)
 import Data.List (nub)
 import Data.List (transpose,sort,group)
 import Data.Sequence (Seq)
+import Data.Traversable (mapM)
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
+import Prelude hiding (mapM,concat)
 import qualified Data.Sequence as Seq
 import Text.Trifecta.Delta (Delta (Directed))
 import Text.Trifecta (parseString,Parser)
 import Text.Trifecta.Result (Result (..), ErrInfo (..))
-
--- ghc 7.8 / 7.10 split
-
-import Data.Traversable (mapM)
-import Data.Foldable (concat)
-import Prelude hiding (mapM,concat)
 
 import FormalLanguage.CFG.Grammar
 import FormalLanguage.CFG.Outside
@@ -57,7 +54,7 @@ parseFormalLanguage ps s = do
   let r = parseString (runP $ evalStateT (parseEverything ps) def) (Directed (pack "via QQ") (fromIntegral lpos) 0 0 0) $ trim s
   case r of
     (Failure (ErrInfo f _)) -> do
-      runIO . printDoc $ f
+      runIO $ printDoc f
       error "aborting parseFormalLanguage"
     (Success g) -> do
       let l = uniquePrefixLength g

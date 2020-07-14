@@ -12,17 +12,17 @@ module FormalLanguage.CFG.PrettyPrint.ANSI
 --  ) where
   where
 
-import           Control.Lens hiding (outside,Index)
-import           Control.Monad.Reader
-import           Data.List (intersperse)
-import           Prelude hiding ((<$>))
+import Control.Lens hiding (outside,Index)
+import Control.Monad.Reader
+import Data.Char (toUpper)
+import Data.List (intersperse)
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Terminal
+import Prelude hiding ((<$>))
 import qualified Data.Map as M
 import qualified Data.Set as S
-import           System.IO (stdout)
-import           Data.Char (toUpper)
-import           Data.Text.Prettyprint.Doc
-import           Data.Text.Prettyprint.Doc.Render.Terminal
 import qualified Data.Text as T
+import System.IO (stdout)
 
 import FormalLanguage.CFG.Grammar
 
