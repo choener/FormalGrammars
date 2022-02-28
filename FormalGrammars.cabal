@@ -86,7 +86,7 @@ common deps
                , vector                       >= 0.10
                --
                , ADPfusion        == 0.6.0.*
-               , PrimitiveArray   == 0.10.0.*
+               , PrimitiveArray   == 0.10.2.*
   default-language:
     Haskell2010
   default-extensions: BangPatterns
