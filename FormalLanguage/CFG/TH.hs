@@ -194,7 +194,7 @@ signature = do
       qSigName .= sigName
       lift $ Just <$> dataD (cxt [])
                    sigName
-                   (PlainTV m : PlainTV x : PlainTV r : (map PlainTV $ termNames^..folded))
+                   (PlainTV m () : PlainTV x () : PlainTV r () : (map (`PlainTV` ()) $ termNames^..folded))
                    [recC sigName ((map return $ fs^..folded) ++ [return h])]
 
 -- | The grammar requires three types of arguments. First we need to bind

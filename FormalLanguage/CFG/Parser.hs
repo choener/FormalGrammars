@@ -326,7 +326,7 @@ knownSymbol e = try (knownSynVar e) <|> try (knownSynTerm e) <|> knownTermVar e
 
 -- |
 
-parseRule :: Parse m [Rule]
+parseRule :: (Applicative m, Monad m, TokenParsing m, MonadState GrammarEnv m, MonadPlus m) => m [Rule]
 parseRule = (expandIndexed =<< runUnlined rule) <* someSpace
   where rule  = Rule
               <$> knownSynVar EvalRule
@@ -353,18 +353,17 @@ updateSplitCounts = snd . mapAccumL go M.empty where
 -- indices in the rule, and enumerate over them. This will finally generate
 -- the set of rules we are interested in.
 
-expandIndexed :: Rule -> Parse m [Rule]
+expandIndexed :: forall m . (TokenParsing m, MonadState GrammarEnv m, MonadPlus m) => Rule -> m [Rule]
 expandIndexed r = do
   -- active index names
   let is :: [IndexName] = nub $ r ^.. biplate . indexName
   -- corresponding @Index@es
   js :: [Index] <- catMaybes <$> mapM (\i -> use (current . indices . at i)) is
-  --error $ show js
   if null js
     then return [r]
     else mapM go $ sequence $ map expand js
   where -- updates the indices in the rules accordingly
-        go :: [Index] -> Parse m Rule
+        go :: [Index] -> m Rule
         go ixs = foldM (\b a -> return $ b & biplate.index.traverse %~ changeIndex a) r ixs
         -- expands each index to all variants
         expand :: Index -> [Index]
