@@ -37,6 +37,7 @@ import           Text.Parser.Token.Style
 import           Text.Printf
 import           Text.Trifecta
 import           Text.Trifecta.Delta (Delta (Directed))
+import qualified Control.Effect.State as CE
 
 import           FormalLanguage.CFG.Grammar
 import           FormalLanguage.CFG.Outside
@@ -65,10 +66,10 @@ instance Default GrammarEnv where
                    }
 
 
-test ∷ IO ()
+test :: IO ()
 test = do
-  p ← parseFromFile (runP $ evalStateT (parseEverything empty) def{_verbose = True}) "./deps/FormalGrammars/tests/pseudo.gra"
-  print p
+  Just p <- parseFromFile (runP $ evalStateT (parseEverything empty) def{_verbose = True}) "./tests/pseudo.gra"
+  mapM_ print p
 
 
 parse = parseString (runP $ evalStateT (parseEverything empty) def) (Directed (pack "via QQ") (fromIntegral 0) 0 0 0)

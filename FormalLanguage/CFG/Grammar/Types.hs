@@ -15,6 +15,7 @@ import           Data.Set (Set)
 import           Data.String
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
+import           Text.Printf
 
 import           ADPfusion.Core.Term.Epsilon (LocalGlobal(..))
 
@@ -63,8 +64,11 @@ makeLenses ''Index
 -- | Newtype wrapper for symbol names.
 
 newtype SymbolName = SymbolName { _getSteName ∷ String }
-  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving stock (Eq,Ord,Data,Typeable)
   deriving newtype (IsString)
+
+instance Show SymbolName where
+  show = _getSteName
 
 makeLenses ''SymbolName
 
@@ -109,7 +113,14 @@ data SynTermEps
   -- symbols, but it is important to be able to recognize these, when
   -- trying to create outside variants of our algorithms.
   | Epsilon LocalGlobal
-  deriving (Show,Eq,Ord,Data,Typeable)
+  deriving (Eq,Ord,Data,Typeable)
+
+instance Show SynTermEps where
+  show (SynVar n i sn sk) = printf "SynVar %s %s %d %d" (show n) (show i) sn sk
+  show (SynTerm n i) = printf "SynTerm %s %s" (show n) (show i)
+  show (Term n i) = printf "Term %s %s" (show n) (show i)
+  show Deletion = "Deletion"
+  show (Epsilon lg) = printf "Epsilon %s" (show lg)
 
 makeLenses ''SynTermEps
 makePrisms ''SynTermEps
@@ -120,8 +131,11 @@ makePrisms ''SynTermEps
 -- over dimensional concatenation.
 
 newtype Symbol = Symbol { _getSymbolList :: [SynTermEps] }
-  deriving stock (Show,Eq,Data,Typeable)
+  deriving stock (Eq,Data,Typeable)
   deriving newtype (Ord,Semigroup,Monoid)
+
+instance Show Symbol where
+  show = show . _getSymbolList
 
 makeLenses ''Symbol
 
@@ -130,8 +144,11 @@ makeLenses ''Symbol
 -- | The name of an attribute function
 
 newtype AttributeFunction = Attr { _getAttr :: String }
-  deriving stock (Show,Eq,Ord,Data,Typeable)
+  deriving stock (Eq,Ord,Data,Typeable)
   deriving newtype (IsString)
+
+instance Show AttributeFunction where
+  show = _getAttr
 
 makeLenses ''AttributeFunction
 
@@ -144,7 +161,10 @@ data Rule = Rule
   , _attr :: [AttributeFunction]  -- ^ the attribute for this rule
   , _rhs  :: [Symbol]             -- ^ the right-hand side with a collection of terminals and syntactic variables
   }
-  deriving (Show,Eq,Ord,Data,Typeable)
+  deriving (Eq,Ord,Data,Typeable)
+
+instance Show Rule where
+  show (Rule lhs attr rhs) = printf "%s -> %s <<< %s" (show lhs) (show attr) (show rhs)
 
 makeLenses ''Rule
 

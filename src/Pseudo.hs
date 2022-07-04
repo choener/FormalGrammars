@@ -12,6 +12,7 @@ import           Language.Haskell.TH.Syntax
 import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
+import           System.Environment
 
 import           ADPfusion.Core
 import           Data.PrimitiveArray as PA hiding (map)
@@ -47,7 +48,7 @@ Emit: PKN
 
 makeAlgebraProduct ''SigPKN
 
-bpmax :: Monad m => SigPKN m Int Int Char
+bpmax :: Monad m => SigPKN m Int Int Char Char
 bpmax = SigPKN
   { unp = \ x c     -> x
   , jux = \ x c y d -> if c `pairs` d then x + y + 1 else -999999
@@ -76,7 +77,7 @@ pairs !c !d
 -- or something isomorphic. While [String] works, it allows for too many
 -- possibilities here! ([] ist lightweight, on the other hand ...)
 
-pretty :: Monad m => SigPKN m [String] [[String]] Char
+--pretty :: Monad m => SigPKN m [String] [[String]] Char
 pretty = SigPKN
   { unp = \ [x] c     -> [x ++ "."]
   , jux = \ [x] c [y] d -> [x ++ "(" ++ y ++ ")"]
@@ -103,34 +104,40 @@ runPseudoknot :: Int -> String -> (Int,[[String]])
 runPseudoknot k inp = (d, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
-  !(Z:.t:.u:.v) = runInsideForward i
+  Mutated (Z:.t:.u:.v) perf eachPerf = runInsideForward i
   d = unId $ axiom t
-  bs = runInsideBacktrack i (Z:.t:.u:.v)
+  bs = [] -- runInsideBacktrack i (Z:.t:.u:.v)
 {-# NOINLINE runPseudoknot #-}
 
-type X = ITbl Id Unboxed Subword Int
-type T = ITbl Id Unboxed (Z:.Subword:.Subword) Int
-
-runInsideForward :: VU.Vector Char -> Z:.X:.T:.T
-runInsideForward i = mutateTablesDefault
-                   $ gPKN bpmax
-                        (ITbl 0 0 EmptyOk (PA.fromAssocs (subword 0 0) (subword 0 n) (-666999) []))
-                        (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (-777999) []))
-                        (ITbl 0 0 (Z:.EmptyOk:.EmptyOk) (PA.fromAssocs (Z:.subword 0 0:.subword 0 0) (Z:.subword 0 n:.subword 0 n) (-888999) []))
-                        (chr i)
-  where n = VU.length i
+runInsideForward
+  :: VU.Vector Char
+  -> Mutated (Z
+                :.TwITbl 0 0 Id (Dense VU.Vector) EmptyOk               (Subword I)               Int
+                :.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.Subword I:.Subword I) Int
+                :.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.Subword I:.Subword I) Int
+             )
 {-# NoInline runInsideForward #-}
+runInsideForward i = runST $ do
+  let n = VU.length i
+--  arrS  <- newWithPA (LtSubword n)                    (-999999)
+--  arrUU <- newWithPA (ZZ:..LtSubword n:..LtSubword n) (-999999)
+--  arrVV <- newWithPA (ZZ:..LtSubword n:..LtSubword n) (-999999)
+  return undefined
+--  fillTables $ gPKN bpmax
+--    (ITbl @_ @_ @_ @_ @_ @_ EmptyOk               arrS)
+--    (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arrUU)
+--    (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arrVV)
+--    (chr i) (chr i)
 
-runInsideBacktrack :: VU.Vector Char -> Z:.X:.T:.T -> [[String]]
-runInsideBacktrack i (Z:.t:.u:.v) = unId $ axiom b
-  where !(Z:.b:._:._) = gPKN (bpmax <|| pretty)
-                          (toBacktrack t (undefined :: Id a -> Id a))
-                          (toBacktrack u (undefined :: Id a -> Id a))
-                          (toBacktrack v (undefined :: Id a -> Id a))
-                          (chr i)
-{-# NoInline runInsideBacktrack #-}
+--runInsideBacktrack :: VU.Vector Char -> Z:.X:.T:.T -> [[String]]
+--runInsideBacktrack i (Z:.t:.u:.v) = unId $ axiom b
+--  where !(Z:.b:._:._) = gPKN (bpmax <|| pretty)
+--                          (toBacktrack t (undefined :: Id a -> Id a))
+--                          (toBacktrack u (undefined :: Id a -> Id a))
+--                          (toBacktrack v (undefined :: Id a -> Id a))
+--                          (chr i)
+--{-# NoInline runInsideBacktrack #-}
 
-{-
 main = do
   as <- getArgs
   let k = if null as then 1 else read $ head as
@@ -140,6 +147,4 @@ main = do
     let (s,xs) = runPseudoknot k l
     print s
     mapM_ (\[x] -> printf "%s %5d\n" x s) xs
-
--}
 

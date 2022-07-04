@@ -73,6 +73,7 @@ common deps
                , containers
                , data-default                 >= 0.5
                , fused-effects
+               , fused-effects-lens
                , lens                         >= 4.0
                , mtl                          >= 2.0
                , parsers                      >= 0.12.5
