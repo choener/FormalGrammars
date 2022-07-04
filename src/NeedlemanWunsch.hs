@@ -17,7 +17,7 @@ import qualified Data.Vector.Unboxed as VU
 import           System.Environment (getArgs)
 import           Text.Printf
 
-import           ADP.Fusion.PointL
+import           ADPfusion.PointL
 import           Data.PrimitiveArray as PA hiding (map,toList)
 
 import           FormalLanguage.CFG
@@ -102,15 +102,14 @@ runNeedlemanWunschB k i1' i2' = (d, take k . unId $ axiom b, perf) where
 -- | Decoupling the forward phase for CORE observation.
 
 runNeedlemanWunschForward
-  ∷ Vector Char
-  → Vector Char
-  → Mutated (Z:.TwITbl _ _ Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.PointL I:.PointL I) Int)
+  :: Vector Char
+  -> Vector Char
+  -> Mutated (Z:.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.PointL I:.PointL I) Int)
 runNeedlemanWunschForward i1 i2 = runST $ do
-  arr ← newWithPA (ZZ:..LtPointL n1:..LtPointL n2) (-999999)
-  ts ← fillTables $ gGlobal score
-    (ITbl @0 @0 (Z:.EmptyOk:.EmptyOk) arr)
+  arr <- newWithPA (ZZ:..LtPointL n1:..LtPointL n2) (-999999)
+  fillTables $ gGlobal score
+    (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arr)
     (chr i1) (chr i2)
-  return ts
   where n1 = VU.length i1
         n2 = VU.length i2
 {-# NoInline runNeedlemanWunschForward #-}
@@ -118,15 +117,14 @@ runNeedlemanWunschForward i1 i2 = runST $ do
 -- | Decoupling the forward phase for CORE observation.
 
 runNeedlemanWunschBackward
-  ∷ Vector Char
-  → Vector Char
-  → Mutated (Z:.TwITbl _ _ Id Unboxed (Z:.EmptyOk:.EmptyOk) (Z:.PointL O:.PointL O) Int)
+  :: Vector Char
+  -> Vector Char
+  -> Mutated (Z:.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.PointL O:.PointL O) Int)
 runNeedlemanWunschBackward i1 i2 = runST $ do
-  arr ← newWithPA (ZZ:..LtPointL n1:..LtPointL n2) (-999999)
-  ts ← fillTables $ gLabolg score
-    (ITbl @0 @0 (Z:.EmptyOk:.EmptyOk) arr)
+  arr <- newWithPA (ZZ:..LtPointL n1:..LtPointL n2) (-999999)
+  fillTables $ gLabolg score
+    (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arr)
     (chr i1) (chr i2)
-  return ts
   where n1 = VU.length i1
         n2 = VU.length i2
 {-# NoInline runNeedlemanWunschBackward #-}

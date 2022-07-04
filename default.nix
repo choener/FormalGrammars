@@ -1,7 +1,7 @@
 { mkDerivation, ADPfusion, base, bytestring, containers
-, data-default, lens, lib, mtl, parsers, prettyprinter
-, prettyprinter-ansi-terminal, PrimitiveArray, semigroups
-, template-haskell, text, transformers, trifecta
+, data-default, fused-effects, lens, lib, mtl, parsers
+, prettyprinter, prettyprinter-ansi-terminal, PrimitiveArray
+, semigroups, template-haskell, text, transformers, trifecta
 , unordered-containers, vector
 }:
 mkDerivation {
@@ -9,16 +9,16 @@ mkDerivation {
   version = "0.4.0.0";
   src = ./.;
   libraryHaskellDepends = [
-    ADPfusion base bytestring containers data-default lens mtl parsers
-    prettyprinter prettyprinter-ansi-terminal PrimitiveArray semigroups
-    template-haskell text transformers trifecta unordered-containers
-    vector
+    ADPfusion base bytestring containers data-default fused-effects
+    lens mtl parsers prettyprinter prettyprinter-ansi-terminal
+    PrimitiveArray semigroups template-haskell text transformers
+    trifecta unordered-containers vector
   ];
   testHaskellDepends = [
-    ADPfusion base bytestring containers data-default lens mtl parsers
-    prettyprinter prettyprinter-ansi-terminal PrimitiveArray semigroups
-    template-haskell text transformers trifecta unordered-containers
-    vector
+    ADPfusion base bytestring containers data-default fused-effects
+    lens mtl parsers prettyprinter prettyprinter-ansi-terminal
+    PrimitiveArray semigroups template-haskell text transformers
+    trifecta unordered-containers vector
   ];
   homepage = "https://github.com/choener/FormalGrammars";
   description = "(Context-free) grammars in formal language theory";
