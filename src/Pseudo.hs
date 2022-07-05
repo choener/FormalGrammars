@@ -29,19 +29,17 @@ Verbose
 Grammar: PKN
 N: S
 N: <U,2>
-N: <V,2>
 T: c
 S: S
 S -> unp <<< S c
-S -> jux <<< S c S c
 S -> nil <<< e
-S -> pse <<< U V U V
+S -> pse <<< U U
 
-<U,U> -> pk1 <<< [S,-] [c,-] <U,U> [-,S] [-,c]
-<U,U> -> nll <<< [e,e]
+-- <U,U> -> pk1 <<< <U,U> [-,S] [-,c]
+-- <U,U> -> pk2 <<< <U,U> [S,-] [c,-]
+[U,U] -> pk3 <<< [S,-] [-,S] [c,c]  -- TODO want to be able to write [S,S], but [S,-] [-,S] works as well
+[U,U] -> nll <<< [e,e]
 
-<V,V> -> pk2 <<< [S,-] [c,-] <V,V> [-,S] [-,c]
-<V,V> -> nll <<< [e,e]
 //
 Emit: PKN
 |]
@@ -51,83 +49,40 @@ makeAlgebraProduct ''SigPKN
 bpmax :: Monad m => SigPKN m Int Int Char Char
 bpmax = SigPKN
   { unp = \ x c     -> x
-  , jux = \ x c y d -> if c `pairs` d then x + y + 1 else -999999
-  , pse = \ () () x y -> x + y
+  , pse = \ () x    -> x
   , nil = \ ()      -> 0
-  , pk1 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if (a `pairs` b || a == 'N' && b == 'M') then x + y + z + 1 else -888888
-  , pk2 = \ (Z:.x:.()) (Z:.a:.()) y (Z:.():.z) (Z:.():.b) -> if (a `pairs` b || a == 'N' && b == 'M') then x + y + z + 1 else -888888
+  , pk3 = \ (Z:.s:._) (Z:._:.t) (Z:.a:.b) -> s + t
   , nll = \ (Z:.():.()) -> 0
   , h   = SM.foldl' max (-999999)
   }
 {-# INLINE bpmax #-}
 
-pairs !c !d
-  =  c=='A' && d=='U'
-  || c=='C' && d=='G'
-  || c=='G' && d=='C'
-  || c=='G' && d=='U'
-  || c=='U' && d=='A'
-  || c=='U' && d=='G'
-{-# INLINE pairs #-}
 
--- |
---
--- TODO It could be beneficial to introduce
--- @type Splitted = Either String (String,String)@
--- or something isomorphic. While [String] works, it allows for too many
--- possibilities here! ([] ist lightweight, on the other hand ...)
-
---pretty :: Monad m => SigPKN m [String] [[String]] Char
-pretty = SigPKN
-  { unp = \ [x] c     -> [x ++ "."]
-  , jux = \ [x] c [y] d -> [x ++ "(" ++ y ++ ")"]
-  , pse = \ () () [x1,x2] [y1,y2] -> [x1 ++ y1 ++ x2 ++ y2]
-  , nil = \ ()      -> [""]
-  , pk1 = \ (Z:.[x]:.()) (Z:.a:.()) [y1,y2] (Z:.():.[z]) (Z:.():.b) -> [x ++ "[" ++ y1 , y2 ++ z ++ "]"]
-  , pk2 = \ (Z:.[x]:.()) (Z:.a:.()) [y1,y2] (Z:.():.[z]) (Z:.():.b) -> [x ++ "{" ++ y1 , y2 ++ z ++ "}"]
-  , nll = \ (Z:.():.()) -> ["",""]
-  , h   = SM.toList
-  }
-{-# INLINE pretty #-}
-
--- |
---
--- @
--- [{]}(())
--- caguagcu
--- [ ]
---  { }
---     (())
--- @
 
 runPseudoknot :: Int -> String -> (Int,[[String]])
 runPseudoknot k inp = (d, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
-  Mutated (Z:.t:.u:.v) perf eachPerf = runInsideForward i
-  d = unId $ axiom t
+  Mutated (Z:.s:.u) perf eachPerf = runInsideForward i
+  d = unId $ axiom s
   bs = [] -- runInsideBacktrack i (Z:.t:.u:.v)
 {-# NOINLINE runPseudoknot #-}
 
 runInsideForward
   :: VU.Vector Char
   -> Mutated (Z
-                :.TwITbl 0 0 Id (Dense VU.Vector) EmptyOk               (Subword I)               Int
-                :.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.Subword I:.Subword I) Int
-                :.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.Subword I:.Subword I) Int
+                :.TwITbl 0 0 Id (Dense VU.Vector) EmptyOk               (PointL I)              Int
+                :.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.PointL I:.PointL I) Int
              )
 {-# NoInline runInsideForward #-}
 runInsideForward i = runST $ do
   let n = VU.length i
---  arrS  <- newWithPA (LtSubword n)                    (-999999)
---  arrUU <- newWithPA (ZZ:..LtSubword n:..LtSubword n) (-999999)
---  arrVV <- newWithPA (ZZ:..LtSubword n:..LtSubword n) (-999999)
-  return undefined
---  fillTables $ gPKN bpmax
---    (ITbl @_ @_ @_ @_ @_ @_ EmptyOk               arrS)
---    (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arrUU)
---    (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arrVV)
---    (chr i) (chr i)
+  arrS  <- newWithPA (LtPointL n)                   (-999999)
+  arrUU <- newWithPA (ZZ:..LtPointL n:..LtPointL n) (-999999)
+  fillTables $ gPKN bpmax
+    (ITbl @_ @_ @_ @_ @_ @_ EmptyOk               arrS)
+    (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arrUU)
+    (chr i) (chr i)
 
 --runInsideBacktrack :: VU.Vector Char -> Z:.X:.T:.T -> [[String]]
 --runInsideBacktrack i (Z:.t:.u:.v) = unId $ axiom b
