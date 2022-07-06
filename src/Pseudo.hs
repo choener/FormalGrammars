@@ -51,10 +51,10 @@ bpmax :: Monad m => SigPKN m Int Int Char Char
 bpmax = SigPKN
   { unp = \ x c     -> x
   , pse = \ () x    -> x
-  , nil = \ ()      -> 0
-  , pk3 = \ (Z:.s:._) (Z:._:.t) (Z:.a:.b) -> s + t
-  , nll = \ (Z:.():.()) -> 0
-  , h   = SM.foldl' max (-999999)
+  , nil = \ ()      -> 1
+  , pk3 = \ (Z:.s:._) (Z:._:.t) (Z:.a:.b) -> s * t
+  , nll = \ (Z:.():.()) -> 1
+  , h   = SM.foldl' (+) 0
   }
 {-# INLINE bpmax #-}
 
@@ -78,9 +78,10 @@ runInsideForward
 {-# NoInline runInsideForward #-}
 runInsideForward i = runST $ do
   let n = VU.length i
-  arrS  <- newWithPA (LtPointL n)                   (-999999)
-  arrUU <- newWithPA (ZZ:..LtPointL n:..LtPointL n) (-999999)
-  fillTables $ gPKN bpmax
+  arrS  <- newWithPA (LtPointL n)                   0
+  arrUU <- newWithPA (ZZ:..LtPointL n:..LtPointL n) 0
+  let guideIndex = Z:. BOI @0 (upperBound arrUU)
+  fillTablesDim guideIndex $ gPKN bpmax
     (ITbl @_ @_ @_ @_ @_ @_ EmptyOk               arrS)
     (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arrUU)
     (chr i) (chr i)
