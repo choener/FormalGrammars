@@ -15,6 +15,7 @@ import           Text.Printf
 import           System.Environment
 
 import           ADPfusion.Core
+import           ADPfusion.PointL
 import           Data.PrimitiveArray as PA hiding (map)
 
 import           FormalLanguage
