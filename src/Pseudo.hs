@@ -13,6 +13,7 @@ import qualified Data.Vector.Fusion.Stream.Monadic as SM
 import qualified Data.Vector.Unboxed as VU
 import           Text.Printf
 import           System.Environment
+import           Debug.Trace (traceShow)
 
 import           ADPfusion.Core
 import           ADPfusion.PointL
@@ -61,7 +62,7 @@ bpmax = SigPKN
 
 
 runPseudoknot :: Int -> String -> (Int,[[String]])
-runPseudoknot k inp = (d, take k bs) where
+runPseudoknot k inp = traceShow (perf, eachPerf) (d, take k bs) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   Mutated (Z:.s:.u) perf eachPerf = runInsideForward i
