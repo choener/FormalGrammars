@@ -266,11 +266,11 @@ grammarBodySyn (s,n) = do
   partial <- use qPartialSyntVarNames
   ix <- lift $ newName "ix"
   -- all rules that have @s@ on the left-hand side
-  fs <- (filter ((s==) . _lhs) . S.elems) <$> use (qGrammar.rules)
+  fs <- filter ((s==) . _lhs) . S.elems <$> use (qGrammar.rules)
   rs <- mapM grammarBodyRHS fs
   let rhs = assert (not $ null rs) $
-            appE ( uInfixE (foldl1 (\acc z -> uInfixE acc (varE '(|||)) z) rs)
-                           (varE '(...))
+            appE ( uInfixE (foldl1 (\acc z -> uInfixE acc [| (|||) |] z) rs)
+                           [| (...) |]
                            (varE hname) )
                  (varE ix)
   let sname = M.findWithDefault (error $ "grammarBodySyn: name not found for: " ++ show s) s partial
@@ -290,14 +290,14 @@ grammarBodyRHS (Rule _ f rs) = do
   synNames     <- use qFullSyntVarNames -- just the name of the fully applied symbol
   synTermNames <- use qInsideSyntVarNames
   let fragmentSynVar :: Symbol -> Maybe Name
-      fragmentSynVar s@(Symbol [SynVar _ _ n k]) | n>1 && k<n = M.lookup (splitToFull s) synNames
+      fragmentSynVar s@(view getSymbolList -> [SynVar _ _ n k]) | n>1 && k<n = M.lookup (splitToFull s) synNames
       fragmentSynVar _ = Nothing
   let finalSynVar :: Symbol -> Maybe Name
-      finalSynVar s@(Symbol [SynVar _ _ n k]) | n>1 && k==n = M.lookup (splitToFull s) synNames
+      finalSynVar s@(view getSymbolList -> [SynVar _ _ n k]) | n>1 && k==n = M.lookup (splitToFull s) synNames
       finalSynVar _ = Nothing
   let genSymbol :: Symbol -> ExpQ
       -- | If, for whatever reason, we have an empty symbol
-      genSymbol (Symbol []) = error "empty genSymbol"
+      genSymbol (_getSymbolList -> []) = error "empty genSymbol"
       -- | if we deal with terminals
       genSymbol ((`M.lookup` terms) -> Just (_,v)) = return v
       -- | if we deal with usual syntactic vars
@@ -313,7 +313,7 @@ grammarBodyRHS (Rule _ f rs) = do
         | isSynStacked s = foldl go [|ADP.M|] $ _getSymbolList s
         where go acc Deletion = [| $(acc) ADP.:| ADP.Deletion |]
               go acc sv
-                | Just n <- M.lookup (Symbol [sv]) synNames = [| $(acc) ADP.:| $(varE n) |]
+                | Just n <- M.lookup (SynLike [sv]) synNames = [| $(acc) ADP.:| $(varE n) |]
                 | otherwise = error $ "genSymbol:stacked: " ++ show (s,synTermNames)
       -- | catch-all error
       genSymbol s = error $ "genSymbol: " ++ show s
@@ -345,7 +345,7 @@ grammarTermExpression s = do
       genSingleExp _ Deletion = [| ADP.Deletion |]
       genSingleExp _ (Epsilon Global) = [| ADP.Epsilon @Global |]
       genSingleExp _ (Epsilon Local) = [| ADP.Epsilon @Local |]
-      genSingleExp _ (((`M.lookup` synNames) . Symbol . (:[])) -> Just n) = error $ show n
+      genSingleExp _ (((`M.lookup` synNames) . SynLike . (:[])) -> Just n) = error $ show n
       genSingleExp k (Term tnm tidx)
         | Just n <- M.lookup (tnm^.getSteName,k) tavn = varE n
         -- TODO this one is dangerous but currently necessary for split
@@ -425,13 +425,13 @@ attributeFunctionType r = do
       argument s
         -- split stuff has @()@ arg type
         | isSyntactic s
-        , (Symbol [SynVar _ _ n k]) <- s
+        , (SynLike [SynVar _ _ n k]) <- s
         , n>1 && k<n   = [t| () |]
         | isSyntactic s  = varT elemTyName
         | isSynTerm   s  = varT elemTyName
         | isTerminal  s  = return . fst $ terminal  M.! s
         | isSynStacked s = let go :: TypeQ -> SynTermEps -> TypeQ
-                               go t Deletion = [t| $(t) :. () |]
+                               go t Deletion = [t| $t :. () |]
                                go t SynVar{} = [t| $(t) :. $(varT elemTyName) |]
                                go t sv = error $ show sv
                            in  foldl go [t|Z|] $ _getSymbolList s

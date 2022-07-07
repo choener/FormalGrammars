@@ -1,4 +1,16 @@
 
+{-# Options_GHC -fdicts-cheap                  #-}
+{-# Options_GHC -flate-dmd-anal                #-}
+{-# Options_GHC -fno-liberate-case             #-}
+{-# Options_GHC -fspec-constr-count=20000      #-}
+{-# Options_GHC -fspec-constr-keen             #-}
+{-# Options_GHC -fspec-constr-recursive=20000  #-}
+
+-- Again, it is very important to have no full laziness. With this option we go from 80
+-- Megacells/sec to 344 Megacells/sec.
+
+{-# Options_GHC -fno-full-laziness             #-}
+
 module Main where
 
 import           Control.Applicative
@@ -37,10 +49,11 @@ S -> unp <<< S c
 S -> nil <<< e
 S -> pse <<< U U
 
--- <U,U> -> pk1 <<< <U,U> [-,S] [-,c]
--- <U,U> -> pk2 <<< <U,U> [S,-] [c,-]
-[U,U] -> pk3 <<< [S,-] [-,S] [c,c]  -- TODO want to be able to write [S,S], but [S,-] [-,S] works as well
-[U,U] -> nll <<< [e,e]
+-- because [S,S] is wrapped in square brackets, it is interpreted as a terminal stack, hence we can
+-- access the individual "skalar" @S@ symbols, without it turning into an errorneous 2-dim syntactic
+-- variable
+<U,U> -> pk3 <<< [S,S] [c,c]
+<U,U> -> nll <<< [e,e]
 
 //
 Emit: PKN
@@ -49,26 +62,29 @@ Emit: PKN
 makeAlgebraProduct ''SigPKN
 
 bpmax :: Monad m => SigPKN m Int Int Char Char
+--{{{
+{-# INLINE bpmax #-}
 bpmax = SigPKN
   { unp = \ x c     -> x
   , pse = \ () x    -> x
   , nil = \ ()      -> 1
-  , pk3 = \ (Z:.s:._) (Z:._:.t) (Z:.a:.b) -> s * t
+  , pk3 = \ (Z:.s:.t) (Z:.a:.b) -> s + t
   , nll = \ (Z:.():.()) -> 1
   , h   = SM.foldl' (+) 0
   }
-{-# INLINE bpmax #-}
+--}}}
 
 
-
-runPseudoknot :: Int -> String -> (Int,[[String]])
-runPseudoknot k inp = traceShow (perf, eachPerf) (d, take k bs) where
+runPseudoknot :: Int -> String -> (Int,[[String]],String,[String])
+--{{{
+runPseudoknot k inp = (d, take k bs, showPerfCounter perf,map showPerfCounter eachPerf) where
   i = VU.fromList . Prelude.map toUpper $ inp
   n = VU.length i
   Mutated (Z:.s:.u) perf eachPerf = runInsideForward i
   d = unId $ axiom s
   bs = [] -- runInsideBacktrack i (Z:.t:.u:.v)
 {-# NOINLINE runPseudoknot #-}
+--}}}
 
 runInsideForward
   :: VU.Vector Char
@@ -76,6 +92,7 @@ runInsideForward
                 :.TwITbl 0 0 Id (Dense VU.Vector) EmptyOk               (PointL I)              Int
                 :.TwITbl 0 0 Id (Dense VU.Vector) (Z:.EmptyOk:.EmptyOk) (Z:.PointL I:.PointL I) Int
              )
+--{{{
 {-# NoInline runInsideForward #-}
 runInsideForward i = runST $ do
   let n = VU.length i
@@ -86,6 +103,7 @@ runInsideForward i = runST $ do
     (ITbl @_ @_ @_ @_ @_ @_ EmptyOk               arrS)
     (ITbl @_ @_ @_ @_ @_ @_ (Z:.EmptyOk:.EmptyOk) arrUU)
     (chr i) (chr i)
+--}}}
 
 --runInsideBacktrack :: VU.Vector Char -> Z:.X:.T:.T -> [[String]]
 --runInsideBacktrack i (Z:.t:.u:.v) = unId $ axiom b
@@ -96,13 +114,17 @@ runInsideForward i = runST $ do
 --                          (chr i)
 --{-# NoInline runInsideBacktrack #-}
 
+main :: IO ()
+--{{{
 main = do
   as <- getArgs
   let k = if null as then 1 else read $ head as
   ls <- lines <$> getContents
   forM_ ls $ \l -> do
     putStrLn l
-    let (s,xs) = runPseudoknot k l
+    let (s,xs,sp,sps) = runPseudoknot k l
     print s
+    print sp
     mapM_ (\[x] -> printf "%s %5d\n" x s) xs
+--}}}
 

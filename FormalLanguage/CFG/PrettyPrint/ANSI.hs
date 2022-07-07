@@ -12,6 +12,7 @@ import Control.Monad.Reader
 import Data.Char (toUpper)
 import Data.List (intersperse)
 import Prelude hiding ((<$>))
+import qualified Prelude as P
 import Prettyprinter
 import Prettyprinter.Render.Terminal
 import Prettyprinter.Util
@@ -70,11 +71,11 @@ indexDoc xs = fmap (encloseSep lbrace rbrace comma) . mapM iDoc $ xs
                | s< 0 = pretty s
 
 symbolDoc :: Symbol -> Reader Grammar (Doc AnsiStyle)
-symbolDoc (Symbol [x])
+symbolDoc (view getSymbolList -> [x])
   | SynVar _ _ n k <- x
-  , n > 1        = fmap (<> "_" <> pretty k) $ steDoc x
+  , n > 1        = (<> "_" <> pretty k) P.<$> steDoc x
   | otherwise    = steDoc x
-symbolDoc s@(Symbol xs )
+symbolDoc s@(view getSymbolList -> xs)
   | isAllSplit s = fmap (encloseSep langle rangle comma) . mapM steDoc $ xs
   | otherwise    = fmap list . mapM steDoc $ xs
 

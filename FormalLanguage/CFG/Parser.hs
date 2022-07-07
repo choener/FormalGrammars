@@ -251,11 +251,12 @@ data EvalReq
   -- | Happens when we define grammar-global parameters
   | EvalGrammar
 
--- |
+-- | This function parses multidimensional syntactic variables. We only allow angled brackets from
+-- now on, or a single syntactic variable without brackets around it.
 
 knownSynVar :: EvalReq -> Stately m Symbol
-knownSynVar e = Symbol <$> do
-  ((:[]) <$> sv) <|> (brackets $ commaSep sv) <|> (angles $ commaSep sv)
+knownSynVar e = SynLike <$> do
+  ((:[]) <$> sv) <|> angles (commaSep sv)
   where sv = flip (<?>) "known syntactic variable" . try $ do
                s <- ident fgIdents
                l <- use (current . synvars . at s)
@@ -269,8 +270,8 @@ knownSynVar e = Symbol <$> do
 -- |
 
 knownSynTerm :: EvalReq -> Stately m Symbol
-knownSynTerm e = Symbol <$> do
-  ((:[]) <$> sv) <|> (brackets $ commaSep sv)
+knownSynTerm e = SynLike <$> do
+  ((:[]) <$> sv) <|> (angles $ commaSep sv)
   where sv = flip (<?>) "known syntactic terminal" . try $ do
                s <- ident fgIdents
                use (current . synterms . at s) >>= guard . isJust
@@ -302,7 +303,7 @@ parseIndex e = concat <$> (braces . commaSep $ ix e) where
 -- |
 
 knownTermVar :: EvalReq -> Stately m Symbol
-knownTermVar e = Symbol <$> do
+knownTermVar e = TermLike <$> do
   ((:[]) <$> (eps <|> tv)) <|> (brackets $ commaSep (del <|> eps <|> loc <|> tv))
   where tv = flip (<?>) "known terminal variable" . try $ do
                i <- ident fgIdents
@@ -345,9 +346,9 @@ parseRule = (expandIndexed =<< runUnlined rule) <* someSpace
 
 updateSplitCounts :: [Symbol] -> [Symbol]
 updateSplitCounts = snd . mapAccumL go M.empty where
-  go m (Symbol [SynVar s i n k])
+  go m (SynLike [SynVar s i n k])
     | n > 1                      = let o = M.findWithDefault 0 (s,i) m + 1
-                                   in  (M.insert (s,i) o m, Symbol [SynVar s i n o])
+                                   in  (M.insert (s,i) o m, SynLike [SynVar s i n o])
   go m s                         = (m,s)
 
 -- | Once we have parsed a rule, we still need to extract all active

@@ -24,12 +24,14 @@ isBindableTerminal = allOf folded (\case (Term _ _) -> True; _ -> False) . _getS
 -- | Only @SynVar@s are non-terminal.
 
 isSyntactic :: Symbol -> Bool
-isSyntactic = allOf folded (\case SynVar{} -> True; _ -> False) . _getSymbolList
+isSyntactic (SynLike ss) = allOf folded (\case SynVar{} -> True; _ -> False) ss
+isSyntactic _ = False
 
 -- | special case of single-tape synvar in multi-tape setting
 
 isSynStacked :: Symbol -> Bool
-isSynStacked = allOf folded (\case SynVar{} -> True; Deletion -> True; _ -> False) . _getSymbolList
+isSynStacked (TermLike ts) = allOf folded (\case SynVar{} -> True; Deletion -> True; _ -> False) ts
+isSynStacked _ = False
 
 -- | true if we have a split synvar
 
@@ -44,7 +46,7 @@ splitK0 = set (getSymbolList . traverse . splitK) 0
 -- | Take a split symbol and rewrite as full.
 
 splitToFull :: Symbol -> Symbol
-splitToFull (Symbol [SynVar s i n k]) = Symbol . genericReplicate n $ SynVar s i n 0
+splitToFull (SynLike [SynVar s i n k]) = SynLike . genericReplicate n $ SynVar s i n 0
 
 -- | Is this a syntactic terminal symbol?
 

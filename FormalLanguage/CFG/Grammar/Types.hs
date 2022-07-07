@@ -129,13 +129,19 @@ makePrisms ''SynTermEps
 
 -- | The length of the list encodes the dimension of the symbol. Forms a monoid
 -- over dimensional concatenation.
+--
+-- TODO This should split between symbol objects that are to be treated as "termina-style" and those
+-- to be treated as "syntactic"!
 
-newtype Symbol = Symbol { _getSymbolList :: [SynTermEps] }
-  deriving stock (Eq,Data,Typeable)
-  deriving newtype (Ord,Semigroup,Monoid)
+data Symbol
+  = SynLike { _getSymbolList :: [SynTermEps] }
+  | TermLike { _getSymbolList :: [SynTermEps] }
+  deriving stock (Eq,Ord,Data,Typeable)
+--  deriving (Ord,Semigroup,Monoid)
 
 instance Show Symbol where
-  show = show . _getSymbolList
+  show (SynLike ss) = "<"++show ss++">"
+  show (TermLike ss) = "["++show ss++"]"
 
 makeLenses ''Symbol
 
@@ -244,7 +250,7 @@ instance Default Grammar where
     , _termvars     = M.empty
     , _outside      = def
     , _rules        = S.empty
-    , _start        = mempty
+    , _start        = SynLike mempty
     , _params       = M.empty
     , _indices      = M.empty
     , _grammarName  = ""
